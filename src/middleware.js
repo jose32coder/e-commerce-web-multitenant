@@ -206,6 +206,20 @@ export async function middleware(req) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|public|favicon.ico|manifest.json|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|otf|mp4|webm|csv)$).*)",
+    /*
+     * Coincide con todas las rutas de solicitud excepto las que empiezan por:
+     * - api (rutas de API)
+     * - _next/static (archivos estáticos)
+     * - _next/image (optimización de imágenes)
+     * - favicon.ico, sitemap.xml, robots.txt, etc.
+     */
+    {
+      source:
+        "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|otf|mp4|webm|csv)$).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
   ],
 };

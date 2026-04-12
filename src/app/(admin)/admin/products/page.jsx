@@ -38,9 +38,7 @@ export default function ProductsPage() {
     try {
       setLoading(true);
 
-      let query = supabase
-        .from("products")
-        .select(`
+      let query = supabase.from("products").select(`
           *,
           product_variants(*),
           product_stock(quantity),
@@ -61,7 +59,9 @@ export default function ProductsPage() {
         const stockObj = Array.isArray(product.product_stock)
           ? product.product_stock[0]
           : product.product_stock;
-        const categoryIds = (product.product_categories || []).map((pc) => pc.category_id);
+        const categoryIds = (product.product_categories || []).map(
+          (pc) => pc.category_id,
+        );
         const categoryNames = (product.product_categories || [])
           .map((pc) => pc.categories?.name)
           .filter(Boolean);
@@ -70,7 +70,8 @@ export default function ProductsPage() {
           stock: stockObj?.quantity ?? 0,
           variants: (product.product_variants || []).map((v) => ({
             ...v,
-            price_adjustment: Number(v.price_adjustment ?? v.price_override ?? 0) || 0,
+            price_adjustment:
+              Number(v.price_adjustment ?? v.price_override ?? 0) || 0,
             stock_quantity: Number(v.stock_quantity ?? 0) || 0,
           })),
           category_ids: categoryIds,
