@@ -17,6 +17,8 @@ import {
   Flower2,
   Plus,
   Save,
+  Heart,
+  Computer,
   Info,
 } from "lucide-react";
 import {
@@ -34,7 +36,7 @@ const STORE_TYPES = [
   },
   {
     id: "hardware_store",
-    name: "Ferretería",
+    name: "Tecnologia",
     icon: <Wrench size={20} />,
     color: "bg-orange-500",
   },
@@ -49,6 +51,18 @@ const STORE_TYPES = [
     name: "Floristería",
     icon: <Flower2 size={20} />,
     color: "bg-green-500",
+  },
+  {
+    id: "medical_center",
+    name: "Salud",
+    icon: <Heart size={20} />,
+    color: "bg-red-500",
+  },
+  {
+    id: "tech_store",
+    name: "Tecnologia",
+    icon: <Computer size={20} />,
+    color: "bg-blue-500",
   },
 ];
 
