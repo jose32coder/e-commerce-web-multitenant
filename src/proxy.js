@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
+// --- CONFIGURACIÓN DE RATE LIMIT ---
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
 const RATE_LIMIT_BLOCK_SECONDS = Math.ceil(RATE_LIMIT_WINDOW_MS / 1000);
@@ -30,6 +31,7 @@ const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || "")
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
 
+// --- UTILIDADES ---
 const getClientIp = (req) => {
   const forwardedFor = req.headers.get("x-forwarded-for");
   if (forwardedFor) return forwardedFor.split(",")[0].trim();
@@ -52,14 +54,6 @@ const shouldRateLimitPath = (pathname) =>
   pathname.startsWith("/tenants") ||
   pathname.includes("/checkout");
 
-const hasPlatformScopeInMetadata = (user) => {
-  const scopeFromUserMetadata = user?.user_metadata?.access_scope;
-  const scopeFromAppMetadata = user?.app_metadata?.access_scope;
-  return (
-    scopeFromUserMetadata === "platform" || scopeFromAppMetadata === "platform"
-  );
-};
-
 const isPlatformAdminEmail = (email) => {
   if (!email || PLATFORM_ADMIN_EMAILS.length === 0) return false;
   return PLATFORM_ADMIN_EMAILS.includes(String(email).toLowerCase());
@@ -75,9 +69,8 @@ const isPlatformAreaPath = (pathname) =>
   pathname.startsWith("/tenants") && pathname !== PLATFORM_LOGIN_PATH;
 
 const resolveStorageKeyForPath = (pathname) => {
-  if (pathname === PLATFORM_LOGIN_PATH) return PLATFORM_STORAGE_KEY;
-  if (pathname === ADMIN_LOGIN_PATH) return ADMIN_STORAGE_KEY;
-  if (isPlatformAreaPath(pathname)) return PLATFORM_STORAGE_KEY;
+  if (pathname === PLATFORM_LOGIN_PATH || isPlatformAreaPath(pathname))
+    return PLATFORM_STORAGE_KEY;
   return ADMIN_STORAGE_KEY;
 };
 
@@ -95,12 +88,10 @@ const getPortalContext = async (supabase, session) => {
     return { type: "platform", hasStaffProfile: false };
   }
 
-  // Verificamos si en los metadatos figura con rol de admin
   if (accessScope === "admin" || role === "admin" || appMeta.role === "admin") {
-    return { type: "admin", hasStaffProfile: true }; // Asumimos true por el scope resuelto
+    return { type: "admin", hasStaffProfile: true };
   }
 
-  // Fallback si no hay metadata válida aún (usuarios legacy necesitarán update)
   return { type: "unknown", hasStaffProfile: false };
 };
 
@@ -112,10 +103,12 @@ const applyRateLimit = (req) => {
   const tenantScope = resolveTenantScope(pathname);
   const key = `${tenantScope}:${ip}`;
   const current = rateLimitStore.get(key);
+
   if (!current || current.resetAt <= now) {
     rateLimitStore.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
     return null;
   }
+
   current.count += 1;
   if (current.count > RATE_LIMIT_MAX_REQUESTS) {
     const response = NextResponse.json(
@@ -128,18 +121,31 @@ const applyRateLimit = (req) => {
   return null;
 };
 
-export async function middleware(req) {
+// --- PROXY / MIDDLEWARE ---
+export async function proxy(req) {
   const rateLimitedResponse = applyRateLimit(req);
   if (rateLimitedResponse) return rateLimitedResponse;
+
+  const pathname = req.nextUrl.pathname;
+  const requiresAuthGuard =
+    isAdminAreaPath(pathname) ||
+    isPlatformAreaPath(pathname) ||
+    isAuthPath(pathname);
+
+  // Evita inicializar Supabase en rutas públicas: reduce overhead y previene
+  // efectos secundarios de cookies en rutas multisegmento.
+  if (!requiresAuthGuard) {
+    return NextResponse.next({
+      request: { headers: req.headers },
+    });
+  }
 
   let res = NextResponse.next({
     request: { headers: req.headers },
   });
 
-  const pathname = req.nextUrl.pathname;
   const storageKey = resolveStorageKeyForPath(pathname);
 
-  // 1. CREACIÓN GLOBAL DEL CLIENTE (Para que las Actions funcionen en cualquier ruta)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -160,52 +166,54 @@ export async function middleware(req) {
     },
   );
 
-  // 2. LÓGICA DE PROTECCIÓN Y REDIRECCIONES
-  if (
-    isAdminAreaPath(pathname) ||
-    isPlatformAreaPath(pathname) ||
-    isAuthPath(pathname)
-  ) {
-    // REFRESCAR SESIÓN SOLO AQUÍ PARA AHORRAR EDGE REQUESTS
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  // Validamos el usuario directamente contra Supabase
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-    if (!session) {
-      if (isAuthPath(pathname)) return res;
-      const loginTarget = isPlatformAreaPath(pathname)
-        ? PLATFORM_LOGIN_PATH
-        : ADMIN_LOGIN_PATH;
-      return NextResponse.redirect(new URL(loginTarget, req.url));
-    }
+  if (authError || !user) {
+    if (isAuthPath(pathname)) return res;
 
-    const portalContext = await getPortalContext(supabase, session);
+    const loginTarget = isPlatformAreaPath(pathname)
+      ? PLATFORM_LOGIN_PATH
+      : ADMIN_LOGIN_PATH;
+    const redirectRes = NextResponse.redirect(new URL(loginTarget, req.url));
 
-    if (pathname === ADMIN_LOGIN_PATH) {
-      if (portalContext.type === "admin")
-        return NextResponse.redirect(new URL("/admin", req.url));
-      if (portalContext.type === "platform")
-        return NextResponse.redirect(new URL("/tenants", req.url));
-      return res;
-    }
+    // Borramos la cookie corrupta para solucionar el error de Refresh Token
+    redirectRes.cookies.delete(storageKey);
+    return redirectRes;
+  }
 
-    if (pathname === PLATFORM_LOGIN_PATH) {
-      if (portalContext.type === "platform")
-        return NextResponse.redirect(new URL("/tenants", req.url));
-      if (portalContext.type === "admin")
-        return NextResponse.redirect(new URL("/admin", req.url));
-      return res;
-    }
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const portalContext = await getPortalContext(supabase, session);
 
-    if (isAdminAreaPath(pathname) && portalContext.type !== "admin") {
-      return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, req.url));
-    }
+  // Redirecciones si ya hay sesión
+  if (pathname === ADMIN_LOGIN_PATH) {
+    if (portalContext.type === "admin")
+      return NextResponse.redirect(new URL("/admin", req.url));
+    if (portalContext.type === "platform")
+      return NextResponse.redirect(new URL("/tenants", req.url));
+  }
 
-    if (isPlatformAreaPath(pathname) && portalContext.type !== "platform") {
-      if (portalContext.type === "admin")
-        return NextResponse.redirect(new URL("/admin", req.url));
-      return NextResponse.redirect(new URL(PLATFORM_LOGIN_PATH, req.url));
-    }
+  if (pathname === PLATFORM_LOGIN_PATH) {
+    if (portalContext.type === "platform")
+      return NextResponse.redirect(new URL("/tenants", req.url));
+    if (portalContext.type === "admin")
+      return NextResponse.redirect(new URL("/admin", req.url));
+  }
+
+  // Seguridad de rutas por rol
+  if (isAdminAreaPath(pathname) && portalContext.type !== "admin") {
+    return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, req.url));
+  }
+
+  if (isPlatformAreaPath(pathname) && portalContext.type !== "platform") {
+    const fallback =
+      portalContext.type === "admin" ? "/admin" : PLATFORM_LOGIN_PATH;
+    return NextResponse.redirect(new URL(fallback, req.url));
   }
 
   return res;
@@ -213,13 +221,6 @@ export async function middleware(req) {
 
 export const config = {
   matcher: [
-    /*
-     * Coincide con todas las rutas de solicitud excepto las que empiezan por:
-     * - api (rutas de API)
-     * - _next/static (archivos estáticos)
-     * - _next/image (optimización de imágenes)
-     * - favicon.ico, sitemap.xml, robots.txt, etc.
-     */
     {
       source:
         "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|otf|mp4|webm|csv)$).*)",

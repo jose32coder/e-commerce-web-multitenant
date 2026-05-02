@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCartStore, useTenantCart } from "@/lib/useCartStore";
+import { useTenantCart } from "@/lib/useCartStore";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -168,59 +168,75 @@ export default function QuickAddSheet({ product, open, onClose }) {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex gap-5 mb-8">
-          <div className="relative w-24 h-30 rounded-2xl overflow-hidden shrink-0 bg-secondary">
+        <div
+          className={`flex flex-col sm:flex-row gap-5 sm:gap-5 items-stretch sm:items-start ${hasVariants ? "mb-8" : "mb-6"}`}
+        >
+          <div className="relative w-full max-w-[200px] aspect-square mx-auto sm:mx-0 sm:w-24 sm:max-w-none sm:aspect-auto sm:h-28 shrink-0 rounded-2xl overflow-hidden bg-secondary">
             <AdaptiveImage
               src={imageUrl}
               alt={`Imagen de ${name}`}
               fill
               className="object-cover"
-              sizes="96px"
+              sizes="(max-width: 640px) 200px, 96px"
               priority
             />
           </div>
 
-          <div className="flex flex-col justify-center gap-1">
+          <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-1 sm:justify-center">
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
               {brand}
             </p>
-            <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink line-clamp-1">
+            <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink break-words line-clamp-3 sm:line-clamp-2">
               {name || "Producto sin nombre"}
             </h2>
 
-            <div className="flex items-end gap-2">
-              {hasActiveOffer && (
-                <p className="text-[11px] font-semibold text-red-500 line-through">
-                  {currencySymbol}{finalRegularPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </p>
-              )}
-              <p className="text-lg font-bold text-black">
-                {currencySymbol}{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {short_description && (
+              <p className="text-[11px] text-gray-500 italic line-clamp-3 sm:line-clamp-2">
+                {short_description}
               </p>
+            )}
+
+            <div className="flex flex-col items-baseline gap-x-3 gap-y-1">
+              <div className="flex items-baseline gap-1">
+                {hasActiveOffer && (
+                  <p className="text-[11px] font-semibold text-red-500 line-through">
+                    {currencySymbol}
+                    {finalRegularPrice.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    })}
+                  </p>
+                )}
+                {hasActiveOffer && (
+                  <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">
+                    Oferta activa
+                  </span>
+                )}
+              </div>
+              <p className="text-lg font-bold text-black tabular-nums">
+                {currencySymbol}
+                {finalPrice.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                })}
+              </p>
+
+
+
             </div>
 
             {rawPriceAdjustment > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold">
-                +{currencySymbol}{displayAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })} de recargo por combinación.
-              </p>
-            )}
-
-            {hasActiveOffer && (
-              <p className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">
-                Oferta activa
-              </p>
-            )}
-
-            {short_description && (
-              <p className="text-[11px] text-gray-500 italic line-clamp-2">
-                {short_description}
+                +{currencySymbol}
+                {displayAdjustment.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                })}{" "}
+                de recargo por combinación.
               </p>
             )}
           </div>
         </div>
 
         {hasVariants && (
-          <div className="mb-8 space-y-4">
+          <div className="mb-6 space-y-4">
             {attributeKeys.map((attrKey) => (
               <div key={attrKey} className="space-y-2">
                 <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">

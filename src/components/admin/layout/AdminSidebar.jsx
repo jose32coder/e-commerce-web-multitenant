@@ -142,13 +142,19 @@ export default function AdminSidebar({
           )}
         </nav>
 
-        {/* SALIR */}
-        <div className="p-6 border-t border-slate-900">
+        {/* SALIR — contraste explícito sobre rail oscuro (icono rojo puro se pierde al colapsar) */}
+        <div className="p-6 border-t border-slate-800">
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex cursor-pointer items-center gap-4 p-4 w-full rounded-2xl hover:bg-red-500/10 text-red-500 transition-all group font-bold text-xs uppercase tracking-widest"
+            className={`
+              flex cursor-pointer items-center gap-4 p-4 w-full rounded-2xl transition-all group font-bold text-xs uppercase tracking-widest
+              bg-slate-900/90 text-red-400 ring-1 ring-red-500/35 shadow-inner shadow-black/20
+              hover:bg-red-950/50 hover:text-red-300 hover:ring-red-400/50
+              ${isCollapsed && !isMobileOpen ? "lg:justify-center lg:gap-0" : ""}
+            `}
           >
-            <LogOut size={20} />
+            <LogOut size={20} className="shrink-0 text-red-300 group-hover:text-red-200" strokeWidth={2} />
             {(!isCollapsed || isMobileOpen) && <span>Salir</span>}
           </button>
         </div>

@@ -3,9 +3,9 @@ import { createClient } from "./supabase/client";
 const SITE_CONFIG_CACHE_TTL_MS = 15 * 60 * 1000;
 const siteConfigClientCache = new Map();
 
-export const DEFAULT_SITE_NAME = "Wink Store";
-export const DEFAULT_SITE_HOSTNAME = "wink-store.com";
-export const DEFAULT_SITE_HANDLE = "wink_store";
+export const DEFAULT_SITE_NAME = "Deploy Shop";
+export const DEFAULT_SITE_HOSTNAME = "deploy-shop.com";
+export const DEFAULT_SITE_HANDLE = "deploy_shop";
 
 const envPlatformBrandName = process.env.NEXT_PUBLIC_PLATFORM_BRAND_NAME;
 const envPlatformBrandHost = process.env.NEXT_PUBLIC_PLATFORM_BRAND_HOST;
@@ -34,10 +34,91 @@ export const formatSiteHandle = (value) =>
   normalizeToSlug(value, DEFAULT_SITE_HANDLE);
 export const formatSiteHostname = (value) => normalizeToHostname(value);
 
+export const HERO_VARIANT_CLASSIC = "classic";
+export const HERO_VARIANT_CINEMATIC = "cinematic";
+
+export const HERO_NAV_NUMBERS = "numbers";
+export const HERO_NAV_PROGRESS_ONLY = "progress_only";
+
+export const HERO_WIDTH_CONTAINED = "contained";
+export const HERO_WIDTH_IMMERSIVE = "immersive";
+
+export const HERO_OVERLAY_ALIGN_LEFT = "left";
+export const HERO_OVERLAY_ALIGN_CENTER = "center";
+export const HERO_OVERLAY_ALIGN_RIGHT = "right";
+
+export const HERO_OVERLAY_VALIGN_TOP = "top";
+export const HERO_OVERLAY_VALIGN_MIDDLE = "middle";
+export const HERO_OVERLAY_VALIGN_BOTTOM = "bottom";
+
+const HERO_VARIANTS = new Set([
+  HERO_VARIANT_CLASSIC,
+  HERO_VARIANT_CINEMATIC,
+]);
+
+const HERO_OVERLAY_ALIGNS = new Set([
+  HERO_OVERLAY_ALIGN_LEFT,
+  HERO_OVERLAY_ALIGN_CENTER,
+  HERO_OVERLAY_ALIGN_RIGHT,
+]);
+
+const HERO_OVERLAY_VALIGNS = new Set([
+  HERO_OVERLAY_VALIGN_TOP,
+  HERO_OVERLAY_VALIGN_MIDDLE,
+  HERO_OVERLAY_VALIGN_BOTTOM,
+]);
+
 export const DEFAULT_HOME_INTRO = {
   title: "Elevando tu Estilo Diario",
   description:
     "Descubre una selección exclusiva donde la calidad superior se encuentra con el diseño atemporal. Nuestras piezas aseguran que inviertas en prendas que te acompañarán por años.",
+  hero_variant: HERO_VARIANT_CLASSIC,
+  hero_nav_mode: HERO_NAV_NUMBERS,
+  hero_width_mode: HERO_WIDTH_CONTAINED,
+  hero_overlay_align: HERO_OVERLAY_ALIGN_LEFT,
+  hero_overlay_valign: HERO_OVERLAY_VALIGN_MIDDLE,
+};
+
+export const normalizeHomeIntro = (homeIntro) => {
+  const merged = { ...DEFAULT_HOME_INTRO, ...(homeIntro || {}) };
+  const rawVariant = merged.hero_variant;
+
+  let hero_variant =
+    rawVariant === "centered" ? HERO_VARIANT_CINEMATIC : rawVariant;
+  if (!HERO_VARIANTS.has(hero_variant)) {
+    hero_variant = HERO_VARIANT_CLASSIC;
+  }
+
+  let hero_overlay_align = merged.hero_overlay_align;
+  if (rawVariant === "centered" && !HERO_OVERLAY_ALIGNS.has(hero_overlay_align)) {
+    hero_overlay_align = HERO_OVERLAY_ALIGN_CENTER;
+  }
+  if (!HERO_OVERLAY_ALIGNS.has(hero_overlay_align)) {
+    hero_overlay_align = HERO_OVERLAY_ALIGN_LEFT;
+  }
+
+  let hero_overlay_valign = merged.hero_overlay_valign;
+  if (!HERO_OVERLAY_VALIGNS.has(hero_overlay_valign)) {
+    hero_overlay_valign = HERO_OVERLAY_VALIGN_MIDDLE;
+  }
+
+  const hero_nav_mode =
+    merged.hero_nav_mode === HERO_NAV_PROGRESS_ONLY
+      ? HERO_NAV_PROGRESS_ONLY
+      : HERO_NAV_NUMBERS;
+  const hero_width_mode =
+    merged.hero_width_mode === HERO_WIDTH_IMMERSIVE
+      ? HERO_WIDTH_IMMERSIVE
+      : HERO_WIDTH_CONTAINED;
+
+  return {
+    ...merged,
+    hero_variant,
+    hero_nav_mode,
+    hero_width_mode,
+    hero_overlay_align,
+    hero_overlay_valign,
+  };
 };
 
 export const DEFAULT_PRODUCTS_INTRO = {
@@ -55,6 +136,7 @@ export const DEFAULT_HEADER_MENU = [
 ];
 
 export const DEFAULT_PROMO_DIVIDER = {
+  enabled: true,
   eyebrow: "Archive 2026",
   title_primary: "The New",
   title_secondary: "Standard",
@@ -127,6 +209,7 @@ export const DEFAULT_COMMERCE_SETTINGS = {
   terms_title: "Terminos y Condiciones",
   terms_content:
     "Aqui puedes definir condiciones de compra, envios, devoluciones, garantias, limitaciones de responsabilidad y uso general de la tienda.",
+  delivery_enabled: true,
   delivery_fee: 5.0,
   free_shipping_threshold: 50.0,
   currency_code: "USD",
@@ -151,10 +234,13 @@ export const normalizeHeaderMenu = (menu) => {
   return DEFAULT_HEADER_MENU;
 };
 
-export const normalizePromoDivider = (promoDivider) => ({
-  ...DEFAULT_PROMO_DIVIDER,
-  ...(promoDivider || {}),
-});
+export const normalizePromoDivider = (promoDivider) => {
+  const merged = { ...DEFAULT_PROMO_DIVIDER, ...(promoDivider || {}) };
+  return {
+    ...merged,
+    enabled: merged.enabled !== false,
+  };
+};
 
 export const normalizeFooterSettings = (footerSettings) => ({
   ...DEFAULT_FOOTER_SETTINGS,
@@ -221,6 +307,7 @@ export const normalizeCommerceSettings = (commerceSettings) => {
           .filter(Boolean)
           .slice(0, 3)
       : DEFAULT_COMMERCE_SETTINGS.product_notices,
+    delivery_enabled: normalized.delivery_enabled !== false,
     delivery_fee: Number(normalized.delivery_fee ?? 0),
     free_shipping_threshold: Number(normalized.free_shipping_threshold ?? 0),
   };
@@ -358,7 +445,7 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
     tenant_id: activeTenantId,
     ...data,
     hero_slides: normalizeHeroSlides(data.hero_slides),
-    home_intro: { ...DEFAULT_HOME_INTRO, ...(data.home_intro || {}) },
+    home_intro: normalizeHomeIntro(data.home_intro),
     products_intro: {
       ...DEFAULT_PRODUCTS_INTRO,
       ...(data.products_intro || {}),

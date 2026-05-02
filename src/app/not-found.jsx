@@ -1,11 +1,31 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, MoveLeft, ShoppingBag, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
+  const pathname = usePathname();
+  const firstSegment = pathname?.split("/").filter(Boolean)[0] || "";
+  const reservedSegments = new Set([
+    "admin",
+    "access",
+    "platform-access",
+    "tenants",
+    "register",
+    "api",
+    "_next",
+  ]);
+
+  const tenantBase =
+    firstSegment && !reservedSegments.has(firstSegment)
+      ? `/${firstSegment}`
+      : "";
+  const homeHref = tenantBase || "/";
+  const catalogHref = tenantBase ? `${tenantBase}/products` : "/";
+
   return (
     <main className="min-h-screen bg-[#FBF9F6] flex items-center justify-center p-6 relative overflow-hidden">
       {/* Elementos decorativos de fondo */}
@@ -50,7 +70,7 @@ export default function NotFound() {
                 className="w-full h-14 bg-ink text-paper hover:bg-ink/90 shadow-xl shadow-ink/10 font-bold uppercase text-[11px] tracking-[0.2em] rounded-2xl group transition-all"
               >
                 <Link
-                  href="/"
+                  href={homeHref}
                   className="flex items-center justify-center gap-2"
                 >
                   <MoveLeft
@@ -67,7 +87,7 @@ export default function NotFound() {
                 className="w-full h-14 border-honey-light text-ink hover:border-ink hover:bg-transparent font-bold uppercase text-[11px] tracking-[0.2em] rounded-2xl group transition-all"
               >
                 <Link
-                  href="/products"
+                  href={catalogHref}
                   className="flex items-center justify-center gap-2"
                 >
                   Explorar Catálogo
@@ -83,7 +103,7 @@ export default function NotFound() {
 
         {/* Branding inferior */}
         <p className="text-center mt-10 text-[10px] font-bold uppercase tracking-[0.4em] text-ink/20 italic">
-          — Wink Store —
+          — Deploy Shop —
         </p>
       </motion.div>
     </main>

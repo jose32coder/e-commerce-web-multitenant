@@ -1,25 +1,62 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ShoppingBag, Menu, X } from "lucide-react";
-import { useCartStore, useTenantCart } from "@/lib/useCartStore";
+import { useTenantCart } from "@/lib/useCartStore";
 import { useFilterStore } from "@/lib/useFilterStore";
 import MiniCart from "./public/cart/MiniCart";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useSiteConfig } from "@/context/SiteConfigContext";
-import { DEFAULT_HEADER_MENU, normalizeHeaderMenu } from "@/lib/siteConfig";
+import { useTenantHeroMetrics } from "@/context/TenantHeroMetricsContext";
+import {
+  DEFAULT_HEADER_MENU,
+  HERO_VARIANT_CINEMATIC,
+  HERO_WIDTH_IMMERSIVE,
+  normalizeHeaderMenu,
+  normalizeHomeIntro,
+} from "@/lib/siteConfig";
+
+const SCROLL_SHOW_TOP = 72;
+const SCROLL_HIDE_DELTA = 10;
+const SCROLL_SHOW_UP_DELTA = 5;
+/** Pixels antes del borde inferior del hero donde pasa a barra sólida */
+const HERO_GLASS_END_BUFFER = 40;
 
 export default function Header() {
-  const { site_name, header_menu, tenant_slug } = useSiteConfig();
+  const pathname = usePathname();
+  const { site_name, header_menu, tenant_slug, home_intro } = useSiteConfig();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const lastScrollY = useRef(0);
   const router = useRouter();
   const setPendingCategory = useFilterStore((s) => s.setPendingCategory);
+  const mobileMenuTitleId = useId();
 
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
+  const { heroBottomScrollY } = useTenantHeroMetrics();
+
+  const intro = normalizeHomeIntro(home_intro);
+  const isTenantHome =
+    !!tenant_slug &&
+    (pathname === `/${tenant_slug}` || pathname === `/${tenant_slug}/`);
+  const cinematicOnHome =
+    isTenantHome && intro.hero_variant === HERO_VARIANT_CINEMATIC;
+
+  const heroEndFallback =
+    typeof window !== "undefined" ? window.innerHeight * 0.92 : 1e6;
+  const heroDocumentEnd =
+    heroBottomScrollY ?? (cinematicOnHome ? heroEndFallback : 0);
+
+  /** Cristal / menú oscuro solo con hero a pantalla completa; en cinematic contenido se usa barra tipo “split”. */
+  const immersiveGlass =
+    cinematicOnHome &&
+    intro.hero_width_mode === HERO_WIDTH_IMMERSIVE &&
+    scrollY < heroDocumentEnd - HERO_GLASS_END_BUFFER;
 
   const handleCategoryNav = (category) => {
     setPendingCategory(category);
@@ -32,7 +69,7 @@ export default function Header() {
     setIsMenuOpen(false);
   };
 
-  const { items, getTotalItems } = useTenantCart(tenant_slug);
+  const { getTotalItems } = useTenantCart(tenant_slug);
   const totalItems = getTotalItems();
   const dynamicMenu = normalizeHeaderMenu(header_menu || DEFAULT_HEADER_MENU);
 
@@ -40,9 +77,70 @@ export default function Header() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!mounted) return;
+
+    let ticking = false;
+
+    const update = () => {
+      ticking = false;
+      const y = window.scrollY;
+      setScrollY(y);
+
+      if (isMenuOpen || isCartOpen) {
+        setHeaderHidden(false);
+        lastScrollY.current = y;
+        return;
+      }
+
+      if (y < SCROLL_SHOW_TOP) {
+        setHeaderHidden(false);
+        lastScrollY.current = y;
+        return;
+      }
+
+      const delta = y - lastScrollY.current;
+      if (delta > SCROLL_HIDE_DELTA) {
+        setHeaderHidden(true);
+      } else if (delta < -SCROLL_SHOW_UP_DELTA) {
+        setHeaderHidden(false);
+      }
+      lastScrollY.current = y;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [mounted, isMenuOpen, isCartOpen]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setIsMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMenuOpen]);
+
   if (!mounted) {
     return (
-      <header className="border-b border-honey-light bg-paper sticky top-0 z-50 h-16">
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-honey-light bg-paper">
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
           <div className="text-xl font-serif font-bold tracking-tighter text-ink uppercase">
             {site_name}
@@ -52,52 +150,81 @@ export default function Header() {
     );
   }
 
+  const headerSurface = immersiveGlass
+    ? "border-b border-white/15 bg-black/25 backdrop-blur-md supports-[backdrop-filter]:bg-black/20"
+    : "border-b border-honey-light bg-paper/80 backdrop-blur-md";
+
+  const ink = immersiveGlass ? "text-white" : "text-ink";
+  const honey = immersiveGlass ? "text-white/90" : "text-honey-dark";
+  const hoverInk = immersiveGlass ? "hover:text-white" : "hover:text-ink";
+  const navHover = immersiveGlass ? "hover:text-white" : "hover:text-ink";
+
+  const mobilePanelSurface = immersiveGlass
+    ? "bg-zinc-950/95 border border-white/15 text-white shadow-2xl shadow-black/50"
+    : "bg-paper border border-honey-light text-honey-dark shadow-2xl shadow-zinc-900/10";
+
+  const mobileNavItemClass = immersiveGlass
+    ? "w-full text-left py-4 px-4 rounded-xl text-sm font-bold tracking-[0.2em] uppercase text-white/95 hover:bg-white/10 active:bg-white/15 transition-colors"
+    : "w-full text-left py-4 px-4 rounded-xl text-sm font-bold tracking-[0.2em] uppercase text-honey-dark hover:bg-honey-light/30 hover:text-ink active:bg-honey-light/40 transition-colors";
+
+  const backdropClass = immersiveGlass
+    ? "bg-black/60 backdrop-blur-md"
+    : "bg-black/45 backdrop-blur-sm";
+
+  const headerTransform = headerHidden ? "-translate-y-full" : "translate-y-0";
+
   return (
     <>
-      <header className="border-b border-honey-light bg-paper/80 backdrop-blur-md sticky top-0 z-50 h-16 w-full">
+      <header
+        className={`${headerSurface} fixed top-0 left-0 right-0 z-50 h-16 w-full transition-all duration-300 ease-out ${headerTransform}`}
+      >
         <div className="max-w-7xl mx-auto px-4 h-full relative flex items-center justify-between">
-          {/* IZQUIERDA: Burger (mobile) + Logo (desktop) */}
           <div className="flex items-center">
             <button
-              className="lg:hidden h-10 w-10 flex items-center justify-center hover:text-ink transition-colors text-honey-dark"
+              type="button"
+              className={`lg:hidden h-10 w-10 flex items-center justify-center ${hoverInk} transition-colors ${honey} drop-shadow-sm`}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Abrir menú"
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-nav-dialog"
+              aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
             <Link href={`${baseUrl}/`} className="hidden lg:block">
-              <h1 className="text-xl font-serif font-bold tracking-tighter text-ink uppercase">
+              <h1
+                className={`text-xl font-serif font-bold tracking-tighter uppercase drop-shadow-sm ${ink}`}
+              >
                 {site_name}
               </h1>
             </Link>
           </div>
 
-          {/* CENTRO: Navegación Desktop */}
           <nav
             id="desktop-nav"
-            className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center space-x-6 text-[12px] font-bold tracking-[0.2em] text-honey-dark"
+            className={`hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center space-x-6 text-[12px] font-bold tracking-[0.2em] drop-shadow-sm ${honey}`}
           >
             {dynamicMenu.map((item) => (
               <button
                 key={item.id}
+                type="button"
                 onClick={() =>
                   item.target_id
                     ? handleCategoryNav(item.target_id)
                     : handleProductsNav()
                 }
-                className="hover:text-ink transition cursor-pointer"
+                className={`${navHover} transition cursor-pointer`}
               >
                 {item.label}
               </button>
             ))}
           </nav>
 
-          {/* DERECHA: MiniCart */}
-          <div className="flex items-center text-honey-dark">
+          <div className={`flex items-center ${honey}`}>
             <button
+              type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative h-10 w-10 cursor-pointer flex items-center justify-center hover:text-ink transition-colors"
+              className={`relative h-10 w-10 cursor-pointer flex items-center justify-center ${hoverInk} transition-colors drop-shadow-sm`}
               aria-label="Abrir carrito"
             >
               <ShoppingBag size={20} strokeWidth={1.5} />
@@ -107,7 +234,11 @@ export default function Header() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute -top-1 -right-1 bg-ink text-paper text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                    className={`absolute -top-1 -right-1 text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold ${
+                      immersiveGlass
+                        ? "bg-white text-black"
+                        : "bg-ink text-paper"
+                    }`}
                   >
                     {totalItems}
                   </motion.span>
@@ -116,44 +247,98 @@ export default function Header() {
             </button>
           </div>
 
-          {/* LOGO CENTRADO EN MOBILE */}
           <div className="lg:hidden absolute left-1/2 -translate-x-1/2 w-[calc(100%-7.5rem)] max-w-[320px] text-center">
             <Link href={`${baseUrl}/`} className="block">
-              <h1 className="text-base font-serif font-bold tracking-tight text-ink uppercase truncate">
+              <h1
+                className={`text-base font-serif font-bold tracking-tight uppercase truncate drop-shadow-sm ${ink}`}
+              >
                 {site_name}
               </h1>
             </Link>
           </div>
         </div>
+      </header>
 
-        {/* Menú Móvil */}
-        <AnimatePresence>
-          {isMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="lg:hidden bg-paper border-b border-honey-light absolute w-full left-0 z-40"
+      <AnimatePresence>
+        {isMenuOpen ? (
+          <motion.div
+            key="mobile-menu-root"
+            id="mobile-nav-dialog"
+            className="lg:hidden fixed inset-0 z-[100] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.button
+              type="button"
+              aria-label="Cerrar menú"
+              className={`absolute inset-0 ${backdropClass}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+            />
+
+            <motion.nav
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={mobileMenuTitleId}
+              className={`relative z-10 w-full max-w-md max-h-[85dvh] overflow-y-auto rounded-2xl ${mobilePanelSurface}`}
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <nav className="flex flex-col p-6 space-y-4 text-xs font-bold tracking-widest text-honey-dark">
+              <div
+                className={`flex items-center justify-between gap-3 p-5 border-b ${
+                  immersiveGlass
+                    ? "border-white/10"
+                    : "border-honey-light/80"
+                }`}
+              >
+                <p
+                  id={mobileMenuTitleId}
+                  className={`text-[10px] font-black uppercase tracking-[0.25em] ${
+                    immersiveGlass ? "text-white/60" : "text-honey-dark"
+                  }`}
+                >
+                  Menú
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`shrink-0 h-10 w-10 flex items-center justify-center rounded-full transition-colors ${
+                    immersiveGlass
+                      ? "text-white hover:bg-white/10"
+                      : "text-ink hover:bg-honey-light/40"
+                  }`}
+                  aria-label="Cerrar menú"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+              <div className="flex flex-col p-3 pb-5 gap-1">
                 {dynamicMenu.map((item) => (
                   <button
                     key={item.id}
+                    type="button"
                     onClick={() =>
                       item.target_id
                         ? handleCategoryNav(item.target_id)
                         : handleProductsNav()
                     }
-                    className="text-left hover:text-ink transition"
+                    className={mobileNavItemClass}
                   >
                     {item.label}
                   </button>
                 ))}
-              </nav>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
+              </div>
+            </motion.nav>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <MiniCart open={isCartOpen} setOpen={setIsCartOpen} />
     </>

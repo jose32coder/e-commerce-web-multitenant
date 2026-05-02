@@ -96,6 +96,18 @@ export default function CheckoutPage() {
     setIsPendingOrderRestored(true);
   }, [tenant_slug, trackings]);
 
+  const deliveryEnabled = commerce.delivery_enabled !== false;
+
+  useEffect(() => {
+    if (!deliveryEnabled) {
+      setFormData((prev) =>
+        prev.shippingMethod === "pickup"
+          ? prev
+          : { ...prev, shippingMethod: "pickup" },
+      );
+    }
+  }, [deliveryEnabled]);
+
   useEffect(() => {
     if (!isPendingOrderRestored) return;
 
@@ -110,11 +122,17 @@ export default function CheckoutPage() {
   const deliveryFee = Number(commerce.delivery_fee || 0);
   const threshold = Number(commerce.free_shipping_threshold || 50);
   const isFreeShipping =
-    formData.shippingMethod === "delivery" && subtotal >= threshold && threshold > 0;
-  
-  // Si es retiro en tienda, el costo de envío es 0
+    deliveryEnabled &&
+    formData.shippingMethod === "delivery" &&
+    subtotal >= threshold &&
+    threshold > 0;
+
   const appliedDelivery =
-    formData.shippingMethod === "pickup" || isFreeShipping ? 0 : deliveryFee;
+    !deliveryEnabled ||
+    formData.shippingMethod === "pickup" ||
+    isFreeShipping
+      ? 0
+      : deliveryFee;
   
   const total = subtotal + appliedDelivery;
 
@@ -235,7 +253,7 @@ export default function CheckoutPage() {
         }
 
         const shippingMethodLabel =
-          formData.shippingMethod === "pickup"
+          !deliveryEnabled || formData.shippingMethod === "pickup"
             ? "RETIRO EN TIENDA 🛍️"
             : isFreeShipping
               ? "GRATIS ✨"
@@ -245,7 +263,7 @@ export default function CheckoutPage() {
 
 He realizado un pago por ${selectedPaymentMethod}.
 
-📌 *MÉTODO DE ENTREGA*: ${formData.shippingMethod === "pickup" ? "Retiro en Tienda" : "Delivery"}
+📌 *MÉTODO DE ENTREGA*: ${!deliveryEnabled || formData.shippingMethod === "pickup" ? "Retiro en Tienda" : "Delivery"}
 
 📌 *DATOS DEL PAGO*
 - Titular: ${formData.name}

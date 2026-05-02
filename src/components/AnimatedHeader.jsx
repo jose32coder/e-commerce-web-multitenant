@@ -1,11 +1,11 @@
 "use client";
 import SectionIntro from "@/components/public/SectionIntro";
 import { useSiteConfig } from "@/context/SiteConfigContext";
-import { DEFAULT_HOME_INTRO } from "@/lib/siteConfig";
+import { normalizeHomeIntro } from "@/lib/siteConfig";
 
 export default function AnimatedHeader() {
   const { home_intro } = useSiteConfig();
-  const intro = { ...DEFAULT_HOME_INTRO, ...(home_intro || {}) };
+  const intro = normalizeHomeIntro(home_intro);
 
   return (
     <SectionIntro

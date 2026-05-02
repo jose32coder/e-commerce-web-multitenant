@@ -19,6 +19,7 @@ import {
   normalizeFooterSettings,
   normalizeHeaderMenu,
   normalizeHeroSlides,
+  normalizeHomeIntro,
   normalizePromoDivider,
 } from "@/lib/siteConfig";
 import { createClient } from "@/lib/supabase/client";
@@ -43,20 +44,48 @@ export function SiteConfigProvider({
   children,
   tenantId = null,
   tenantSlug = null,
+  initialData = null,
 }) {
-  const [config, setConfig] = useState({
-    tenant_id: tenantId,
-    tenant_slug: tenantSlug,
-    site_name: DEFAULT_SITE_NAME,
-    hero_slides: [],
-    home_intro: DEFAULT_HOME_INTRO,
-    products_intro: DEFAULT_PRODUCTS_INTRO,
-    header_menu: DEFAULT_HEADER_MENU,
-    promo_divider: DEFAULT_PROMO_DIVIDER,
-    footer_settings: DEFAULT_FOOTER_SETTINGS,
-    commerce_settings: DEFAULT_COMMERCE_SETTINGS,
-    exchange_rates: null,
-    loading: true,
+  const [config, setConfig] = useState(() => {
+    const base = {
+      tenant_id: tenantId,
+      tenant_slug: tenantSlug,
+      site_name: DEFAULT_SITE_NAME,
+      hero_slides: [],
+      home_intro: DEFAULT_HOME_INTRO,
+      products_intro: DEFAULT_PRODUCTS_INTRO,
+      header_menu: DEFAULT_HEADER_MENU,
+      promo_divider: DEFAULT_PROMO_DIVIDER,
+      footer_settings: DEFAULT_FOOTER_SETTINGS,
+      commerce_settings: DEFAULT_COMMERCE_SETTINGS,
+      exchange_rates: null,
+      loading: true,
+    };
+
+    if (!initialData || typeof initialData !== "object") return base;
+
+    return {
+      ...base,
+      ...initialData,
+      tenant_id: initialData.tenant_id ?? tenantId,
+      tenant_slug: tenantSlug || initialData.tenant_slug || null,
+      hero_slides: normalizeHeroSlides(initialData.hero_slides),
+      home_intro: normalizeHomeIntro(initialData.home_intro),
+      products_intro: {
+        ...DEFAULT_PRODUCTS_INTRO,
+        ...(initialData.products_intro || {}),
+      },
+      header_menu: normalizeHeaderMenu(initialData.header_menu),
+      promo_divider: normalizePromoDivider(initialData.promo_divider),
+      footer_settings: normalizeFooterSettings(
+        initialData.footer_settings || resolveLegacyFooterSettings(initialData),
+      ),
+      commerce_settings: normalizeCommerceSettings(
+        initialData.commerce_settings ||
+          resolveLegacyCommerceSettings(initialData),
+      ),
+      loading: false,
+    };
   });
 
   const fetchConfig = useCallback(async () => {
@@ -64,16 +93,34 @@ export function SiteConfigProvider({
       const supabase = createClient();
 
       // Cargar config en paralelo
-      const data = await getSiteConfig({ tenantId });
+      const data = await getSiteConfig({
+        tenantId,
+        tenantSlug: tenantSlug || undefined,
+      });
 
       // Cargar tasas de cambio sin bloquear el render
       // Si ya hay tasas en localStorage/DB, esto será muy rápido
       const rates = await getExchangeRates(supabase);
 
       setConfig((prev) => ({
+        ...prev,
         ...data,
+        tenant_id: data?.tenant_id ?? prev.tenant_id ?? tenantId ?? null,
+        tenant_slug: prev.tenant_slug || tenantSlug || null,
         hero_slides: normalizeHeroSlides(data.hero_slides),
-        tenant_slug: prev.tenant_slug, // Preservamos el slug que viene de props
+        home_intro: normalizeHomeIntro(data.home_intro),
+        products_intro: {
+          ...DEFAULT_PRODUCTS_INTRO,
+          ...(data.products_intro || {}),
+        },
+        header_menu: normalizeHeaderMenu(data.header_menu),
+        promo_divider: normalizePromoDivider(data.promo_divider),
+        footer_settings: normalizeFooterSettings(
+          data.footer_settings || resolveLegacyFooterSettings(data),
+        ),
+        commerce_settings: normalizeCommerceSettings(
+          data.commerce_settings || resolveLegacyCommerceSettings(data),
+        ),
         exchange_rates: rates || prev.exchange_rates, // Mantener tasas anteriores si falla
         loading: false,
       }));
@@ -81,7 +128,60 @@ export function SiteConfigProvider({
       console.error("Context fetch error:", error);
       setConfig((prev) => ({ ...prev, loading: false }));
     }
-  }, [tenantId]);
+  }, [tenantId, tenantSlug]);
+
+  const patchConfig = useCallback((partial = {}) => {
+    if (!partial || typeof partial !== "object") return;
+
+    const hasKey = (key) => Object.prototype.hasOwnProperty.call(partial, key);
+
+    setConfig((prev) => {
+      const footerSource =
+        (hasKey("footer_settings") ? partial.footer_settings : undefined) ??
+        resolveLegacyFooterSettings(partial) ??
+        prev.footer_settings;
+
+      const commerceSource =
+        (hasKey("commerce_settings") ? partial.commerce_settings : undefined) ??
+        resolveLegacyCommerceSettings(partial) ??
+        prev.commerce_settings;
+
+      return {
+        ...prev,
+        ...partial,
+        tenant_id: hasKey("tenant_id") ? partial.tenant_id : prev.tenant_id,
+        tenant_slug: hasKey("tenant_slug")
+          ? partial.tenant_slug
+          : prev.tenant_slug,
+        hero_slides: normalizeHeroSlides(
+          hasKey("hero_slides") ? partial.hero_slides : prev.hero_slides,
+        ),
+        home_intro: normalizeHomeIntro(
+          hasKey("home_intro") ? partial.home_intro : prev.home_intro,
+        ),
+        products_intro: {
+          ...DEFAULT_PRODUCTS_INTRO,
+          ...(hasKey("products_intro")
+            ? partial.products_intro || {}
+            : prev.products_intro || {}),
+        },
+        header_menu: normalizeHeaderMenu(
+          hasKey("header_menu") ? partial.header_menu : prev.header_menu,
+        ),
+        promo_divider: normalizePromoDivider(
+          hasKey("promo_divider")
+            ? partial.promo_divider
+            : prev.promo_divider,
+        ),
+        footer_settings: normalizeFooterSettings(footerSource),
+        commerce_settings: normalizeCommerceSettings(commerceSource),
+        exchange_rates: hasKey("exchange_rates")
+          ? partial.exchange_rates
+          : prev.exchange_rates,
+        loading: false,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -102,30 +202,50 @@ export function SiteConfigProvider({
           filter: tenantId ? `tenant_id=eq.${tenantId}` : "tenant_id=eq.1",
         },
         (payload) => {
-          setConfig((prev) => ({
-            ...payload.new,
-            tenant_slug: prev.tenant_slug,
-            hero_slides: normalizeHeroSlides(payload.new.hero_slides),
-            home_intro: {
-              ...DEFAULT_HOME_INTRO,
-              ...(payload.new.home_intro || {}),
-            },
-            products_intro: {
-              ...DEFAULT_PRODUCTS_INTRO,
-              ...(payload.new.products_intro || {}),
-            },
-            header_menu: normalizeHeaderMenu(payload.new.header_menu),
-            promo_divider: normalizePromoDivider(payload.new.promo_divider),
-            footer_settings: normalizeFooterSettings(
-              payload.new.footer_settings ||
-                resolveLegacyFooterSettings(payload.new),
-            ),
-            commerce_settings: normalizeCommerceSettings(
-              payload.new.commerce_settings ||
-                resolveLegacyCommerceSettings(payload.new),
-            ),
-            loading: false,
-          }));
+          const nextRow = payload?.new || {};
+          const hasKey = (key) =>
+            Object.prototype.hasOwnProperty.call(nextRow, key);
+
+          setConfig((prev) => {
+            const footerSource =
+              nextRow.footer_settings ??
+              resolveLegacyFooterSettings(nextRow) ??
+              prev.footer_settings;
+
+            const commerceSource =
+              nextRow.commerce_settings ??
+              resolveLegacyCommerceSettings(nextRow) ??
+              prev.commerce_settings;
+
+            return {
+              ...prev,
+              ...payload.new,
+              tenant_slug: prev.tenant_slug,
+              hero_slides: normalizeHeroSlides(
+                hasKey("hero_slides") ? nextRow.hero_slides : prev.hero_slides,
+              ),
+              home_intro: normalizeHomeIntro(
+                hasKey("home_intro") ? nextRow.home_intro : prev.home_intro,
+              ),
+              products_intro: {
+                ...DEFAULT_PRODUCTS_INTRO,
+                ...(hasKey("products_intro")
+                  ? nextRow.products_intro || {}
+                  : prev.products_intro || {}),
+              },
+              header_menu: normalizeHeaderMenu(
+                hasKey("header_menu") ? nextRow.header_menu : prev.header_menu,
+              ),
+              promo_divider: normalizePromoDivider(
+                hasKey("promo_divider")
+                  ? nextRow.promo_divider
+                  : prev.promo_divider,
+              ),
+              footer_settings: normalizeFooterSettings(footerSource),
+              commerce_settings: normalizeCommerceSettings(commerceSource),
+              loading: false,
+            };
+          });
         },
       )
       .subscribe();
@@ -136,7 +256,9 @@ export function SiteConfigProvider({
   }, [tenantId, fetchConfig]);
 
   return (
-    <SiteConfigContext.Provider value={{ ...config, refresh: fetchConfig }}>
+    <SiteConfigContext.Provider
+      value={{ ...config, refresh: fetchConfig, patchConfig }}
+    >
       {children}
     </SiteConfigContext.Provider>
   );

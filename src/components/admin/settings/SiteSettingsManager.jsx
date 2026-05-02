@@ -13,6 +13,7 @@ import {
   normalizeCommerceSettings,
   normalizeFooterSettings,
   normalizeHeaderMenu,
+  normalizeHomeIntro,
   normalizePromoDivider,
   updateSiteConfig,
 } from "@/lib/siteConfig";
@@ -54,6 +55,7 @@ export default function SiteSettingsManager() {
     footer_settings: currentFooterSettings,
     commerce_settings: currentCommerceSettings,
     refresh,
+    patchConfig,
   } = useSiteConfig();
   const supabase = createClient();
 
@@ -82,7 +84,7 @@ export default function SiteSettingsManager() {
     setSiteName(currentName);
     setNewTenantSlug(tenantSlug);
     setSlides(normalizeSlides(currentSlides));
-    setHomeIntro({ ...DEFAULT_HOME_INTRO, ...(currentHomeIntro || {}) });
+    setHomeIntro(normalizeHomeIntro(currentHomeIntro));
     setProductsIntro({
       ...DEFAULT_PRODUCTS_INTRO,
       ...(currentProductsIntro || {}),
@@ -193,8 +195,29 @@ export default function SiteSettingsManager() {
     setSlides((prev) => [...prev, newSlide]);
   };
 
-  const handleRemoveSlide = (id) => {
-    if (slides.length <= 1) return;
+  const handleRemoveSlide = async (id) => {
+    if (slides.length <= 1) {
+      await Swal.fire({
+        title: "No puedes eliminar",
+        text: "Debe quedar al menos un slide en el hero.",
+        icon: "info",
+        confirmButtonColor: "#0f172a",
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "¿Eliminar este slide?",
+      text: "Los cambios se aplicarán en la tienda cuando guardes la sección Contenido y Home.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#64748b",
+    });
+
+    if (!result.isConfirmed) return;
     setSlides((prev) => prev.filter((slide) => slide.id !== id));
   };
 
@@ -396,6 +419,12 @@ export default function SiteSettingsManager() {
           meta: { section, siteName, newTenantSlug },
         });
 
+        patchConfig({
+          site_name: siteName,
+          header_menu: headerMenu,
+          tenant_slug: slugChanged ? newTenantSlug : tenantSlug,
+        });
+
         Swal.fire({
           title: "¡Guardado!",
           text: "La identidad de tu tienda se ha actualizado correctamente.",
@@ -438,12 +467,23 @@ export default function SiteSettingsManager() {
         },
       });
 
-      setStatus({
-        type: "success",
-        message: `Sección ${section} guardada correctamente`,
+      patchConfig(payload);
+
+      const savedMessage =
+        section === "home"
+          ? "El contenido de inicio se actualizó correctamente."
+          : section === "footer"
+            ? "Footer y comercio se actualizaron correctamente."
+            : `Sección ${section} guardada correctamente.`;
+
+      await Swal.fire({
+        title: "¡Guardado!",
+        text: savedMessage,
+        icon: "success",
+        timer: 2200,
+        showConfirmButton: false,
       });
       refresh();
-      setTimeout(() => setStatus({ type: "", message: "" }), 3000);
     } catch (err) {
       console.error("DETALLE DEL ERROR:", {
         message: err.message,
@@ -561,6 +601,10 @@ export default function SiteSettingsManager() {
           <div className="space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <HeroSliderSettings
               slides={slides}
+              homeIntro={homeIntro}
+              onHomeIntroPatch={(patch) =>
+                setHomeIntro((prev) => normalizeHomeIntro({ ...prev, ...patch }))
+              }
               onAddSlide={handleAddSlide}
               onRemoveSlide={handleRemoveSlide}
               onUpdateSlide={handleUpdateSlide}
@@ -600,16 +644,6 @@ export default function SiteSettingsManager() {
 
         {activeTab === "footer" && (
           <div className="space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="space-y-6">
-              <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-slate-400">
-                Información del Pie de Página
-              </h3>
-              <FooterSettings
-                value={footerSettings}
-                onChange={setFooterSettings}
-              />
-            </div>
-
             <div className="h-px bg-slate-50 dark:bg-slate-800" />
 
             <div className="space-y-6">
@@ -619,6 +653,16 @@ export default function SiteSettingsManager() {
               <CommerceSettings
                 value={commerceSettings}
                 onChange={setCommerceSettings}
+              />
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-slate-400">
+                Información del Pie de Página
+              </h3>
+              <FooterSettings
+                value={footerSettings}
+                onChange={setFooterSettings}
               />
             </div>
 

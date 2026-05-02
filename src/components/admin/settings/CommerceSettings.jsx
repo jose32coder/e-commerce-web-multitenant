@@ -57,6 +57,8 @@ export default function CommerceSettings({ value, onChange }) {
     handleFieldChange("product_notices", currentNotices);
   };
 
+  const deliveryEnabled = value?.delivery_enabled !== false;
+
   return (
     <section className={sectionClassName}>
       <SettingsSectionHeader
@@ -113,38 +115,78 @@ export default function CommerceSettings({ value, onChange }) {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
-          <div>
-            <label className={labelClassName}>Costo de envío estándar ($)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={value.delivery_fee ?? ""}
-              onChange={(e) =>
-                handleFieldChange("delivery_fee", parseFloat(e.target.value) || 0)
-              }
-              className={inputClassName}
-              placeholder="Ej: 5.00"
-            />
-            <p className="text-[10px] mt-1 text-slate-400 italic">
-              Este monto se sumará al total si no se alcanza el envío gratuito.
-            </p>
+        <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+            <div>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                Ofrecer envío a domicilio
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                Si lo desactivas, el checkout solo mostrará retiro en tienda y no
+                se cobrará envío.
+              </p>
+            </div>
+            <label className="inline-flex items-center gap-3 cursor-pointer shrink-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                {deliveryEnabled ? "Activo" : "Solo retiro"}
+              </span>
+              <span className="relative inline-flex h-8 w-14 shrink-0 items-center">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="peer sr-only"
+                  checked={deliveryEnabled}
+                  onChange={(e) =>
+                    handleFieldChange("delivery_enabled", e.target.checked)
+                  }
+                  aria-checked={deliveryEnabled}
+                />
+                <span className="absolute inset-0 rounded-full bg-slate-200 dark:bg-slate-700 transition-colors peer-checked:bg-emerald-500 dark:peer-checked:bg-emerald-600" />
+                <span className="pointer-events-none absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-md transition-transform peer-checked:translate-x-6" />
+              </span>
+            </label>
           </div>
-          <div>
-            <label className={labelClassName}>Monto mínimo para envío gratis ($)</label>
-            <input
-              type="number"
-              step="1"
-              value={value.free_shipping_threshold ?? ""}
-              onChange={(e) =>
-                handleFieldChange("free_shipping_threshold", parseFloat(e.target.value) || 0)
-              }
-              className={inputClassName}
-              placeholder="Ej: 50.00"
-            />
-            <p className="text-[10px] mt-1 text-slate-400 italic">
-              Dejar en 0 si quieres que siempre se cobre el envío.
-            </p>
+
+          <div
+            className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${deliveryEnabled ? "" : "opacity-55"}`}
+          >
+            <div>
+              <label className={labelClassName}>Costo de envío estándar ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={value.delivery_fee ?? ""}
+                onChange={(e) =>
+                  handleFieldChange("delivery_fee", parseFloat(e.target.value) || 0)
+                }
+                disabled={!deliveryEnabled}
+                className={inputClassName}
+                placeholder="Ej: 5.00"
+              />
+              <p className="text-[10px] mt-1 text-slate-400 italic">
+                Este monto se sumará al total si no se alcanza el envío gratuito.
+              </p>
+            </div>
+            <div>
+              <label className={labelClassName}>Monto mínimo para envío gratis ($)</label>
+              <input
+                type="number"
+                step="1"
+                value={value.free_shipping_threshold ?? ""}
+                onChange={(e) =>
+                  handleFieldChange(
+                    "free_shipping_threshold",
+                    parseFloat(e.target.value) || 0,
+                  )
+                }
+                disabled={!deliveryEnabled}
+                className={inputClassName}
+                placeholder="Ej: 50.00"
+              />
+              <p className="text-[10px] mt-1 text-slate-400 italic">
+                Dejar en 0 si quieres que siempre se cobre el envío.
+              </p>
+            </div>
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollStop";
 import SiteConfigGate from "@/components/SiteConfigGate";
+import { TenantHeroMetricsProvider } from "@/context/TenantHeroMetricsContext";
 import TenantBrandingLayout from "@/components/tenant/TenantBrandingLayout";
 import { OrderTrackingProvider } from "@/components/public/checkout/OrderTrackingProvider";
 import StoreOnboarding from "@/components/public/onboarding/StoreOnboarding";
@@ -43,13 +44,15 @@ export default async function TenantLayout({ children, params }) {
     <TenantBrandingLayout tenant={tenant}>
       <SiteConfigGate>
         <OrderTrackingProvider>
-          <StoreOnboarding />
-          <div className="flex flex-col min-h-screen">
-            <ScrollToTop />
-            <Header />
-            <main className="grow bg-white">{children}</main>
-            <Footer />
-          </div>
+          <TenantHeroMetricsProvider>
+            <StoreOnboarding />
+            <div className="flex flex-col min-h-screen overflow-x-hidden">
+              <ScrollToTop />
+              <Header />
+              <main className="grow bg-white pt-16">{children}</main>
+              <Footer />
+            </div>
+          </TenantHeroMetricsProvider>
         </OrderTrackingProvider>
       </SiteConfigGate>
     </TenantBrandingLayout>

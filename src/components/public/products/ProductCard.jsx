@@ -137,24 +137,60 @@ export default function ProductCard({
               )}
             </span>
           )}
-          <div className="flex justify-between items-start gap-2 min-h-[36px]">
-            <h4 className="text-[12px] sm:text-[13px] font-bold text-ink uppercase tracking-tight line-clamp-2 flex-1">
+
+          <div className="flex flex-col gap-2 md:hidden">
+            <h4 className="text-[12px] font-bold text-ink uppercase tracking-tight line-clamp-2">
               {name}
             </h4>
-            <div className="flex flex-col items-end leading-tight shrink-0">
+            {(description || short_description) && (
+              <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2 font-light italic">
+                {description || short_description}
+              </p>
+            )}
+            <div className="flex flex-row flex-wrap items-baseline gap-x-2 gap-y-1">
               {hasActiveOffer && (
                 <span className="text-[10px] font-semibold text-red-500 line-through">
-                  {currencySymbol}{regularPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {currencySymbol}
+                  {regularPrice.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
                 </span>
               )}
-              <span className="text-[13px] sm:text-[14px] font-bold text-black">
-                {currencySymbol}{displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <span className="text-[13px] font-bold text-black">
+                {currencySymbol}
+                {displayPrice.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                })}
               </span>
             </div>
           </div>
-          <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-1 font-light italic">
-            {description || short_description}
-          </p>
+
+          <div className="hidden md:block space-y-1.5">
+            <div className="flex justify-between items-start gap-2 min-h-[36px]">
+              <h4 className="text-[13px] font-bold text-ink uppercase tracking-tight line-clamp-2 flex-1">
+                {name}
+              </h4>
+              <div className="flex flex-col items-end leading-tight shrink-0">
+                {hasActiveOffer && (
+                  <span className="text-[10px] font-semibold text-red-500 line-through">
+                    {currencySymbol}
+                    {regularPrice.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                )}
+                <span className="text-[14px] font-bold text-black">
+                  {currencySymbol}
+                  {displayPrice.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-1 font-light italic">
+              {description || short_description}
+            </p>
+          </div>
         </div>
       </Link>
 

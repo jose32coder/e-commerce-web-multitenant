@@ -3,11 +3,6 @@ const nextConfig = {
   // Permitir acceso desde móviles/IPs locales en desarrollo
   allowedDevOrigins: ["192.168.0.203", "10.2.0.2", "localhost:3000"],
 
-  // Solucionar conflicto de Turbopack
-  experimental: {
-    turbo: {},
-  },
-
   images: {
     remotePatterns: [
       {

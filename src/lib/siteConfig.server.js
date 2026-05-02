@@ -3,12 +3,12 @@ import {
   DEFAULT_COMMERCE_SETTINGS,
   DEFAULT_FOOTER_SETTINGS,
   DEFAULT_HEADER_MENU,
-  DEFAULT_HOME_INTRO,
   DEFAULT_PRODUCTS_INTRO,
   normalizeCommerceSettings,
   normalizeFooterSettings,
   normalizeHeaderMenu,
   normalizeHeroSlides,
+  normalizeHomeIntro,
   normalizePromoDivider,
   returnDefaults,
 } from "./siteConfig";
@@ -105,7 +105,7 @@ export async function getSiteConfigServerCached({ tenantId, tenantSlug } = {}) {
     tenant_id: activeTenantId,
     ...data,
     hero_slides: normalizeHeroSlides(data.hero_slides),
-    home_intro: { ...DEFAULT_HOME_INTRO, ...(data.home_intro || {}) },
+    home_intro: normalizeHomeIntro(data.home_intro),
     products_intro: {
       ...DEFAULT_PRODUCTS_INTRO,
       ...(data.products_intro || {}),
