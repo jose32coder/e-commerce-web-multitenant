@@ -178,18 +178,24 @@ export default function HeroCinematic({
   let innerContentPad;
   if (isContained) {
     if (overlayValign === HERO_OVERLAY_VALIGN_TOP) {
-      innerContentPad = "px-6 sm:px-10 lg:px-14 pt-12 pb-36 sm:pb-40";
+      innerContentPad =
+        "px-6 sm:px-10 lg:px-14 pt-10 sm:pt-12 pb-24 sm:pb-28 [@media(max-height:820px)]:pt-8 [@media(max-height:820px)]:pb-18";
     } else if (overlayValign === HERO_OVERLAY_VALIGN_BOTTOM) {
-      innerContentPad = "px-6 sm:px-10 lg:px-14 pt-14 pb-40 sm:pb-44";
+      innerContentPad =
+        "px-6 pb-20 sm:px-10 lg:px-14 pt-10 sm:pt-12 pb-30 sm:pb-34 [@media(max-height:820px)]:pt-8 [@media(max-height:820px)]:pb-22";
     } else {
-      innerContentPad = "px-6 sm:px-10 lg:px-14 pt-14 pb-36 sm:pb-40";
+      innerContentPad =
+        "px-6 pb-20 sm:px-10 lg:px-14 pt-10 sm:pt-12 pb-24 sm:pb-28 [@media(max-height:820px)]:pt-8 [@media(max-height:820px)]:pb-18";
     }
   } else if (overlayValign === HERO_OVERLAY_VALIGN_TOP) {
-    innerContentPad = "px-5 sm:px-10 lg:px-14 pt-24 sm:pt-28 pb-32 sm:pb-36";
+    innerContentPad =
+      "px-5 sm:px-10 lg:px-14 pt-20 sm:pt-24 pb-24 sm:pb-28 [@media(max-height:820px)]:pt-16 [@media(max-height:820px)]:pb-18";
   } else if (overlayValign === HERO_OVERLAY_VALIGN_BOTTOM) {
-    innerContentPad = "px-5 sm:px-10 lg:px-14 pt-20 sm:pt-24 pb-40 sm:pb-44";
+    innerContentPad =
+      "px-5 sm:px-10 lg:px-14 pt-18 sm:pt-22 pb-32 sm:pb-36 [@media(max-height:820px)]:pt-14 [@media(max-height:820px)]:pb-24";
   } else {
-    innerContentPad = "px-5 sm:px-10 lg:px-14 pt-24 sm:pt-28 pb-36 sm:pb-40";
+    innerContentPad =
+      "px-5 sm:px-10 lg:px-14 pt-20 sm:pt-24 pb-24 sm:pb-28 [@media(max-height:820px)]:pt-16 [@media(max-height:820px)]:pb-18";
   }
 
   return (
@@ -240,27 +246,27 @@ export default function HeroCinematic({
             transition={{ duration: 0.45, ease: [0.19, 1, 0.22, 1] }}
             className={`${textBlock} pointer-events-auto max-w-full`}
           >
-            <p className="text-white/70 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.35em] mb-4 drop-shadow-sm">
+            <p className="text-white/70 text-[clamp(0.58rem,min(1.25vw,1.35vh),0.72rem)] font-bold uppercase tracking-[0.27em] mb-3 drop-shadow-sm">
               {slide.subtitle}
             </p>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[1.05] text-white uppercase tracking-tight mb-5 drop-shadow-md">
+            <h2 className="font-black leading-[1.02] text-white uppercase tracking-tight mb-4 drop-shadow-md text-[clamp(1.7rem,min(5.3vw,5.8vh),4.4rem)]">
               {slide.title}
             </h2>
             <p
-              className={`text-white/75 text-sm sm:text-base leading-relaxed font-light mb-8 ${descMax}`}
+              className={`text-white/75 leading-relaxed font-light mb-6 text-[clamp(0.9rem,min(2.05vw,2.25vh),1.05rem)] ${descMax}`}
             >
               {slide.description}
             </p>
             <Link
               href={`${baseUrl}/products`}
               prefetch={false}
-              className={`inline-flex items-center gap-3 rounded-full bg-white pl-7 pr-2 py-2 text-black text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-zinc-100 transition-colors ${
+              className={`inline-flex items-center gap-2.5 rounded-full bg-white pl-[clamp(1rem,2.2vw,1.75rem)] pr-2 py-[clamp(0.32rem,0.85vh,0.55rem)] text-black text-[clamp(0.58rem,min(1.35vw,1.5vh),0.75rem)] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-zinc-100 transition-colors ${
                 overlayAlign === HERO_OVERLAY_ALIGN_CENTER ? "mx-auto" : ""
               }`}
             >
               <span>Comprar ahora</span>
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-white">
-                <ArrowRight className="h-4 w-4" aria-hidden />
+              <span className="flex h-[clamp(2rem,4.3vh,2.5rem)] w-[clamp(2rem,4.3vh,2.5rem)] items-center justify-center rounded-full bg-black text-white">
+                <ArrowRight className="h-[clamp(0.78rem,1.7vh,1rem)] w-[clamp(0.78rem,1.7vh,1rem)]" aria-hidden />
               </span>
             </Link>
           </motion.div>
