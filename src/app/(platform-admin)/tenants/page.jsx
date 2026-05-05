@@ -58,19 +58,28 @@ export default function TenantsPage() {
 
   useEffect(() => {
     const loadActor = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) {
+          console.warn("No se pudo obtener usuario de plataforma:", error.message);
+          return;
+        }
 
-      const fullName =
-        user?.user_metadata?.full_name ||
-        user?.user_metadata?.name ||
-        user?.email ||
-        "Usuario";
-      setActorName(String(fullName));
+        const user = data?.user;
 
-      const accessScope =
-        user?.user_metadata?.access_scope || user?.app_metadata?.access_scope;
-      setActorRoleLabel(accessScope === "platform" ? "Platform Admin" : "User");
+        const fullName =
+          user?.user_metadata?.full_name ||
+          user?.user_metadata?.name ||
+          user?.email ||
+          "Usuario";
+        setActorName(String(fullName));
+
+        const accessScope =
+          user?.user_metadata?.access_scope || user?.app_metadata?.access_scope;
+        setActorRoleLabel(accessScope === "platform" ? "Platform Admin" : "User");
+      } catch (error) {
+        console.warn("Fallo de red cargando usuario de plataforma:", error?.message);
+      }
     };
 
     loadActor();

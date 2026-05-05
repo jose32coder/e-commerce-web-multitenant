@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SiteConfigProvider } from "@/context/SiteConfigContext";
 import { getSiteConfigServerCached } from "@/lib/siteConfig.server";
+import { headers } from "next/headers";
+import { getExchangeRates } from "@/services/exchangeRates";
 
 /**
  * Server Component para layout multitenant.
@@ -28,16 +30,32 @@ export default async function TenantBrandingLayout({ tenant, children }) {
     notFound();
   }
 
-  // 2. Obtener configuración del sitio en el servidor para hidratar el cliente
   const siteConfig = await getSiteConfigServerCached({
     tenantId: tenantRow.tenant_id,
   });
+
+  const headersList = await headers();
+  const country = headersList.get("x-vercel-ip-country") || "VE";
+
+  // Cargar tasas de cambio
+  const rawRates = await getExchangeRates(supabase);
+  
+  // Filtrado por país
+  let rates = rawRates;
+  if (rawRates) {
+    if (country === "VE") {
+      rates = { USD: 1, VES: rawRates.VES };
+    } else if (country === "CO") {
+      rates = { USD: 1, COP: rawRates.COP };
+    }
+  }
 
   return (
     <SiteConfigProvider
       tenantId={tenantRow.tenant_id}
       tenantSlug={tenant}
-      initialData={siteConfig}
+      initialData={{ ...siteConfig, exchange_rates: rates }}
+      userCountry={country}
     >
       <div
         style={{

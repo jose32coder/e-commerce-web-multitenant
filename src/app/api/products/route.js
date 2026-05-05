@@ -109,6 +109,7 @@ export async function POST(request) {
     const normalizedCategoryIds = [
       ...new Set((category_ids || []).filter(Boolean)),
     ];
+    const normalizedImages = (images || []).slice(0, 5);
 
     if (!name || !price || normalizedCategoryIds.length === 0) {
       return NextResponse.json(
@@ -145,7 +146,7 @@ export async function POST(request) {
           description,
           price: parseFloat(price),
           discount_price: discount_price ? parseFloat(discount_price) : null,
-          images: images || [],
+          images: normalizedImages,
           status: status || "draft",
           featured: featured || false,
           slug:

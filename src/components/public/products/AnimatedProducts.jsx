@@ -136,8 +136,6 @@ export default function AnimatedProducts({ products, categories }) {
     setFilteredProducts(result);
   }, [activeCategory, searchQuery, products, hasCategoryFilter]);
 
-  console.log("Categorías recibidas en el cliente:", categories);
-
   return (
     <div className="space-y-12">
       {categories && categories.length > 0 && (

@@ -60,10 +60,17 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
         console.log(`[Realtime] Estado de conexión: ${status}`);
       });
 
-    // 2. Polling de seguridad (cada 5 seg) por si falla el WebSocket en redes locales
-    // 2. Polling de seguridad (cada 5 seg) por si falla el WebSocket en redes locales
+    // 2. Polling de seguridad con Exponential Backoff
+    let timeoutId;
+    let currentDelay = 3000; // Empezamos cada 3 segundos
+    const MAX_DELAY = 30000; // Máximo cada 30 segundos
+
     const fetchCurrentStatus = async () => {
-      // Intentamos traer estado y motivo. Si falla por la columna, reintentamos solo con estado.
+      // Si el componente se desmontó, no hacer nada
+      if (!orderId) return;
+
+      console.log(`[Polling] Verificando estado... (delay actual: ${currentDelay}ms)`);
+      
       let { data, error } = await supabase
         .from("orders")
         .select("estado, motivo_rechazo")
@@ -80,14 +87,6 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
         error = retry.error;
       }
 
-      if (error) {
-        console.error(`[Tracking] Error:`, error.message);
-        if (error.code === "42501") {
-          setRejectionReason("Error de permisos (RLS).");
-        }
-        return;
-      }
-
       if (data) {
         if (data.estado !== currentStatus) {
           console.log(`[Polling] Estado actualizado: ${data.estado}`);
@@ -96,15 +95,24 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
         if (data.motivo_rechazo && data.motivo_rechazo !== rejectionReason) {
           setRejectionReason(data.motivo_rechazo);
         }
+        
+        // Si el estado sigue siendo pendiente, programar siguiente consulta con backoff
+        if (data.estado === "pending") {
+          currentDelay = Math.min(currentDelay * 1.5, MAX_DELAY);
+          timeoutId = setTimeout(fetchCurrentStatus, currentDelay);
+        }
+      } else if (error) {
+        console.error(`[Tracking] Error en polling:`, error.message);
+        // Reintentar de todos modos tras un error
+        timeoutId = setTimeout(fetchCurrentStatus, currentDelay);
       }
     };
 
     fetchCurrentStatus();
-    const pollInterval = setInterval(fetchCurrentStatus, 5000);
 
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(pollInterval);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [orderId, tenant_slug, updateTrackingStatus, currentStatus, rejectionReason]);
 

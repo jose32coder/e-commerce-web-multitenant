@@ -67,12 +67,6 @@ export default function FloatingRates() {
                     base="USD"
                   />
                   <RateItem
-                    label="Peso Colombiano"
-                    symbol="COP"
-                    value={rates.COP}
-                    base="USD"
-                  />
-                  <RateItem
                     label="Bolívar Digital"
                     symbol="VES"
                     value={rates.VES}

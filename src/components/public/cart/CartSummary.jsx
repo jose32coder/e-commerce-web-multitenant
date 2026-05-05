@@ -41,7 +41,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
             Subtotal
           </span>
           <span className="font-bold text-ink">
-            {currencySymbol}{subtotalConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {currencySymbol}{subtotalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </span>
         </div>
 
@@ -51,7 +51,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
               Descuento
             </span>
             <span className="font-bold text-red-500">
-              -{currencySymbol}{discountConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              -{currencySymbol}{discountConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </span>
           </div>
         )}
@@ -69,7 +69,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
             {isFree
               ? "Gratuito"
               : deliveryFee > 0
-                ? `${currencySymbol}${deliveryFeeConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                ? `${currencySymbol}${deliveryFeeConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                 : "Cobro en destino"}
           </span>
         </div>
@@ -80,14 +80,14 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
               Total
             </span>
             <span className="text-3xl font-serif font-bold text-ink">
-              {currencySymbol}{totalConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {currencySymbol}{totalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </span>
           </div>
           {threshold > 0 && (
             <p className="text-[9px] text-honey-dark italic font-medium text-center mt-2">
               {isFree
                 ? "✨ ¡Envío gratuito aplicado!"
-                : `* Envío gratuito en compras mayores a ${currencySymbol}${thresholdConverted.toLocaleString(undefined, { minimumFractionDigits: 0 })}`}
+                : `* Envío gratuito en compras mayores a ${currencySymbol}${thresholdConverted.toLocaleString("en-US", { minimumFractionDigits: 0 })}`}
             </p>
           )}
         </div>

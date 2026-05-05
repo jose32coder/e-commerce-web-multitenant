@@ -1,9 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
+import { z } from "zod";
+
+// Esquema de validación para feedback inmediato
+const CheckoutFormSchema = z.object({
+  name: z.string().min(2, "Nombre demasiado corto").max(100),
+  phone: z.string().min(10, "Teléfono inválido").max(15),
+  idNumber: z.string().min(5, "Cédula/RIF inválido").max(20),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  paymentMethod: z.string().min(1, "Selecciona un método de pago"),
+  reference: z.string().min(3, "La referencia es necesaria").max(50),
+});
 
 // Store e iconos
 import { useCartStore, useTenantCart } from "@/lib/useCartStore";
@@ -30,12 +41,18 @@ import {
 import { convertPrice } from "@/services/exchangeRates";
 
 export default function CheckoutPage() {
-  const { tenant_slug, site_name, commerce_settings, tenant_id, exchange_rates } =
-    useSiteConfig();
+  const {
+    tenant_slug,
+    site_name,
+    commerce_settings,
+    tenant_id,
+    exchange_rates,
+  } = useSiteConfig();
   const { items, getTotalPrice, clearCart } = useTenantCart(tenant_slug);
-  const [mounted, setMounted] = useState(
-    () => useCartStore.persist?.hasHydrated?.() ?? true,
-  );
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const router = useRouter();
   const [isWaiting, setIsWaiting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -51,10 +68,22 @@ export default function CheckoutPage() {
     phone: "",
     email: "",
     shippingMethod: "delivery", // 'delivery' o 'pickup'
+    shippingProvider: "", // Ej: 'mrw', 'zoom'
+    shippingPaymentType: "cod", // 'paid' (pagado aquí) o 'cod' (cobro en destino)
     paymentMethod: "",
     reference: "",
     notes: "",
   });
+
+  // Llave única para evitar duplicados en reintentos
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+
+  useEffect(() => {
+    // Generamos la llave una sola vez al montar
+    if (typeof window !== "undefined") {
+      setIdempotencyKey(crypto.randomUUID());
+    }
+  }, []);
 
   const [idType, setIdType] = useState("V");
   const [errors, setErrors] = useState({});
@@ -69,7 +98,7 @@ export default function CheckoutPage() {
   const brandImageLabel = brand.replace(/\s+/g, "+");
   const selectedPaymentMethod =
     formData.paymentMethod || activePaymentMethods[0] || "";
-  
+
   const currencySymbol = commerce?.currency_symbol || "$";
   const targetCurrency = commerce?.currency_code || "USD";
 
@@ -118,27 +147,41 @@ export default function CheckoutPage() {
 
   if (!mounted) return null;
 
-  const subtotal = getTotalPrice();
+  const subtotal = mounted ? getTotalPrice() : 0;
   const deliveryFee = Number(commerce.delivery_fee || 0);
+  const nationalFee = Number(commerce.shipping_national_fee || 0);
   const threshold = Number(commerce.free_shipping_threshold || 50);
-  const isFreeShipping =
-    deliveryEnabled &&
-    formData.shippingMethod === "delivery" &&
-    subtotal >= threshold &&
+  
+  const isFreeShipping = 
+    deliveryEnabled && 
+    formData.shippingMethod === "local" && 
+    subtotal >= threshold && 
     threshold > 0;
 
-  const appliedDelivery =
-    !deliveryEnabled ||
-    formData.shippingMethod === "pickup" ||
-    isFreeShipping
-      ? 0
-      : deliveryFee;
+  // Calculamos qué monto de envío aplicar
+  let appliedDelivery = 0;
   
+  if (formData.shippingMethod === "local" && !isFreeShipping) {
+    appliedDelivery = deliveryFee;
+  } else if (formData.shippingMethod === "national" && formData.shippingPaymentType === "paid") {
+    appliedDelivery = nationalFee;
+  }
+
   const total = subtotal + appliedDelivery;
 
   // Realizamos las conversiones de los totales
-  const totalConverted = convertPrice(total, "USD", targetCurrency, exchange_rates);
-  const deliveryFeeConverted = convertPrice(deliveryFee, "USD", targetCurrency, exchange_rates);
+  const totalConverted = convertPrice(
+    total,
+    "USD",
+    targetCurrency,
+    exchange_rates,
+  );
+  const deliveryFeeConverted = convertPrice(
+    deliveryFee,
+    "USD",
+    targetCurrency,
+    exchange_rates,
+  );
 
   const handleCustomerFound = (customer) => {
     setFormData((prev) => ({
@@ -161,16 +204,22 @@ export default function CheckoutPage() {
   };
 
   const handleVerifyPayment = () => {
-    const currentErrors = validateEntireForm(formData, idType);
-    setErrors(currentErrors);
+    // 1. Validación de cliente (Zod)
+    const result = CheckoutFormSchema.safeParse(formData);
 
-    if (Object.keys(currentErrors).length > 0) {
+    if (!result.success) {
+      const fieldErrors = {};
+      result.error.issues.forEach((err) => {
+        fieldErrors[err.path[0]] = err.message;
+      });
+      setErrors(fieldErrors);
+
       Swal.fire({
         toast: true,
         position: "top-end",
         icon: "error",
         title: "¡Atención!",
-        text: "Por favor corrige los campos marcados en rojo.",
+        text: "Por favor revisa los datos ingresados.",
         showConfirmButton: false,
         timer: 3000,
         background: "#FFF5F5",
@@ -178,6 +227,8 @@ export default function CheckoutPage() {
       });
       return;
     }
+
+    setErrors({});
 
     Swal.fire({
       title: "¿Confirmar Envío?",
@@ -210,6 +261,7 @@ export default function CheckoutPage() {
           paymentMethod: selectedPaymentMethod,
           tenantId: tenant_id || null,
           tenantSlug: tenant_slug || null,
+          idempotencyKey, // Enviamos la llave de seguridad
         };
         // Nota: Guardamos 'total' (en USD) en la base de datos para mantener consistencia financiera
         const response = await processCheckoutOrder(payload, items, total);
@@ -240,10 +292,12 @@ export default function CheckoutPage() {
             ? String(response.orderId)
             : "";
         const safeOrderNumber = response?.orderNumber || "";
-        
-        const displayOrderCode = safeOrderNumber 
-          ? String(safeOrderNumber).padStart(5, "0") 
-          : (safeOrderId ? safeOrderId.slice(-6).toUpperCase() : "");
+
+        const displayOrderCode = safeOrderNumber
+          ? String(safeOrderNumber).padStart(5, "0")
+          : safeOrderId
+            ? safeOrderId.slice(-6).toUpperCase()
+            : "";
 
         const orderIdShort = displayOrderCode ? `(#${displayOrderCode})` : "";
         const orderCode = displayOrderCode;
@@ -257,7 +311,7 @@ export default function CheckoutPage() {
             ? "RETIRO EN TIENDA 🛍️"
             : isFreeShipping
               ? "GRATIS ✨"
-              : `${currencySymbol}${deliveryFeeConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })} 🚚`;
+              : `${currencySymbol}${deliveryFeeConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })} 🚚`;
 
         const message = `Hola ${brand}! 👋
 
@@ -274,8 +328,8 @@ He realizado un pago por ${selectedPaymentMethod}.
 🛒 *PEDIDO ${orderIdShort}*
 ${orderDetails}
 
-💰 *TOTAL*: ${currencySymbol}${totalConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-🚚 *ENVÍO*: ${shippingMethodLabel}
+💰 *TOTAL*: ${currencySymbol}${totalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+🚚 *ENVÍO*: ${shippingMethodLabel}${formData.shippingProvider ? ` (${formData.shippingProvider.toUpperCase()})` : ""}
 
 📝 *NOTAS*: ${formData.notes || "Ninguna"}
 
@@ -302,14 +356,27 @@ ${orderDetails}
     });
   };
 
+  const handleStockInquiry = () => {
+    const orderDetails = items
+      .map(
+        (item) =>
+          `- ${item.name} (Variante: ${item.variant || "Única"}) x${item.quantity}`,
+      )
+      .join("\n");
+
+    const message = `Hola! 👋\n\nMe gustaría consultar la disponibilidad de los siguientes productos antes de realizar mi compra:\n\n${orderDetails}\n\n¿Tienen stock disponible para poder realizar mi compra?`;
+
+    const whatsappHref = whatsappNumber
+      ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+      : "";
+
+    if (whatsappHref) window.open(whatsappHref, "_blank");
+  };
+
   return (
     <main className="min-h-screen p-4 md:p-10 bg-[#F8F9FA] print:bg-white print:p-0 print:min-h-0">
       <div className="max-w-6xl mx-auto print:max-w-none print:m-0">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
+        <div className="w-full">
           {isWaiting && !isSuccess ? (
             <ValidationWaitScreen
               orderId={orderId}
@@ -320,7 +387,7 @@ ${orderDetails}
               }}
             />
           ) : !isSuccess ? (
-            <div className="flex flex-col lg:flex-row gap-12 items-start">
+            <div className="flex flex-col lg:flex-row gap-12">
               {/* Columna Izquierda: Formularios */}
               <div className="w-full lg:w-[62%] space-y-10">
                 <HeaderTitle />
@@ -374,18 +441,23 @@ ${orderDetails}
               </div>
 
               {/* Columna Derecha: Resumen y Acción */}
-              <div className="w-full lg:w-[38%] lg:sticky lg:top-10">
-                <OrderSummary
-                  items={items}
-                  subtotal={subtotal}
-                  total={total}
-                  deliveryFee={deliveryFee}
-                  threshold={threshold}
-                  brandImageLabel={brandImageLabel}
-                  onVerify={handleVerifyPayment}
-                  shippingMethod={formData.shippingMethod}
-                />
-              </div>
+              <aside className="w-full lg:w-[38%]">
+                <div className="lg:sticky lg:top-24 space-y-6">
+                  <OrderSummary
+                    items={items}
+                    subtotal={subtotal}
+                    total={total}
+                    deliveryFee={appliedDelivery}
+                    threshold={threshold}
+                    brandImageLabel={brandImageLabel}
+                    onVerify={handleVerifyPayment}
+                    shippingMethod={formData.shippingMethod}
+                    shippingPaymentType={formData.shippingPaymentType}
+                    showStockInquiry={!!commerce.whatsapp_stock_check}
+                    onStockInquiry={handleStockInquiry}
+                  />
+                </div>
+              </aside>
             </div>
           ) : (
             <SuccessInvoice
@@ -396,7 +468,7 @@ ${orderDetails}
               orderNumber={orderNumber}
             />
           )}
-        </motion.div>
+        </div>
       </div>
     </main>
   );

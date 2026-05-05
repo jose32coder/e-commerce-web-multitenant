@@ -21,7 +21,8 @@ import { convertPrice } from "@/services/exchangeRates";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
-  const { site_name, tenant_slug, commerce_settings, exchange_rates } = useSiteConfig();
+  const { site_name, tenant_slug, commerce_settings, exchange_rates } =
+    useSiteConfig();
   const [selectedAttrs, setSelectedAttrs] = useState({});
   const { addItem } = useTenantCart(tenant_slug);
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
       (product_variants || []).find((v) => {
         if (!v.attributes) return false;
         return attributeKeys.every(
-          (key) => String(v.attributes[key]) === String(selectedAttrs[key])
+          (key) => String(v.attributes[key]) === String(selectedAttrs[key]),
         );
       }) || null
     );
@@ -91,13 +92,28 @@ export default function QuickAddSheet({ product, open, onClose }) {
   const hasActiveOffer = rawOfferPrice > 0 && rawOfferPrice < rawRegularPrice;
   const rawBasePrice = hasActiveOffer ? rawOfferPrice : rawRegularPrice;
   const rawPriceAdjustment = Number(
-    selectedVariant?.price_override ?? selectedVariant?.price_adjustment ?? 0
+    selectedVariant?.price_override ?? selectedVariant?.price_adjustment ?? 0,
   );
 
   // Convertimos los precios
-  const finalPrice = convertPrice(rawBasePrice + rawPriceAdjustment, base_currency, targetCurrency, exchange_rates);
-  const finalRegularPrice = convertPrice(rawRegularPrice + rawPriceAdjustment, base_currency, targetCurrency, exchange_rates);
-  const displayAdjustment = convertPrice(rawPriceAdjustment, base_currency, targetCurrency, exchange_rates);
+  const finalPrice = convertPrice(
+    rawBasePrice + rawPriceAdjustment,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
+  const finalRegularPrice = convertPrice(
+    rawRegularPrice + rawPriceAdjustment,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
+  const displayAdjustment = convertPrice(
+    rawPriceAdjustment,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
 
   const imageUrl = images?.[0] || "/placeholder.jpg";
 
@@ -186,7 +202,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
               {brand}
             </p>
-            <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink break-words line-clamp-3 sm:line-clamp-2">
+            <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink wrap-break-word line-clamp-3 sm:line-clamp-2">
               {name || "Producto sin nombre"}
             </h2>
 
@@ -201,7 +217,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
                 {hasActiveOffer && (
                   <p className="text-[11px] font-semibold text-red-500 line-through">
                     {currencySymbol}
-                    {finalRegularPrice.toLocaleString(undefined, {
+                    {finalRegularPrice.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -214,19 +230,16 @@ export default function QuickAddSheet({ product, open, onClose }) {
               </div>
               <p className="text-lg font-bold text-black tabular-nums">
                 {currencySymbol}
-                {finalPrice.toLocaleString(undefined, {
+                {finalPrice.toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                 })}
               </p>
-
-
-
             </div>
 
             {rawPriceAdjustment > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold">
                 +{currencySymbol}
-                {displayAdjustment.toLocaleString(undefined, {
+                {displayAdjustment.toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                 })}{" "}
                 de recargo por combinación.
@@ -263,7 +276,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
                           isSelected
                             ? "bg-black text-white border-black shadow-md"
                             : "bg-transparent text-black border-gray-200 hover:border-black",
-                          !available && "opacity-25 line-through"
+                          !available && "opacity-25 line-through",
                         )}
                       >
                         {val}

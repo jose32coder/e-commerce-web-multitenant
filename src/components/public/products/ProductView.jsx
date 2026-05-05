@@ -194,17 +194,17 @@ export default function ProductView({ product }) {
             <div className="mt-2 flex items-end gap-3">
               {hasActiveOffer && (
                 <p className="text-sm font-semibold text-red-500 line-through">
-                  {currencySymbol}{finalRegularPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {currencySymbol}{finalRegularPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </p>
               )}
               <p className="text-3xl font-bold text-black">
-                {currencySymbol}{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {currencySymbol}{finalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </p>
             </div>
             {rawPriceOverride > 0 && (
               <p className="mt-1 text-xs font-medium text-amber-700">
                 Esta combinación tiene un recargo de +{currencySymbol}
-                {displayOverride.toLocaleString(undefined, { minimumFractionDigits: 2 })}.
+                {displayOverride.toLocaleString("en-US", { minimumFractionDigits: 2 })}.
               </p>
             )}
             {hasActiveOffer && (

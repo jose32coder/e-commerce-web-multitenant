@@ -1,23 +1,17 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  Search,
-  Package,
-  Loader2,
-  CheckSquare,
-  Square,
-  Star,
-  StarOff,
-  Lock,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ProductForm from "@/components/admin/ProductForm";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
+
+// Componentes extraídos (con estilos originales preservados)
+import ExportButtons from "@/components/admin/shared/ExportButtons";
+import ProductFilters from "@/components/admin/products/ProductFilters";
+import BulkActions from "@/components/admin/products/BulkActions";
+import ProductTable from "@/components/admin/products/ProductTable";
+import ProductPagination from "@/components/admin/products/ProductPagination";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -31,11 +25,9 @@ export default function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState("Todos los estados");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
-
-  const getErrorMessage = (error) =>
-    error?.message || error?.details || "Error desconocido";
 
   const loadProducts = async () => {
     try {
@@ -99,7 +91,7 @@ export default function ProductsPage() {
   }, [tenantId]);
 
   const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.name
+    const matchesSearch = (p.name || "")
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
 
@@ -107,7 +99,10 @@ export default function ProductsPage() {
       statusFilter === "Todos los estados" ||
       (statusFilter === "Publicados" && p.status === "published") ||
       (statusFilter === "Borradores" && p.status !== "published") ||
-      (statusFilter === "Stock bajo" && Number(p.stock) <= 5 && Number(p.stock) >= 0 && Number(p.stock) < 999999);
+      (statusFilter === "Stock bajo" &&
+        Number(p.stock) <= 5 &&
+        Number(p.stock) >= 0 &&
+        Number(p.stock) < 999999);
 
     return matchesSearch && matchesStatus;
   });
@@ -275,12 +270,106 @@ export default function ProductsPage() {
     }
   };
 
+  const handleExport = async (format) => {
+    setExportLoading(true);
+    Swal.fire({
+      title: "GENERANDO REPORTE",
+      text: "Por favor espere mientras preparamos el archivo.",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      if (format === "pdf") {
+        let iframe = document.getElementById("print-iframe");
+        if (!iframe) {
+          iframe = document.createElement("iframe");
+          iframe.id = "print-iframe";
+          iframe.style.display = "none";
+          document.body.appendChild(iframe);
+        }
+        const html = `
+          <html>
+            <head>
+              <title>Reporte de Productos</title>
+              <style>
+                body { font-family: sans-serif; padding: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 10px; }
+                th { background-color: #f4f4f4; text-transform: uppercase; }
+                h1 { text-transform: uppercase; letter-spacing: -1px; margin-bottom: 5px; }
+                .meta { font-size: 10px; color: #666; margin-bottom: 20px; }
+              </style>
+            </head>
+            <body>
+              <h1>Reporte de Productos</h1>
+              <div class="meta">Generado el: ${new Date().toLocaleString()}</div>
+              <table>
+                <thead>
+                  <tr><th>Nombre</th><th>Precio</th><th>Stock</th><th>Estado</th></tr>
+                </thead>
+                <tbody>
+                  ${filteredProducts
+                    .map(
+                      (p) => `
+                    <tr>
+                      <td>${p.name}</td>
+                      <td>$${Number(p.price).toFixed(2)}</td>
+                      <td>${p.stock >= 999999 ? "Ilimitado" : p.stock}</td>
+                      <td>${p.status}</td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </body>
+          </html>
+        `;
+        iframe.contentWindow.document.open();
+        iframe.contentWindow.document.write(html);
+        iframe.contentWindow.document.close();
+        setTimeout(() => {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          Swal.close();
+        }, 500);
+        return;
+      }
+
+      const response = await fetch(
+        `/api/admin/export/products?format=${format}&tenant_id=${tenantId}`,
+      );
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "No se pudo exportar los productos.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `productos_export_${new Date().toISOString().slice(0, 10)}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      Swal.fire({
+        icon: "success",
+        title: "EXPORTACIÓN LISTA",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.fire("Error", error.message, "error");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const filteredIds = filteredProducts.map((product) => product.id);
   const allFilteredSelected =
     filteredIds.length > 0 &&
     filteredIds.every((id) => selectedIds.includes(id));
-
-
 
   return (
     <div className="space-y-6">
@@ -293,334 +382,58 @@ export default function ProductsPage() {
             Gestiona el stock y precios de tus productos.
           </p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="flex items-center gap-2 px-5 py-3 rounded-md transition-all font-bold text-xs uppercase tracking-widest shadow-lg bg-slate-900 dark:bg-white dark:text-slate-900 text-white hover:bg-slate-800 dark:hover:bg-slate-200 shadow-slate-200 dark:shadow-none cursor-pointer"
-        >
-          <Plus size={16} />
-          Nuevo Producto
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={handleCreate}
+            className="flex items-center gap-2 px-5 py-3 rounded-md transition-all font-bold text-xs uppercase tracking-widest shadow-lg bg-slate-900 dark:bg-white dark:text-slate-900 text-white hover:bg-slate-800 dark:hover:bg-slate-200 shadow-slate-200 dark:shadow-none cursor-pointer w-full sm:w-auto justify-center"
+          >
+            <Plus size={16} />
+            Nuevo Producto
+          </button>
+        </div>
       </header>
 
+      <ExportButtons onExport={handleExport} loading={exportLoading} />
 
+      <ProductFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        pageSize={pageSize}
+        setPageSize={setPageSize}
+      />
 
-      {/* Filtros Estándar */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4 flex flex-col md:flex-row items-center gap-4">
-        <div className="relative flex-1 w-full">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Buscar productos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-sm text-slate-900 dark:text-white transition-all"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer w-full md:w-auto"
-        >
-          <option value="Todos los estados">Todos los estados</option>
-          <option value="Publicados">Publicados</option>
-          <option value="Borradores">Borradores</option>
-          <option value="Stock bajo">Stock bajo</option>
-        </select>
+      <BulkActions
+        selectedIds={selectedIds}
+        allFilteredSelected={allFilteredSelected}
+        toggleSelectAllFiltered={toggleSelectAllFiltered}
+        runBulkUpdate={runBulkUpdate}
+        handleBulkDelete={handleBulkDelete}
+        bulkLoading={bulkLoading}
+      />
 
-        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Mostrar
-            </span>
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-black uppercase tracking-widest cursor-pointer"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <ProductTable
+        loading={loading}
+        filteredProducts={filteredProducts}
+        paginatedProducts={paginatedProducts}
+        selectedIds={selectedIds}
+        toggleSelect={toggleSelect}
+        handleView={handleView}
+        handleEdit={handleEdit}
+        handleDelete={handleDelete}
+      />
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4">
-        <div className="flex flex-wrap w-full items-center justify-between gap-3">
-          <div className="flex items-center gap-6 justify-between">
-            <button
-              type="button"
-              onClick={toggleSelectAllFiltered}
-              className="h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
-            >
-              {allFilteredSelected ? (
-                <CheckSquare size={14} />
-              ) : (
-                <Square size={14} />
-              )}
-              Seleccionar todo
-            </button>
-
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-              {selectedIds.length} seleccionados
-            </span>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-2.5">
-            <button
-              type="button"
-              onClick={() =>
-                runBulkUpdate({ status: "published" }, "Publicados")
-              }
-              disabled={selectedIds.length === 0 || bulkLoading}
-              className="h-9 px-3 rounded-lg cursor-pointer bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
-            >
-              Publicar
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                runBulkUpdate({ status: "draft" }, "Pasaron a borrador")
-              }
-              disabled={selectedIds.length === 0 || bulkLoading}
-              className="h-9 px-3 rounded-lg cursor-pointer bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
-            >
-              Borrador
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                runBulkUpdate({ featured: true }, "Marcados como destacados")
-              }
-              disabled={selectedIds.length === 0 || bulkLoading}
-              className="h-9 px-3 rounded-lg cursor-pointer bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center gap-2"
-            >
-              <Star size={12} />
-              Featured
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                runBulkUpdate({ featured: false }, "Removidos de destacados")
-              }
-              disabled={selectedIds.length === 0 || bulkLoading}
-              className="h-9 px-3 rounded-lg cursor-pointer bg-zinc-500 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center gap-2"
-            >
-              <StarOff size={12} />
-              Quitar Featured
-            </button>
-            <button
-              type="button"
-              onClick={handleBulkDelete}
-              disabled={selectedIds.length === 0 || bulkLoading}
-              className="h-9 px-3 rounded-lg cursor-pointer bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
-            >
-              Eliminar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabla Estándar con scroll responsive */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-        <table className="w-full text-left font-sans">
-          <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 w-10">
-                Sel
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Producto
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Precio
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden sm:table-cell">
-                Stock
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Estado
-              </th>
-              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 italic"
-                >
-                  <Loader2
-                    className="animate-spin inline mr-2 text-slate-300 dark:text-slate-600"
-                    size={20}
-                  />
-                  Sincronizando Producto...
-                </td>
-              </tr>
-            ) : filteredProducts.length > 0 ? (
-              paginatedProducts.map((product) => (
-                <tr
-                  key={product.id}
-                  className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group"
-                >
-                  <td className="px-6 py-4">
-                    <button
-                      type="button"
-                      onClick={() => toggleSelect(product.id)}
-                      className="text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                    >
-                      {selectedIds.includes(product.id) ? (
-                        <CheckSquare size={16} />
-                      ) : (
-                        <Square size={16} />
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 shrink-0 border border-slate-50 dark:border-slate-700/50 overflow-hidden">
-                        {product.images?.[0] ? (
-                          <img
-                            src={product.images[0]}
-                            alt={product.name || "Producto"}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Package size={18} />
-                        )}
-                      </div>
-                      <div className="max-w-37.5 sm:max-w-xs">
-                        <p className="font-bold text-slate-900 dark:text-slate-200 text-sm truncate">
-                          {product.name}
-                        </p>
-                        <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                          {product.category_names?.length > 0
-                            ? product.category_names[0]
-                            : "Sin categoría"}
-                          {product.category_names?.length > 1 &&
-                            ` (+${product.category_names.length - 1})`}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
-                    ${Number(product.price).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 hidden sm:table-cell">
-                    <div className="flex flex-col gap-1">
-                      <span
-                        className={`text-xs font-black ${product.stock <= 5 ? "text-rose-500" : "text-slate-900 dark:text-white"}`}
-                      >
-                        {Number(product.stock) >= 999999 ? "Ilimitado" : product.stock}{" "}
-                        {Number(product.stock) < 999999 && (
-                          <span className="text-[9px] uppercase opacity-40">
-                            unds
-                          </span>
-                        )}
-                      </span>
-                      {product.stock <= 5 && (
-                        <span className="text-[7px] font-black uppercase tracking-tighter text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-md inline-block">
-                          Stock Bajo
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                        product.status === "published"
-                          ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
-                          : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-                      }`}
-                    >
-                      {product.status === "published"
-                        ? "Publicado"
-                        : "Borrador"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleView(product)}
-                        className="p-2 text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-all cursor-pointer"
-                      >
-                        <Edit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="p-2 text-slate-300 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition-all cursor-pointer"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-6 py-12 text-center text-slate-400 font-medium"
-                >
-                  No hay productos cargados aún.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Paginación (debajo de la tabla) */}
-      {!loading && filteredProducts.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Mostrando{" "}
-              <span className="text-slate-700 dark:text-slate-200">
-                {startIndex + 1}-{Math.min(startIndex + pageSize, totalItems)}
-              </span>{" "}
-              de{" "}
-              <span className="text-slate-700 dark:text-slate-200">
-                {totalItems}
-              </span>
-            </p>
-
-            <div className="flex items-center justify-between sm:justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={loading || currentPage <= 1}
-                className="h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
-              >
-                Anterior
-              </button>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
-                {currentPage}/{totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={loading || currentPage >= totalPages}
-                className="h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProductPagination
+        loading={loading}
+        filteredProducts={filteredProducts}
+        startIndex={startIndex}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        setPage={setPage}
+      />
 
       <ProductForm
         show={showForm}

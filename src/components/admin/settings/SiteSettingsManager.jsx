@@ -106,21 +106,31 @@ export default function SiteSettingsManager() {
 
   useEffect(() => {
     const loadActor = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-      if (!user) return;
+        if (authError) {
+          console.warn("No se pudo obtener usuario actual:", authError.message);
+          return;
+        }
 
-      setCurrentUser(user);
+        if (!user) return;
 
-      const { data: profile } = await supabase
-        .from("staff_profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
+        setCurrentUser(user);
 
-      setActorName(profile?.full_name || user.email || "Admin");
+        const { data: profile } = await supabase
+          .from("staff_profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+
+        setActorName(profile?.full_name || user.email || "Admin");
+      } catch (error) {
+        console.warn("Fallo al cargar actor en ajustes:", error?.message);
+      }
     };
 
     loadActor();
@@ -326,6 +336,53 @@ export default function SiteSettingsManager() {
     }
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const localPreviewUrl = URL.createObjectURL(file);
+    setCommerceSettings((prev) => ({ ...prev, logo_url: localPreviewUrl }));
+
+    setUploading(true);
+    setStatus({ type: "", message: "" });
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_CONFIG.uploadPreset);
+    formData.append(
+      "folder",
+      buildTenantCloudinaryFolder({
+        tenantSlug,
+        tenantId,
+        area: "site",
+        subpath: "identity",
+      }),
+    );
+
+    try {
+      const res = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Error al subir logo");
+
+      const data = await res.json();
+      const optimizedUrl = data.secure_url.replace(
+        "/upload/",
+        "/upload/w_400,q_auto,f_auto/",
+      );
+
+      setCommerceSettings((prev) => ({ ...prev, logo_url: optimizedUrl }));
+      URL.revokeObjectURL(localPreviewUrl);
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: "error", message: "Error al subir el logo" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSaveSection = async (section) => {
     const payload = getPayloadForSection(section);
     if (!Object.keys(payload).length) return;
@@ -422,6 +479,7 @@ export default function SiteSettingsManager() {
         patchConfig({
           site_name: siteName,
           header_menu: headerMenu,
+          commerce_settings: payload.commerce_settings,
           tenant_slug: slugChanged ? newTenantSlug : tenantSlug,
         });
 
@@ -433,8 +491,6 @@ export default function SiteSettingsManager() {
           showConfirmButton: false,
         });
 
-        // Simplemente refrescamos los datos para ver el nuevo nombre en el admin
-        // sin movernos de la URL actual /admin/settings
         refresh();
       } catch (err) {
         console.error("DETALLE DEL ERROR AL GUARDAR:", err);
@@ -485,11 +541,7 @@ export default function SiteSettingsManager() {
       });
       refresh();
     } catch (err) {
-      console.error("DETALLE DEL ERROR:", {
-        message: err.message,
-        stack: err.stack,
-        errorCompleto: err,
-      });
+      console.error("DETALLE DEL ERROR:", err);
       setStatus({
         type: "error",
         message: err.message || "Error al guardar sección",
@@ -502,7 +554,14 @@ export default function SiteSettingsManager() {
   const getPayloadForSection = (section) => {
     switch (section) {
       case "general":
-        return { site_name: siteName, header_menu: headerMenu };
+        return { 
+          site_name: siteName, 
+          header_menu: headerMenu,
+          commerce_settings: {
+            ...commerceSettings,
+            logo_url: commerceSettings.logo_url
+          }
+        };
       case "home":
         return {
           hero_slides: slides,
@@ -566,9 +625,12 @@ export default function SiteSettingsManager() {
                 siteName={siteName}
                 onSiteNameChange={handleNameChange}
                 tenantSlug={newTenantSlug}
+                logoUrl={commerceSettings?.logo_url}
+                onLogoUpload={handleLogoUpload}
                 nameChangeLimitReached={nameChangeLimitReached}
                 changesLeft={changesLeft}
                 isLoading={isLoadingIdentity}
+                isUploadingLogo={uploading}
               />
             </div>
 
@@ -590,7 +652,7 @@ export default function SiteSettingsManager() {
                 onClick={() => handleSaveSection("general")}
                 className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
               >
-                <Save size={18} />
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                 Guardar Identidad
               </button>
             </div>
@@ -635,7 +697,7 @@ export default function SiteSettingsManager() {
                 onClick={() => handleSaveSection("home")}
                 className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
               >
-                <Save size={18} />
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                 Guardar Contenido
               </button>
             </div>
@@ -644,8 +706,6 @@ export default function SiteSettingsManager() {
 
         {activeTab === "footer" && (
           <div className="space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="h-px bg-slate-50 dark:bg-slate-800" />
-
             <div className="space-y-6">
               <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-slate-400">
                 Configuración Comercial
@@ -672,7 +732,7 @@ export default function SiteSettingsManager() {
                 onClick={() => handleSaveSection("footer")}
                 className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
               >
-                <Save size={18} />
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                 Guardar Comercio
               </button>
             </div>

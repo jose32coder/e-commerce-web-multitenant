@@ -24,13 +24,11 @@ export async function getExchangeRates(supabaseClient) {
         try {
           const { rates, timestamp } = JSON.parse(cached);
           if (now - timestamp < CACHE_TTL) {
-            console.log("[Exchange] ✓ Usando tasas de localStorage");
             return rates;
           } else {
             localStorage.removeItem(CACHE_KEY);
           }
         } catch (e) {
-          console.log("[Exchange] localStorage corrupto, ignorando");
           localStorage.removeItem(CACHE_KEY);
         }
       }
@@ -38,7 +36,6 @@ export async function getExchangeRates(supabaseClient) {
 
     // 2. Si hay petición pendiente, esperar a que termine (deduplicación)
     if (pendingRequest) {
-      console.log("[Exchange] Esperando petición pendiente...");
       return await pendingRequest;
     }
 
@@ -54,7 +51,6 @@ export async function getExchangeRates(supabaseClient) {
       const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
 
       if (hoursSinceUpdate < 12) {
-        console.log("[Exchange] ✓ Usando tasas de Supabase DB");
         // Guardar en localStorage para próxima vez
         if (typeof window !== "undefined") {
           localStorage.setItem(
@@ -67,11 +63,19 @@ export async function getExchangeRates(supabaseClient) {
     }
 
     // 4. Si no hay caché o es vieja, pedir al API (con deduplicación)
-    console.log("[Exchange] 🔄 Actualizando tasas desde el API...");
-
     pendingRequest = (async () => {
       try {
         const response = await fetch(BASE_URL);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Received non-JSON response from API");
+        }
+
         const data = await response.json();
 
         if (data.result === "success") {
@@ -96,10 +100,12 @@ export async function getExchangeRates(supabaseClient) {
             );
           }
 
-          console.log("[Exchange] ✓ Tasas actualizadas exitosamente");
           return rates;
         }
 
+        return cached?.rates || null;
+      } catch (err) {
+        console.warn("[Exchange] Nota: No se pudo actualizar desde el API (usando backup):", err.message);
         return cached?.rates || null;
       } finally {
         pendingRequest = null; // Limpiar pendingRequest
@@ -119,7 +125,6 @@ export async function getExchangeRates(supabaseClient) {
 export function formatCurrency(amount, currencyCode = "USD") {
   const locales = {
     USD: "en-US",
-    COP: "es-CO",
     VES: "es-VE",
   };
 

@@ -26,7 +26,7 @@ import { createClient } from "@/lib/supabase/client";
 
 import { getExchangeRates } from "@/services/exchangeRates";
 
-const SiteConfigContext = createContext();
+const SiteConfigContext = createContext(null);
 
 const resolveLegacyFooterSettings = (row = {}) => {
   const legacy = row?.footer_commerce;
@@ -40,12 +40,13 @@ const resolveLegacyCommerceSettings = (row = {}) => {
   return legacy.commerce_settings || legacy.commerce || legacy;
 };
 
-export function SiteConfigProvider({
+export const SiteConfigProvider = ({
   children,
   tenantId = null,
   tenantSlug = null,
   initialData = null,
-}) {
+  userCountry = "VE",
+}) => {
   const [config, setConfig] = useState(() => {
     const base = {
       tenant_id: tenantId,
@@ -58,8 +59,8 @@ export function SiteConfigProvider({
       promo_divider: DEFAULT_PROMO_DIVIDER,
       footer_settings: DEFAULT_FOOTER_SETTINGS,
       commerce_settings: DEFAULT_COMMERCE_SETTINGS,
-      exchange_rates: null,
-      loading: true,
+      exchange_rates: initialData?.exchange_rates || null,
+      loading: !initialData,
     };
 
     if (!initialData || typeof initialData !== "object") return base;
@@ -99,8 +100,16 @@ export function SiteConfigProvider({
       });
 
       // Cargar tasas de cambio sin bloquear el render
-      // Si ya hay tasas en localStorage/DB, esto será muy rápido
-      const rates = await getExchangeRates(supabase);
+      const rawRates = await getExchangeRates(supabase);
+
+      let rates = rawRates;
+      if (rawRates) {
+        if (userCountry === "VE") {
+          rates = { USD: 1, VES: rawRates.VES };
+        } else if (userCountry === "CO") {
+          rates = { USD: 1, COP: rawRates.COP };
+        }
+      }
 
       setConfig((prev) => ({
         ...prev,
@@ -169,9 +178,7 @@ export function SiteConfigProvider({
           hasKey("header_menu") ? partial.header_menu : prev.header_menu,
         ),
         promo_divider: normalizePromoDivider(
-          hasKey("promo_divider")
-            ? partial.promo_divider
-            : prev.promo_divider,
+          hasKey("promo_divider") ? partial.promo_divider : prev.promo_divider,
         ),
         footer_settings: normalizeFooterSettings(footerSource),
         commerce_settings: normalizeCommerceSettings(commerceSource),
@@ -262,11 +269,23 @@ export function SiteConfigProvider({
       {children}
     </SiteConfigContext.Provider>
   );
-}
+};
 
 export const useSiteConfig = () => {
   const context = useContext(SiteConfigContext);
+  
+  // Durante SSR, si el contexto no está disponible (puede pasar en Turbopack/Next.js con componentes mixtos),
+  // devolvemos un objeto seguro para evitar que el renderizado explote.
   if (!context) {
+    if (typeof window === "undefined") {
+      return {
+        site_name: DEFAULT_SITE_NAME,
+        commerce_settings: DEFAULT_COMMERCE_SETTINGS,
+        loading: true,
+        refresh: () => {},
+        patchConfig: () => {}
+      };
+    }
     throw new Error("useSiteConfig must be used within a SiteConfigProvider");
   }
   return context;

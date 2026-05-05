@@ -175,7 +175,28 @@ const ProductForm = ({
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    const newFilesWithUrls = files.map((file) => ({
+    const currentCount = Array.isArray(formData.images) ? formData.images.length : 0;
+    const availableSlots = Math.max(0, 5 - currentCount);
+
+    if (availableSlots <= 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Límite alcanzado",
+        text: "Cada producto permite un máximo de 5 imágenes.",
+      });
+      return;
+    }
+
+    const filesToUse = files.slice(0, availableSlots);
+    if (filesToUse.length < files.length) {
+      Swal.fire({
+        icon: "info",
+        title: "Solo se agregaron 5 imágenes",
+        text: "Se ignoraron las imágenes adicionales por el límite permitido.",
+      });
+    }
+
+    const newFilesWithUrls = filesToUse.map((file) => ({
       file,
       blobUrl: URL.createObjectURL(file),
     }));
@@ -259,6 +280,8 @@ const ProductForm = ({
       errors.push("Selecciona al menos una categoría");
     if (!formData.price || parseFloat(formData.price) <= 0)
       errors.push("El precio base debe ser mayor a 0");
+    if ((formData.images || []).length > 5)
+      errors.push("Solo se permiten hasta 5 imágenes por producto");
 
     // Si no hay variantes y MANEJAMOS STOCK, el stock debe ser >= 0
     if (formData.variants.length === 0 && formData.manage_stock) {
@@ -316,7 +339,7 @@ const ProductForm = ({
       const finalImages = [
         ...formData.images.filter((url) => !url.startsWith("blob:")),
         ...newUrls,
-      ];
+      ].slice(0, 5);
 
       // 5. Construir objeto final para enviar
       const finalFormData = {

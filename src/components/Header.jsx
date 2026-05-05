@@ -10,12 +10,14 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { useTenantHeroMetrics } from "@/context/TenantHeroMetricsContext";
+import AdaptiveImage from "./ui/AdaptiveImage";
 import {
   DEFAULT_HEADER_MENU,
   HERO_VARIANT_CINEMATIC,
   HERO_WIDTH_IMMERSIVE,
   normalizeHeaderMenu,
   normalizeHomeIntro,
+  PLATFORM_BRAND_HOSTNAME,
 } from "@/lib/siteConfig";
 
 const SCROLL_SHOW_TOP = 72;
@@ -26,7 +28,8 @@ const HERO_GLASS_END_BUFFER = 40;
 
 export default function Header() {
   const pathname = usePathname();
-  const { site_name, header_menu, tenant_slug, home_intro } = useSiteConfig();
+  const { site_name, header_menu, tenant_slug, home_intro, commerce_settings } =
+    useSiteConfig();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -191,12 +194,26 @@ export default function Header() {
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
-            <Link href={`${baseUrl}/`} className="hidden lg:block">
-              <h1
-                className={`text-xl font-serif font-bold tracking-tighter uppercase drop-shadow-sm ${ink}`}
-              >
-                {site_name}
-              </h1>
+            <Link
+              href={`${baseUrl}/`}
+              className="hidden lg:flex items-center gap-3"
+            >
+              {commerce_settings?.logo_url ? (
+                <div className="relative h-10 w-10 overflow-hidden rounded-md">
+                  <AdaptiveImage
+                    src={commerce_settings.logo_url}
+                    alt={site_name}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              ) : (
+                <h1
+                  className={`text-xl font-serif font-bold tracking-tighter uppercase drop-shadow-sm ${ink}`}
+                >
+                  {site_name}
+                </h1>
+              )}
             </Link>
           </div>
 
@@ -248,12 +265,26 @@ export default function Header() {
           </div>
 
           <div className="lg:hidden absolute left-1/2 -translate-x-1/2 w-[calc(100%-7.5rem)] max-w-[320px] text-center">
-            <Link href={`${baseUrl}/`} className="block">
-              <h1
-                className={`text-base font-serif font-bold tracking-tight uppercase truncate drop-shadow-sm ${ink}`}
-              >
-                {site_name}
-              </h1>
+            <Link
+              href={`${baseUrl}/`}
+              className="flex items-center justify-center gap-2"
+            >
+              {commerce_settings?.logo_url ? (
+                <div className="relative h-8 w-8 overflow-hidden rounded-md">
+                  <AdaptiveImage
+                    src={commerce_settings.logo_url}
+                    alt={site_name}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              ) : (
+                <h1
+                  className={`text-base font-serif font-bold tracking-tight uppercase truncate drop-shadow-sm ${ink}`}
+                >
+                  {site_name}
+                </h1>
+              )}
             </Link>
           </div>
         </div>
@@ -264,7 +295,7 @@ export default function Header() {
           <motion.div
             key="mobile-menu-root"
             id="mobile-nav-dialog"
-            className="lg:hidden fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="lg:hidden fixed inset-0 z-100 flex items-center justify-center p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -293,9 +324,7 @@ export default function Header() {
             >
               <div
                 className={`flex items-center justify-between gap-3 p-5 border-b ${
-                  immersiveGlass
-                    ? "border-white/10"
-                    : "border-honey-light/80"
+                  immersiveGlass ? "border-white/10" : "border-honey-light/80"
                 }`}
               >
                 <p
@@ -341,6 +370,39 @@ export default function Header() {
       </AnimatePresence>
 
       <MiniCart open={isCartOpen} setOpen={setIsCartOpen} />
+
+      {/* Botón Flotante Marketplace */}
+      <AnimatePresence>
+        {mounted && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            // Ajustamos la posición para móviles (más cerca del borde)
+            className="fixed bottom-4 left-4 md:bottom-6 md:left-6 z-40"
+          >
+            <Link
+              href="/"
+              // Reducimos el padding en móviles para que sea casi circular
+              className="flex items-center gap-0 md:gap-3 p-2 md:px-4 md:py-3 rounded-full bg-paper/60 backdrop-blur-xl border border-honey-light/50 shadow-2xl shadow-zinc-900/10 hover:bg-paper/80 hover:scale-105 transition-all group"
+            >
+              {/* Icono: Siempre visible */}
+              <div className="w-8 h-8 md:w-8 md:h-8 rounded-full bg-ink flex items-center justify-center text-paper group-hover:rotate-12 transition-transform">
+                <ShoppingBag size={14} />
+              </div>
+
+              {/* Texto: Oculto en móviles, visible desde tablets (md) en adelante */}
+              <div className="hidden md:flex flex-col pr-2">
+                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-honey-dark opacity-60 leading-none mb-1">
+                  Volver a
+                </span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-ink leading-none">
+                  DeployShop
+                </span>
+              </div>
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

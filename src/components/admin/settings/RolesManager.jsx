@@ -77,13 +77,22 @@ const RolesManager = () => {
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUser(user);
-    });
-    (async () => {
+    const bootstrap = async () => {
       try {
-        const { data: auth } = await supabase.auth.getUser();
+        const {
+          data: auth,
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError) {
+          console.warn("No se pudo obtener usuario actual:", authError.message);
+          fetchStaff();
+          return;
+        }
+
         const user = auth?.user;
+        setCurrentUser(user || null);
+
         if (!user?.id) {
           fetchStaff();
           return;
@@ -97,10 +106,14 @@ const RolesManager = () => {
 
         const scopedTenantId = profile?.tenant_id ?? tenantId ?? null;
         setEffectiveTenantId(scopedTenantId);
+      } catch (error) {
+        console.warn("Error cargando contexto de roles:", error?.message);
       } finally {
         fetchStaff();
       }
-    })();
+    };
+
+    bootstrap();
   }, []);
 
   const openCreateModal = () => {

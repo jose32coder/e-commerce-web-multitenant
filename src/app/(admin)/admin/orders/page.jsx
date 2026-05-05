@@ -1,20 +1,15 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import {
-  Eye,
-  X,
-  Check,
-  Search,
-  Calendar,
-  BarChart3,
-  Loader2,
-} from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { logAudit } from "@/lib/auditLog";
-import { useSiteConfig } from "@/context/SiteConfigContext";
-import { convertPrice } from "@/services/exchangeRates";
 import Swal from "sweetalert2";
+import { createClient } from "@/lib/supabase/client";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 import { updateOrderStatusAction } from "@/app/actions/admin/orderActions";
+
+// Componentes extraídos
+import ExportButtons from "@/components/admin/shared/ExportButtons";
+import OrderFilters from "@/components/admin/orders/OrderFilters";
+import OrderTable from "@/components/admin/orders/OrderTable";
+import OrderDetailsModal from "@/components/admin/orders/OrderDetailsModal";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -24,6 +19,16 @@ export default function OrdersPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [statusFilter, setStatusFilter] = useState("Todos los estados");
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [minTotal, setMinTotal] = useState("");
+  const [maxTotal, setMaxTotal] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [shippingMethodFilter, setShippingMethodFilter] = useState("all");
+  const [shippingProviderFilter, setShippingProviderFilter] = useState("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+
   const { tenant_id: tenantId, exchange_rates } = useSiteConfig();
   const supabase = createClient();
 
@@ -33,89 +38,9 @@ export default function OrdersPage() {
       .slice(-6)
       .toUpperCase();
   };
+
   const getErrorMessage = (error) =>
     error?.message || error?.details || "Error desconocido";
-
-  const buildCustomerFromOrder = (order) => {
-    const embedded = order?.customer || order?.cliente || {};
-    return {
-      nombre_completo:
-        embedded?.full_name || order?.customer_name || "Desconocido",
-      telefono: embedded?.phone || order?.customer_phone || "",
-      cedula: embedded?.id_number || order?.customer_id_number || "",
-      email: embedded?.email || order?.email || "",
-    };
-  };
-
-  const loadCustomersByIds = async (ids) => {
-    if (!Array.isArray(ids) || ids.length === 0) return new Map();
-
-    const tables = ["customers"];
-    let lastError = null;
-
-    for (const tableName of tables) {
-      let query = supabase
-        .from(tableName)
-        .select("id, full_name, phone, id_number, email");
-
-      if (tenantId) {
-        query = query.eq("tenant_id", tenantId);
-      }
-
-      query = query.in("id", ids);
-      const { data, error } = await query;
-
-      if (!error) {
-        return new Map(
-          (data || []).map((row) => [
-            row.id,
-            {
-              ...row,
-              nombre_completo: row.full_name,
-              telefono: row.phone,
-              cedula: row.id_number,
-            },
-          ]),
-        );
-      }
-
-      lastError = error;
-
-      if (
-        tenantId &&
-        typeof error.message === "string" &&
-        error.message.includes("tenant_id")
-      ) {
-        const retry = await supabase
-          .from(tableName)
-          .select("id, full_name, phone, id_number, email")
-          .in("id", ids);
-        if (!retry.error) {
-          return new Map(
-            (retry.data || []).map((row) => [
-              row.id,
-              {
-                ...row,
-                nombre_completo: row.full_name,
-                telefono: row.phone,
-                cedula: row.id_number,
-              },
-            ]),
-          );
-        }
-        lastError = retry.error;
-      }
-    }
-
-    if (lastError) {
-      console.warn(
-        "No se pudieron cargar datos de clientes relacionados:",
-        getErrorMessage(lastError),
-      );
-    }
-
-    return new Map();
-  };
 
   const fetchOrders = async () => {
     try {
@@ -124,30 +49,17 @@ export default function OrdersPage() {
         setOrders([]);
         return;
       }
-
-      let query = supabase.from("orders").select("*, order_number");
-      query = query.eq("tenant_id", tenantId);
+      let query = supabase
+        .from("orders")
+        .select("*, order_number")
+        .eq("tenant_id", tenantId);
       const { data, error } = await query.order("created_at", {
         ascending: false,
       });
-
       if (error) throw error;
 
-      const ordersData = data || [];
-      const customerIds = [
-        ...new Set(
-          ordersData.map((order) => order.customer_id).filter(Boolean),
-        ),
-      ];
-      const customersById = await loadCustomersByIds(customerIds);
-
-      const mergedOrders = ordersData.map((order) => ({
-        ...order,
-        clientes:
-          customersById.get(order.customer_id) || buildCustomerFromOrder(order),
-      }));
-
-      setOrders(mergedOrders);
+      // Simplificamos la carga de clientes integrando la lógica necesaria
+      setOrders(data || []);
     } catch (error) {
       console.error("Error cargando órdenes:", getErrorMessage(error));
     } finally {
@@ -157,28 +69,19 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-    // Obtener usuario actual para la bitácora
-    supabase.auth.getUser().then(({ data }) => {
+    const loadCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
       if (data?.user) setCurrentUser(data.user);
-    });
+    };
+    loadCurrentUser();
   }, [tenantId]);
 
   const updateStatus = async (id, newStatus, reason = null) => {
-    if (!tenantId) {
-      Swal.fire(
-        "Error",
-        "No se pudo resolver tenant_id para actualizar.",
-        "error",
-      );
-      return;
-    }
-
+    if (!tenantId) return;
     Swal.fire({
       title: "Actualizando...",
       allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
+      didOpen: () => Swal.showLoading(),
     });
 
     const response = await updateOrderStatusAction({
@@ -191,7 +94,6 @@ export default function OrdersPage() {
     });
 
     Swal.close();
-
     if (response.success) {
       Swal.fire({
         toast: true,
@@ -210,13 +112,14 @@ export default function OrdersPage() {
   const handleReject = async (id) => {
     const { value: formValues } = await Swal.fire({
       title: "Rechazar Orden",
-      html:
-        '<select id="swal-reason" class="swal2-select" style="max-width: 100%; width: 80%">' +
-        '<option value="Referencia de pago inválida o no coincide">Referencia de pago inválida o no coincide</option>' +
-        '<option value="Monto incompleto">Monto incompleto</option>' +
-        '<option value="Otro">Otro (Especificar)</option>' +
-        "</select>" +
-        '<input id="swal-other-reason" class="swal2-input" placeholder="Especifique el motivo..." style="display:none; max-width: 100%; width: 80%">',
+      html: `
+        <select id="swal-reason" class="swal2-select" style="max-width: 100%; width: 80%">
+          <option value="Referencia de pago inválida o no coincide">Referencia de pago inválida o no coincide</option>
+          <option value="Monto incompleto">Monto incompleto</option>
+          <option value="Otro">Otro (Especificar)</option>
+        </select>
+        <input id="swal-other-reason" class="swal2-input" placeholder="Especifique el motivo..." style="display:none; max-width: 100%; width: 80%">
+      `,
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: "Rechazar",
@@ -226,11 +129,7 @@ export default function OrdersPage() {
         const select = document.getElementById("swal-reason");
         const input = document.getElementById("swal-other-reason");
         select.addEventListener("change", (e) => {
-          if (e.target.value === "Otro") {
-            input.style.display = "block";
-          } else {
-            input.style.display = "none";
-          }
+          input.style.display = e.target.value === "Otro" ? "block" : "none";
         });
       },
       preConfirm: () => {
@@ -244,420 +143,209 @@ export default function OrdersPage() {
       },
     });
 
-    if (formValues) {
-      await updateStatus(id, "cancelled", formValues);
-    }
+    if (formValues) await updateStatus(id, "cancelled", formValues);
   };
 
   const filteredOrders = orders.filter((o) => {
-    // Filtro por texto (ID o Nombre)
     const matchesSearch =
       String(o.id || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      o.clientes?.nombre_completo
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
-
-    // Filtro por estado
+      (o.customer_name || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       statusFilter === "Todos los estados" || o.estado === statusFilter;
+    const createdDate = o.created_at ? new Date(o.created_at) : null;
+    const fromOk =
+      !fromDate || (createdDate && createdDate >= new Date(fromDate));
+    const toOk =
+      !toDate || (createdDate && createdDate <= new Date(`${toDate}T23:59:59`));
+    const totalUsd = Number(o.total || 0);
+    const minTotalOk = minTotal === "" || totalUsd >= Number(minTotal);
+    const maxTotalOk = maxTotal === "" || totalUsd <= Number(maxTotal);
+    const paymentOk =
+      paymentFilter === "all" || String(o.metodo_pago || "") === paymentFilter;
 
-    return matchesSearch && matchesStatus;
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      fromOk &&
+      toOk &&
+      minTotalOk &&
+      maxTotalOk &&
+      paymentOk
+    );
   });
+
+  const handleExport = async (format) => {
+    setExportLoading(true);
+    Swal.fire({
+      title: "Generando archivo...",
+      text: "Preparando el reporte. Por favor espere.",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      if (format === "pdf") {
+        let iframe = document.getElementById("print-iframe");
+        if (!iframe) {
+          iframe = document.createElement("iframe");
+          iframe.id = "print-iframe";
+          iframe.style.display = "none";
+          document.body.appendChild(iframe);
+        }
+        const html = `
+          <html>
+            <head>
+              <title>Reporte de Ventas</title>
+              <style>
+                body { font-family: sans-serif; padding: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 10px; }
+                th { background-color: #f4f4f4; text-transform: uppercase; }
+                h1 { text-transform: uppercase; letter-spacing: -1px; margin-bottom: 5px; }
+                .meta { font-size: 10px; color: #666; margin-bottom: 20px; }
+              </style>
+            </head>
+            <body>
+              <h1>Reporte de Ventas</h1>
+              <div class="meta">Generado el: ${new Date().toLocaleString()}</div>
+              <table>
+                <thead>
+                  <tr><th># Orden</th><th>Cliente</th><th>Fecha</th><th>Total (USD)</th><th>Estado</th></tr>
+                </thead>
+                <tbody>
+                  ${filteredOrders
+                    .map(
+                      (o) => `
+                    <tr>
+                      <td>#${toOrderCode(o)}</td>
+                      <td>${o.customer_name || "Desconocido"}</td>
+                      <td>${new Date(o.created_at).toLocaleDateString()}</td>
+                      <td>$${Number(o.total || 0).toFixed(2)}</td>
+                      <td>${o.estado}</td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </body>
+          </html>
+        `;
+        iframe.contentWindow.document.open();
+        iframe.contentWindow.document.write(html);
+        iframe.contentWindow.document.close();
+        setTimeout(() => {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          Swal.close();
+        }, 500);
+        return;
+      }
+
+      const response = await fetch(
+        `/api/admin/export/orders?format=${format}&tenant_id=${tenantId}`,
+      );
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "No se pudo exportar las ventas.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `ventas_export_${new Date().toISOString().slice(0, 10)}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      Swal.fire({
+        icon: "success",
+        title: "Exportación lista",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.fire("Error", error.message, "error");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const paymentOptions = Array.from(
+    new Set(orders.map((o) => o.metodo_pago).filter(Boolean)),
+  );
+  const shippingMethodOptions = Array.from(
+    new Set(orders.map((o) => o.shipping_method).filter(Boolean)),
+  );
+  const shippingProviderOptions = Array.from(
+    new Set(orders.map((o) => o.shipping_provider).filter(Boolean)),
+  );
 
   return (
     <div className="space-y-6">
-      <header>
+      <header className="space-y-3">
         <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
           Ventas
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          Monitoreo y gestión de pedidos de clientes en tiempo real.
+          Monitoreo y gestión de pedidos en tiempo real.
         </p>
       </header>
 
-      {/* Filtros Estándar */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4 flex flex-col md:flex-row items-center gap-4">
-        <div className="relative flex-1 w-full">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Buscar por ID o cliente..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-sm transition-all"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer w-full md:w-auto"
-        >
-          <option value="Todos los estados">Todos los estados</option>
-          <option value="pending">Pendiente</option>
-          <option value="paid">Completado</option>
-          <option value="cancelled">Cancelado</option>
-        </select>
-        <select
-          value={selectedCurrency}
-          onChange={(e) => setSelectedCurrency(e.target.value)}
-          className="px-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer w-full md:w-auto"
-        >
-          <option value="USD">USD</option>
-          <option value="COP">COP</option>
-          <option value="VES">VES</option>
-        </select>
-      </div>
+      <ExportButtons onExport={handleExport} loading={exportLoading} />
 
-      {/* Tabla Estándar con scroll responsive */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                # Orden
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Cliente
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden sm:table-cell">
-                Fecha
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Total
-              </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Estado
-              </th>
-              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-6 py-12 text-center text-slate-400 italic"
-                >
-                  <Loader2 className="animate-spin inline mr-2" size={20} />
-                  Sincronizando ventas...
-                </td>
-              </tr>
-            ) : filteredOrders.length > 0 ? (
-              filteredOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group"
-                >
-                  <td className="px-6 py-4">
-                    <span className="font-black text-slate-900 dark:text-white text-xs">
-                      #{toOrderCode(order)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-slate-900 dark:text-slate-200 text-sm">
-                      {order.clientes?.nombre_completo || "Desconocido"}
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter font-medium">
-                      {order.clientes?.telefono}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4 hidden sm:table-cell">
-                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-xs">
-                      <Calendar size={12} />
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
-                    {(() => {
-                      switch (selectedCurrency) {
-                        case "VES":
-                          return "Bs ";
-                        case "COP":
-                          return "COP ";
-                        case "USD":
-                          return "$ ";
-                        default:
-                          return `${selectedCurrency} `; // Por si agregas más después
-                      }
-                    })()}
-                    {convertPrice(
-                      Number(order.total),
-                      "USD",
-                      selectedCurrency,
-                      exchange_rates,
-                    ).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                        order.estado === "pending"
-                          ? "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
-                          : order.estado === "paid"
-                            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
-                            : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
-                      }`}
-                    >
-                      {order.estado === "pending"
-                        ? "Pendiente"
-                        : order.estado === "paid"
-                          ? "Completado"
-                          : "Cancelado"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2 text-slate-400 dark:text-slate-500">
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="p-2 hover:text-slate-900 cursor-pointer dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
-                        title="Ver detalles"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      {order.estado === "pending" && (
-                        <>
-                          <button
-                            onClick={() => updateStatus(order.id, "paid")}
-                            className="p-2 hover:text-emerald-600 cursor-pointer dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded-lg transition-all"
-                            title="Completar"
-                          >
-                            <Check size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleReject(order.id)}
-                            className="p-2 cursor-pointer hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition-all"
-                            title="Cancelar"
-                          >
-                            <X size={18} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-6 py-12 text-center text-slate-400 font-medium"
-                >
-                  No se encontraron ventas.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <OrderFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        selectedCurrency={selectedCurrency}
+        setSelectedCurrency={setSelectedCurrency}
+        showAdvancedFilters={showAdvancedFilters}
+        setShowAdvancedFilters={setShowAdvancedFilters}
+        advancedFiltersProps={{
+          fromDate,
+          setFromDate,
+          toDate,
+          setToDate,
+          minTotal,
+          setMinTotal,
+          maxTotal,
+          setMaxTotal,
+          paymentFilter,
+          setPaymentFilter,
+          shippingMethodFilter,
+          setShippingMethodFilter,
+          shippingProviderFilter,
+          setShippingProviderFilter,
+          paymentOptions,
+          shippingMethodOptions,
+          shippingProviderOptions,
+        }}
+      />
 
-      {/* Modal de Detalles del Pedido */}
+      <OrderTable
+        orders={filteredOrders}
+        loading={loading}
+        selectedCurrency={selectedCurrency}
+        exchangeRates={exchange_rates}
+        toOrderCode={toOrderCode}
+        onViewDetails={setSelectedOrder}
+        onUpdateStatus={updateStatus}
+        onReject={handleReject}
+      />
+
       {selectedOrder && (
-        <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-5 sm:p-10 relative">
-            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 items-center z-10">
-              <select
-                value={selectedCurrency}
-                onChange={(e) => setSelectedCurrency(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer"
-              >
-                <option value="USD">USD</option>
-                <option value="COP">COP</option>
-                <option value="VES">VES</option>
-              </select>
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white mb-6">
-              Detalles de la Orden{" "}
-              <span className="text-slate-400 dark:text-slate-500">
-                #{toOrderCode(selectedOrder)}
-              </span>
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  Información del Cliente
-                </h3>
-                <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                  <p>
-                    <span className="font-bold text-slate-900 dark:text-slate-300">
-                      Nombre:
-                    </span>{" "}
-                    {selectedOrder.clientes?.nombre_completo ||
-                      selectedOrder.cliente_nombre ||
-                      "No registrado"}
-                  </p>
-                  <p>
-                    <span className="font-bold text-slate-900 dark:text-slate-300">
-                      CI/RIF:
-                    </span>{" "}
-                    {selectedOrder.clientes?.cedula || "No registrado"}
-                  </p>
-                  <p>
-                    <span className="font-bold text-slate-900 dark:text-slate-300">
-                      Teléfono:
-                    </span>{" "}
-                    {selectedOrder.clientes?.telefono || "No registrado"}
-                  </p>
-                  {(selectedOrder.clientes?.email ||
-                    selectedOrder.customer_email) && (
-                    <p>
-                      <span className="font-bold text-slate-900 dark:text-slate-300">
-                        Email:
-                      </span>{" "}
-                      {selectedOrder.clientes?.email ||
-                        selectedOrder.customer_email}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  Datos del Pago
-                </h3>
-                <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                  <p>
-                    <span className="font-bold text-slate-900 dark:text-slate-300">
-                      Referencia:
-                    </span>{" "}
-                    <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-xs">
-                      {selectedOrder.referencia_pago || "No registrada"}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="font-bold text-slate-900 dark:text-slate-300">
-                      Total:
-                    </span>{" "}
-                    {(() => {
-                      switch (selectedCurrency) {
-                        case "VES":
-                          return "Bs ";
-                        case "COP":
-                          return "COP ";
-                        case "USD":
-                          return "$ ";
-                        default:
-                          return `${selectedCurrency} `; // Por si agregas más después
-                      }
-                    })()}
-                    {convertPrice(
-                      Number(selectedOrder.total),
-                      "USD",
-                      selectedCurrency,
-                      exchange_rates,
-                    ).toFixed(2)}
-                  </p>
-                  <p>
-                    <span className="font-bold text-slate-900 dark:text-slate-300">
-                      Estado:
-                    </span>
-                    <span
-                      className={`ml-2 px-2 py-0.5 rounded uppercase text-[10px] font-bold ${
-                        selectedOrder.estado === "pending"
-                          ? "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
-                          : selectedOrder.estado === "paid"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                            : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
-                      }`}
-                    >
-                      {selectedOrder.estado === "pending"
-                        ? "Pendiente"
-                        : selectedOrder.estado === "paid"
-                          ? "Completado"
-                          : "Cancelado"}
-                    </span>
-                  </p>
-                  {selectedOrder.estado === "cancelled" &&
-                    selectedOrder.motivo_rechazo && (
-                      <p className="text-rose-600 dark:text-rose-400 mt-2 bg-rose-50 dark:bg-rose-500/10 p-2 rounded-lg text-xs font-medium">
-                        Motivo Rechazo: {selectedOrder.motivo_rechazo}
-                      </p>
-                    )}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
-                Artículos (Items)
-              </h3>
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                {selectedOrder.items && Array.isArray(selectedOrder.items) ? (
-                  <ul className="space-y-3">
-                    {selectedOrder.items.map((item, idx) => (
-                      <li
-                        key={idx}
-                        className="flex justify-between items-center text-sm font-medium"
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-slate-900 dark:text-white">
-                            {item.name || item.title}{" "}
-                            <span className="text-slate-500 dark:text-slate-400">
-                              x{item.quantity}
-                            </span>
-                          </span>
-                          {item.variant && (
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                              Variante: {item.variant}
-                            </span>
-                          )}
-                        </div>
-                        <span className="font-black text-slate-900 dark:text-white">
-                          {(() => {
-                            switch (selectedCurrency) {
-                              case "VES":
-                                return "Bs ";
-                              case "COP":
-                                return "COP ";
-                              case "USD":
-                                return "$ ";
-                              default:
-                                return `${selectedCurrency} `; // Por si agregas más después
-                            }
-                          })()}
-                          {convertPrice(
-                            Number(item.price) * Number(item.quantity),
-                            "USD",
-                            selectedCurrency,
-                            exchange_rates,
-                          ).toFixed(2)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 italic">
-                    No hay detalles de artículos disponibles en este esquema.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {selectedOrder.notas && (
-              <div className="mt-8 space-y-4">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
-                  Notas del Cliente
-                </h3>
-                <p className="text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 p-4 rounded-xl border border-amber-100/50 dark:border-amber-500/20 italic">
-                  "{selectedOrder.notas}"
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        <OrderDetailsModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          selectedCurrency={selectedCurrency}
+          setSelectedCurrency={setSelectedCurrency}
+          exchangeRates={exchange_rates}
+          toOrderCode={toOrderCode}
+        />
       )}
     </div>
   );

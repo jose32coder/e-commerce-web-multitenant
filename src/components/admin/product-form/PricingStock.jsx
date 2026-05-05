@@ -80,7 +80,6 @@ const PricingStock = ({
                 className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5 outline-none border-none cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <option value="USD">USD</option>
-                <option value="COP">COP</option>
                 <option value="VES">VES</option>
               </select>
             ) : (
@@ -259,7 +258,6 @@ const PricingStock = ({
               className="h-10 px-4 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-black uppercase tracking-widest focus:ring-2 focus:ring-slate-500 outline-none transition-all cursor-pointer"
             >
               <option value="USD">USD</option>
-              <option value="COP">COP</option>
               <option value="VES">VES</option>
             </select>
 

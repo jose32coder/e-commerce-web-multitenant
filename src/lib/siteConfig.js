@@ -212,8 +212,20 @@ export const DEFAULT_COMMERCE_SETTINGS = {
   delivery_enabled: true,
   delivery_fee: 5.0,
   free_shipping_threshold: 50.0,
+  shipping_local_enabled: true,
+  shipping_national_enabled: true,
+  shipping_national_type: "cod", // 'cod' (cobro destino), 'fixed' (precio fijo), 'free' (gratis)
+  shipping_national_fee: 0.0,
+  shipping_pickup_enabled: true,
   currency_code: "USD",
   currency_symbol: "$",
+  logo_url: "",
+  whatsapp_stock_check: false,
+  shipping_providers: [
+    { id: "mrw", name: "MRW", enabled: true },
+    { id: "zoom", name: "Zoom", enabled: true },
+    { id: "tealca", name: "Tealca", enabled: true },
+  ],
 };
 
 export const normalizeHeaderMenu = (menu) => {
@@ -310,6 +322,11 @@ export const normalizeCommerceSettings = (commerceSettings) => {
     delivery_enabled: normalized.delivery_enabled !== false,
     delivery_fee: Number(normalized.delivery_fee ?? 0),
     free_shipping_threshold: Number(normalized.free_shipping_threshold ?? 0),
+    shipping_local_enabled: normalized.shipping_local_enabled !== false,
+    shipping_national_enabled: normalized.shipping_national_enabled !== false,
+    shipping_national_type: normalized.shipping_national_type || "cod",
+    shipping_national_fee: Number(normalized.shipping_national_fee ?? 0),
+    shipping_pickup_enabled: normalized.shipping_pickup_enabled !== false,
   };
 };
 

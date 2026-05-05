@@ -106,7 +106,12 @@ const Profile = () => {
     try {
       const {
         data: { user },
+        error: authError,
       } = await supabase.auth.getUser();
+      if (authError) {
+        console.warn("No se pudo obtener sesión de usuario:", authError.message);
+        return;
+      }
       if (!user) return;
 
       const { data, error } = await supabase

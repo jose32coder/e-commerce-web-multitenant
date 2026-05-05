@@ -71,6 +71,7 @@ export default function HeroClassic({ slides, baseUrl }) {
                       fill
                       className="object-cover"
                       priority
+                      sizes="(max-width: 768px) 100vw, 50vw"
                     />
                     <div
                       className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-black/[0.12] via-transparent to-transparent opacity-80 md:opacity-100 md:group-hover/carousel:opacity-90 transition-opacity duration-500"

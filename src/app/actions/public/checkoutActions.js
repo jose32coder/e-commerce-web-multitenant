@@ -3,6 +3,23 @@
 import { logAudit } from "@/lib/auditLog";
 import { formatWhatsappContactNumber } from "@/lib/siteConfig";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { z } from "zod";
+
+// Esquema de validación estricto para Checkout
+const CheckoutSchema = z.object({
+  name: z.string().min(2, "Nombre demasiado corto").max(100).regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "El nombre solo puede contener letras"),
+  phone: z.string().min(10, "Teléfono inválido").max(15),
+  idNumber: z.string().min(5, "Cédula/RIF inválido").max(20),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  paymentMethod: z.string().min(1, "Método de pago requerido"),
+  reference: z.string().min(3, "Referencia demasiado corta").max(50),
+  tenantId: z.string().uuid("ID de tienda inválido"),
+  tenantSlug: z.string(),
+  shippingMethod: z.enum(["delivery", "pickup"]),
+  shippingProvider: z.string().optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+  idempotencyKey: z.string().uuid().optional(),
+});
 
 const normalizeVariantValue = (value) =>
   String(value || "")
@@ -79,34 +96,41 @@ const createOrderWithFallback = async (supabase, payload) => {
 export async function processCheckoutOrder(formData, items, total) {
   try {
     const supabase = getAdminSupabaseClient();
+
+    // 0. Validación de Esquema (Anti-Inyección y Datos Corruptos)
+    const validation = CheckoutSchema.safeParse(formData);
+    if (!validation.success) {
+      const errorMsg = validation.error.errors.map(e => e.message).join(", ");
+      throw new Error(`Datos inválidos: ${errorMsg}`);
+    }
+
+    const validatedData = validation.data;
+
     const normalizedCustomerPhone = formatWhatsappContactNumber(
-      formData.phone,
+      validatedData.phone,
       "58",
     );
 
-    let tenantId = formData?.tenantId || null;
-    const tenantSlug = formData?.tenantSlug || null;
+    let tenantId = validatedData.tenantId;
+    const tenantSlug = validatedData.tenantSlug;
 
-    if (!tenantId && tenantSlug) {
-      const { data: tenantRow, error: tenantLookupError } = await supabase
-        .from("tenants")
-        .select("tenant_id")
-        .eq("slug", tenantSlug)
-        .single();
+    // 0.1 Chequeo de Idempotencia (Evitar duplicados)
+    if (validatedData.idempotencyKey) {
+      const { data: existingOrder } = await supabase
+        .from("orders")
+        .select("id, order_number")
+        .eq("idempotency_key", validatedData.idempotencyKey)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
 
-      if (tenantLookupError) {
-        throw new Error(
-          `No se pudo resolver tenant por slug: ${getErrorMessage(tenantLookupError)}`,
-        );
+      if (existingOrder) {
+        return {
+          success: true,
+          orderId: String(existingOrder.id),
+          orderNumber: existingOrder.order_number,
+          isDuplicate: true
+        };
       }
-
-      tenantId = tenantRow?.tenant_id || null;
-    }
-
-    if (!tenantId) {
-      throw new Error(
-        "No se pudo resolver el tenant para registrar el pedido.",
-      );
     }
 
     const { data: tenantData, error: tenantError } = await supabase
@@ -119,6 +143,20 @@ export async function processCheckoutOrder(formData, items, total) {
       throw new Error(
         `No se pudo validar el tenant del pedido: ${getErrorMessage(tenantError)}`,
       );
+    }
+
+    // 0.2 Rate Limit basado en DB (Cooldown de 60 segundos por cliente)
+    const { data: recentOrder } = await supabase
+      .from("orders")
+      .select("created_at")
+      .or(`customer_id_number.eq.${validatedData.idNumber},customer_phone.eq.${normalizedCustomerPhone}`)
+      .eq("tenant_id", tenantId)
+      .gt("created_at", new Date(Date.now() - 60000).toISOString())
+      .limit(1)
+      .maybeSingle();
+
+    if (recentOrder) {
+      throw new Error("Has intentado realizar un pedido hace muy poco. Por favor, espera 60 segundos.");
     }
 
     if (String(tenantData.status || "").toLowerCase() !== "active") {
@@ -139,9 +177,9 @@ export async function processCheckoutOrder(formData, items, total) {
       const { error: updateCustomerError } = await supabase
         .from(CUSTOMER_TABLE)
         .update({
-          full_name: formData.name,
+          full_name: validatedData.name,
           phone: normalizedCustomerPhone,
-          ...(formData.email ? { email: formData.email } : {}),
+          ...(validatedData.email ? { email: validatedData.email } : {}),
         })
         .eq("id", clienteId)
         .eq("tenant_id", tenantId);
@@ -178,11 +216,11 @@ export async function processCheckoutOrder(formData, items, total) {
         meta: {
           customer_table: CUSTOMER_TABLE,
           tenant_id: tenantId,
-          cedula: formData.idNumber,
-          nombre: formData.name,
-          telefono: formData.phone,
+          cedula: validatedData.idNumber,
+          nombre: validatedData.name,
+          telefono: validatedData.phone,
           telefono_normalizado: normalizedCustomerPhone,
-          email: formData.email,
+          email: validatedData.email,
         },
       });
     } else if (searchError && isMissingTableError(searchError)) {
@@ -345,20 +383,23 @@ export async function processCheckoutOrder(formData, items, total) {
       tenant_id: tenantId,
       total,
       estado: "pending",
-      customer_name: formData.name,
-      customer_id_number: formData.idNumber,
+      customer_name: validatedData.name,
+      customer_id_number: validatedData.idNumber,
       customer_phone: normalizedCustomerPhone,
-      customer_email: formData.email, // Nuevo
-      metodo_pago: formData.paymentMethod, // Nuevo
-      referencia_pago: formData.reference, // Nuevo
+      customer_email: validatedData.email,
+      metodo_pago: validatedData.paymentMethod,
+      referencia_pago: validatedData.reference,
       items: items.map((i) => ({
         id: i.id,
         name: i.name || i.title,
         quantity: i.quantity,
         price: i.price,
         variant: i.variant || null,
-      })), // Nuevo (JSONB)
-      notas: formData.notes, // Nuevo
+      })),
+      notas: validatedData.notes,
+      idempotency_key: validatedData.idempotencyKey, // Crítico para evitar duplicados
+      shipping_method: validatedData.shippingMethod,
+      shipping_provider: validatedData.shippingProvider,
       ...(clienteId ? { customer_id: clienteId } : {}),
     };
 

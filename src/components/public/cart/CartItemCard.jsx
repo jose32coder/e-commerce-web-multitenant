@@ -88,11 +88,11 @@ export default function CartItemCard({
         <div className="flex justify-between items-end mt-4">
           <div>
             <span className="text-lg font-bold text-ink">
-              {currencySymbol}{priceConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {currencySymbol}{priceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </span>
             {adjustmentConverted > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold mt-1">
-                +{currencySymbol}{adjustmentConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })} por variante
+                +{currencySymbol}{adjustmentConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })} por variante
               </p>
             )}
           </div>

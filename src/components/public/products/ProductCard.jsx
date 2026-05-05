@@ -151,14 +151,14 @@ export default function ProductCard({
               {hasActiveOffer && (
                 <span className="text-[10px] font-semibold text-red-500 line-through">
                   {currencySymbol}
-                  {regularPrice.toLocaleString(undefined, {
+                  {regularPrice.toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                   })}
                 </span>
               )}
               <span className="text-[13px] font-bold text-black">
                 {currencySymbol}
-                {displayPrice.toLocaleString(undefined, {
+                {displayPrice.toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                 })}
               </span>
@@ -174,14 +174,14 @@ export default function ProductCard({
                 {hasActiveOffer && (
                   <span className="text-[10px] font-semibold text-red-500 line-through">
                     {currencySymbol}
-                    {regularPrice.toLocaleString(undefined, {
+                    {regularPrice.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
                     })}
                   </span>
                 )}
                 <span className="text-[14px] font-bold text-black">
                   {currencySymbol}
-                  {displayPrice.toLocaleString(undefined, {
+                  {displayPrice.toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                   })}
                 </span>

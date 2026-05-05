@@ -144,14 +144,12 @@ export default function MiniCart({ open, setOpen }) {
                           <p className="text-[11px] text-honey-dark/70 line-clamp-1 mt-0.5">
                             {item.short_description}
                           </p>
-                        )}
-
-                        <span className="text-[13px] font-bold text-ink mt-1 block">
-                          {currencySymbol}{itemPriceConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        )}                        <span className="text-[13px] font-bold text-ink mt-1 block">
+                          {currencySymbol}{itemPriceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </span>
                         {adjustmentConverted > 0 && (
                           <p className="text-[10px] text-amber-700 font-semibold mt-1">
-                            +{currencySymbol}{adjustmentConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })} por
+                            +{currencySymbol}{adjustmentConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })} por
                             variante
                           </p>
                         )}
@@ -207,7 +205,7 @@ export default function MiniCart({ open, setOpen }) {
                   Subtotal
                 </span>
                 <span className="font-bold text-ink">
-                  {currencySymbol}{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {currencySymbol}{subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
