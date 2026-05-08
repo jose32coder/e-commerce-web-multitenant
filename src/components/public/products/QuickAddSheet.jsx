@@ -18,6 +18,7 @@ import Swal from "sweetalert2";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
+import { getOptimizedImage } from "@/lib/getOptimizedImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
   const [selectedVariantId, setSelectedVariantId] = useState(null);
@@ -58,6 +59,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
     (variant) => String(variant.id) === String(selectedVariantId),
   );
 
+<<<<<<< Updated upstream
   const regularPrice = Number(price) || 0;
   const offerPrice = Number(discount_price) || 0;
   const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
@@ -66,6 +68,13 @@ export default function QuickAddSheet({ product, open, onClose }) {
   const finalPrice = basePrice + priceAdjustment;
   const finalRegularPrice = regularPrice + priceAdjustment;
   const imageUrl = images?.[0] || "/placeholder.jpg";
+=======
+  const firstImage = images?.[0];
+  const imageUrl =
+    (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
+    "/placeholder.jpg";
+  const optimizedImageUrl = getOptimizedImage(imageUrl, 600);
+>>>>>>> Stashed changes
 
   const hasVariants = normalizedVariants.length > 0;
   const hasMultipleVariantTypes =
@@ -145,10 +154,17 @@ export default function QuickAddSheet({ product, open, onClose }) {
           </SheetDescription>
         </SheetHeader>
 
+<<<<<<< Updated upstream
         <div className="flex gap-5 mb-8">
           <div className="relative w-24 h-30 rounded-2xl overflow-hidden shrink-0 bg-secondary">
+=======
+        <div
+          className={`flex flex-col sm:flex-row gap-5 sm:gap-5 items-stretch sm:items-start ${hasVariants ? "mb-8" : "mb-6"}`}
+        >
+          <div className="product-media-main bg-secondary w-full max-w-[200px] mx-auto sm:mx-0 sm:w-24 sm:max-w-none shrink-0">
+>>>>>>> Stashed changes
             <AdaptiveImage
-              src={imageUrl}
+              src={optimizedImageUrl}
               alt={`Imagen de ${name}`}
               fill
               className="object-cover"

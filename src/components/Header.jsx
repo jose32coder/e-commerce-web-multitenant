@@ -66,10 +66,34 @@ export default function Header() {
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
+<<<<<<< Updated upstream
             <Link href={`${baseUrl}/`} className="hidden md:block">
               <h1 className="text-xl font-serif font-bold tracking-tighter text-ink uppercase">
                 {site_name}
               </h1>
+=======
+            <Link
+              href={`${baseUrl}/`}
+              className="hidden lg:flex items-center gap-3"
+            >
+              {commerce_settings?.logo_url ? (
+                <div className="relative h-10 w-10 overflow-hidden rounded-md">
+                  <AdaptiveImage
+                    src={commerce_settings.logo_url}
+                    alt={site_name}
+                    width={40}
+                    height={40}
+                    className="object-contain"
+                  />
+                </div>
+              ) : (
+                <h1
+                  className={`text-xl font-serif font-bold tracking-tighter uppercase drop-shadow-sm ${ink}`}
+                >
+                  {site_name}
+                </h1>
+              )}
+>>>>>>> Stashed changes
             </Link>
           </div>
 
@@ -116,12 +140,37 @@ export default function Header() {
             </button>
           </div>
 
+<<<<<<< Updated upstream
           {/* LOGO CENTRADO EN MOBILE */}
           <div className="md:hidden absolute left-1/2 -translate-x-1/2 w-[calc(100%-7.5rem)] max-w-[320px] text-center">
             <Link href={`${baseUrl}/`} className="block">
               <h1 className="text-base font-serif font-bold tracking-tight text-ink uppercase truncate">
                 {site_name}
               </h1>
+=======
+          <div className="lg:hidden absolute left-1/2 -translate-x-1/2 w-[calc(100%-7.5rem)] max-w-[320px] text-center">
+            <Link
+              href={`${baseUrl}/`}
+              className="flex items-center justify-center gap-2"
+            >
+              {commerce_settings?.logo_url ? (
+                <div className="relative h-8 w-8 overflow-hidden rounded-md">
+                  <AdaptiveImage
+                    src={commerce_settings.logo_url}
+                    alt={site_name}
+                    width={32}
+                    height={32}
+                    className="object-contain"
+                  />
+                </div>
+              ) : (
+                <h1
+                  className={`text-base font-serif font-bold tracking-tight uppercase truncate drop-shadow-sm ${ink}`}
+                >
+                  {site_name}
+                </h1>
+              )}
+>>>>>>> Stashed changes
             </Link>
           </div>
         </div>

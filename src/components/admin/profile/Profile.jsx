@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Swal from "sweetalert2";
+import { useSiteConfig } from "@/context/SiteConfigContext";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 const MODULE_DESCRIPTIONS = {
   Panel: "Acceso al Dashboard Principal",
@@ -97,6 +99,7 @@ const Profile = () => {
     avatar_url: "",
   });
   const [formData, setFormData] = useState({ ...profile });
+  const { site_name, commerce_settings } = useSiteConfig();
 
   useEffect(() => {
     fetchProfile();
@@ -107,6 +110,16 @@ const Profile = () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+<<<<<<< Updated upstream
+=======
+      if (authError) {
+        console.warn(
+          "No se pudo obtener sesión de usuario:",
+          authError.message,
+        );
+        return;
+      }
+>>>>>>> Stashed changes
       if (!user) return;
 
       const { data, error } = await supabase
@@ -189,8 +202,16 @@ const Profile = () => {
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
+              ) : commerce_settings?.logo_url ? (
+                <AdaptiveImage
+                  src={commerce_settings.logo_url}
+                  alt={site_name || "Logo"}
+                  width={100}
+                  height={100}
+                  className="object-contain"
+                />
               ) : (
-                <User size={40} className="text-slate-600" />
+                <User size={18} />
               )}
             </div>
             {isEditing && (

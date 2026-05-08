@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingBag, UserRound } from "lucide-react";
@@ -185,3 +186,5 @@ export default async function TenantSelectorPage() {
     </main>
   );
 }
+=======
+>>>>>>> Stashed changes

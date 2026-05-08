@@ -23,8 +23,10 @@ export default function ProductCard({ product }) {
   const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
   const displayPrice = hasActiveOffer ? offerPrice : regularPrice;
 
-  // En Supabase guardas un array de strings, por lo que images[0] es directamente la URL
-  const rawImageUrl = images?.[0] || "/placeholder.jpg";
+  const firstImage = images?.[0];
+  const rawImageUrl =
+    (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
+    "/placeholder.jpg";
   const imageUrl = getOptimizedImage(rawImageUrl, 400);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -36,12 +38,37 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="group block relative">
+<<<<<<< Updated upstream
       <Link href={`${baseUrl}/products/${slug}`} className="block" prefetch={false}>
         <div className="relative overflow-hidden rounded-2xl bg-[#F9F9F9] aspect-3/4">
           {category?.name && (
             <span className="absolute top-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-ink shadow-sm">
               {category.name}
             </span>
+=======
+      <Link
+        href={`${baseUrl}/products/${slug}`}
+        className="block"
+        prefetch={false}
+      >
+        <div className="product-media-main bg-[#F9F9F9]">
+          {displayCategories.length > 0 && (
+            <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1">
+              {displayCategories.slice(0, 2).map((catName, i) => (
+                <span
+                  key={i}
+                  className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-ink shadow-sm"
+                >
+                  {catName}
+                </span>
+              ))}
+              {displayCategories.length > 2 && (
+                <span className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-[10px] font-bold text-ink shadow-sm">
+                  +{displayCategories.length - 2}
+                </span>
+              )}
+            </div>
+>>>>>>> Stashed changes
           )}
 
           <AdaptiveImage

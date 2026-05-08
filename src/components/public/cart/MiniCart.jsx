@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
+import { getOptimizedImage } from "@/lib/getOptimizedImage";
 
 export default function MiniCart({ open, setOpen }) {
   const { items, removeItem, updateQuantity, getTotalPrice } = useCartStore();
@@ -75,6 +76,7 @@ export default function MiniCart({ open, setOpen }) {
                 </SheetClose>
               </motion.div>
             ) : (
+<<<<<<< Updated upstream
               items.map((item) => (
                 <motion.div
                   key={`${item.id}-${item.variant}`}
@@ -153,6 +155,81 @@ export default function MiniCart({ open, setOpen }) {
                         </button>
                         <span className="text-[11px] font-bold w-6 text-center">
                           {item.quantity}
+=======
+              items.map((item) => {
+                const itemBaseCurrency = item.base_currency || "USD";
+                const firstImage = item.images?.[0];
+                const itemImage =
+                  (typeof firstImage === "string"
+                    ? firstImage
+                    : firstImage?.url) ||
+                  item.image_url ||
+                  "/placeholder.jpg";
+                const optimizedItemImage = getOptimizedImage(itemImage, 240);
+                const itemPriceConverted = convertPrice(
+                  (Number(item.price) || 0) + (Number(item.price_adjustment) || 0),
+                  itemBaseCurrency,
+                  targetCurrency,
+                  exchange_rates
+                );
+                const adjustmentConverted = convertPrice(
+                  Number(item.price_adjustment) || 0,
+                  itemBaseCurrency,
+                  targetCurrency,
+                  exchange_rates
+                );
+
+                return (
+                  <motion.div
+                    key={`${item.id}-${item.variant}`}
+                    layout
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex gap-4"
+                  >
+                    {/* Imagen - Usa el array de strings de Supabase */}
+                    <div className="product-media-thumb bg-secondary w-20 shrink-0 border border-honey-light">
+                      <AdaptiveImage
+                        src={optimizedItemImage}
+                        alt={item.name || "Producto"}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+
+                    {/* Información del Producto */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <h4 className="text-[13px] font-bold uppercase tracking-tight text-ink line-clamp-1">
+                            {item.name}
+                          </h4>
+                          <button
+                            onClick={() => removeItem(item.id, item.variant)}
+                            className="text-honey-dark hover:text-ink transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        {/* Variante (Talla) */}
+                        {item.variant && (
+                          <p className="text-[10px] text-honey-dark font-bold uppercase tracking-widest mt-1">
+                            Variante:{" "}
+                            <span className="text-ink">{item.variant}</span>
+                          </p>
+                        )}
+
+                        {/* Breve descripción para dar contexto visual */}
+                        {item.short_description && (
+                          <p className="text-[11px] text-honey-dark/70 line-clamp-1 mt-0.5">
+                            {item.short_description}
+                          </p>
+                        )}
+                        <span className="text-[13px] font-bold text-ink mt-1 block">
+                          {currencySymbol}{itemPriceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+>>>>>>> Stashed changes
                         </span>
                         <button
                           onClick={() =>

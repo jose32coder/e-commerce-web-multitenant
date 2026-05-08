@@ -13,6 +13,7 @@ import {
   ChevronLeft, 
   X 
 } from "lucide-react";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import AdminNavLink from "./AdminNavLink";
 
@@ -24,7 +25,7 @@ export default function AdminSidebar({
   canAccess,
   handleLogout,
 }) {
-  const { site_name } = useSiteConfig();
+  const { site_name, commerce_settings } = useSiteConfig();
 
   const navItems = [
     { href: "/admin", icon: <LayoutDashboard size={20} />, label: "Panel", permission: "Panel" },
@@ -66,6 +67,7 @@ export default function AdminSidebar({
         <div
           className={`flex px-8 py-10 ${isCollapsed ? "justify-center px-11" : "justify-start"}`}
         >
+<<<<<<< Updated upstream
           <h2 className="font-black tracking-tighter text-2xl uppercase whitespace-nowrap text-slate-900 dark:text-white">
             <span className="hidden lg:block">
               {isCollapsed
@@ -74,6 +76,37 @@ export default function AdminSidebar({
             </span>
             <span className="lg:hidden">{site_name.toUpperCase()}</span>
           </h2>
+=======
+          <div className="flex items-center lg:px-5 gap-3 overflow-hidden">
+            {/* Icono/Avatar del Logo */}
+            <div className="min-w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl shadow-lg overflow-hidden">
+              {commerce_settings?.logo_url ? (
+                <AdaptiveImage
+                  src={commerce_settings.logo_url}
+                  alt={site_name || "Logo"}
+                  width={40}
+                  height={40}
+                  className="object-contain"
+                />
+              ) : (
+                <span>{site_name?.substring(0, 1).toUpperCase()}</span>
+              )}
+            </div>
+
+            {/* Nombre del Sitio */}
+            <h2
+              className={`
+        font-black tracking-tighter uppercase text-white truncate text-lg
+        transition-opacity duration-300
+        /* Ocultar en desktop si está colapsado, pero mostrar SIEMPRE en mobile */
+        ${isCollapsed ? "lg:hidden opacity-0" : "lg:block opacity-100"}
+        block
+      `}
+            >
+              {site_name}
+            </h2>
+          </div>
+>>>>>>> Stashed changes
         </div>
 
         {/* NAVEGACIÓN */}

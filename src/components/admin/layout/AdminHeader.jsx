@@ -2,6 +2,7 @@
 import React from "react";
 import { Menu, Sun, Moon, User } from "lucide-react";
 import Link from "next/link";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function AdminHeader({
@@ -13,7 +14,7 @@ export default function AdminHeader({
   userRole,
   pathname,
 }) {
-  const { site_name } = useSiteConfig();
+  const { site_name, commerce_settings } = useSiteConfig();
 
   const getPageTitle = (path) => {
     const titles = {
@@ -92,6 +93,14 @@ export default function AdminHeader({
                 src={userProfile.avatar_url}
                 alt="Avatar"
                 className="w-full h-full object-cover"
+              />
+            ) : commerce_settings?.logo_url ? (
+              <AdaptiveImage
+                src={commerce_settings.logo_url}
+                alt={site_name || "Logo"}
+                width={40}
+                height={40}
+                className="object-contain"
               />
             ) : (
               <User size={18} />

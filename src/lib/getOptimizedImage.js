@@ -1,5 +1,5 @@
 // lib/cloudinary.js
-export const getOptimizedImage = (url) => {
+export const getOptimizedImage = (url, width = 800) => {
   if (!url) return "";
 
   // Buscamos el punto donde Cloudinary permite insertar los parámetros
@@ -10,10 +10,16 @@ export const getOptimizedImage = (url) => {
 
   const [baseUrl, imagePath] = parts;
 
+  const safeWidth =
+    Number.isFinite(Number(width)) && Number(width) > 0
+      ? Math.round(Number(width))
+      : 800;
+
   // f_auto: Formato automático (WebP/AVIF)
   // q_auto: Calidad automática
-  // w_800: Limita el ancho a 800px (suficiente para la mayoría de pantallas)
-  const params = "f_auto,q_auto,w_800";
+  // c_limit: evita distorsión y no fuerza recorte
+  // w_{n}: limita el ancho del recurso descargado
+  const params = `f_auto,q_auto,c_limit,w_${safeWidth}`;
 
   return `${baseUrl}/upload/${params}/${imagePath}`;
 };

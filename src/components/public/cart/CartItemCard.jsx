@@ -2,7 +2,46 @@
 
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { motion } from "framer-motion";
+<<<<<<< Updated upstream
 import { Minus, Plus, Trash2 } from "lucide-react";
+=======
+import { Minus, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
+
+import { convertPrice } from "@/services/exchangeRates";
+import { useSiteConfig } from "@/context/SiteConfigContext";
+import { getOptimizedImage } from "@/lib/getOptimizedImage";
+
+export default function CartItemCard({
+  item,
+  onUpdateQuantity,
+  onRemove,
+  isSelected,
+  onToggle,
+}) {
+  const { commerce_settings, exchange_rates } = useSiteConfig();
+  const currencySymbol = commerce_settings?.currency_symbol || "$";
+  const targetCurrency = commerce_settings?.currency_code || "USD";
+  const itemBaseCurrency = item.base_currency || "USD";
+
+  const priceConverted = convertPrice(
+    (Number(item.price) || 0) + (Number(item.price_adjustment) || 0),
+    itemBaseCurrency,
+    targetCurrency,
+    exchange_rates
+  );
+  const adjustmentConverted = convertPrice(
+    Number(item.price_adjustment) || 0,
+    itemBaseCurrency,
+    targetCurrency,
+    exchange_rates
+  );
+  const firstImage = item.images?.[0];
+  const itemImage =
+    (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
+    item.image_url ||
+    "/placeholder.jpg";
+  const optimizedItemImage = getOptimizedImage(itemImage, 360);
+>>>>>>> Stashed changes
 
 export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
   return (
@@ -14,9 +53,9 @@ export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
       className="border border-honey-light/50 rounded-3xl p-4 md:p-5 mb-3 flex flex-col sm:flex-row gap-5 relative group hover:shadow-xl hover:shadow-ink/5 transition-all duration-500"
     >
       {/* IMAGEN PRODUCTO */}
-      <div className="relative w-full sm:w-24 h-48 sm:h-32 bg-secondary rounded-2xl overflow-hidden shrink-0 border border-honey-light/30">
+      <div className="product-media-thumb bg-secondary w-20 sm:w-24 shrink-0 border border-honey-light/30">
         <AdaptiveImage
-          src={item.images?.[0]?.url || item.images?.[0] || "/placeholder.jpg"}
+          src={optimizedItemImage}
           alt={item.name || item.title || "Producto"}
           fill
           className="object-cover transition-transform duration-700 group-hover:scale-110"

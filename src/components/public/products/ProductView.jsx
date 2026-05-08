@@ -20,6 +20,7 @@ import {
   normalizeCommerceSettings,
 } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
+import { getOptimizedImage } from "@/lib/getOptimizedImage";
 
 export default function ProductView({ product }) {
   const { site_name, commerce_settings, tenant_slug } = useSiteConfig();
@@ -108,7 +109,21 @@ export default function ProductView({ product }) {
   const finalPrice = basePrice + priceOverride;
   const finalRegularPrice = regularPrice + priceOverride;
 
-  const productImages = Array.isArray(images) ? images : ["/placeholder.jpg"];
+  const productImages = Array.isArray(images)
+    ? images
+        .map((img) => (typeof img === "string" ? img : img?.url))
+        .filter(Boolean)
+    : [];
+  const galleryImages =
+    productImages.length > 0
+      ? productImages.map((img) => getOptimizedImage(img, 1200))
+      : ["/placeholder.jpg"];
+
+  useEffect(() => {
+    if (selectedImage >= galleryImages.length) {
+      setSelectedImage(0);
+    }
+  }, [selectedImage, galleryImages.length]);
 
   // ----------------------------------------------------------------
   // CARRITO
@@ -144,12 +159,12 @@ export default function ProductView({ product }) {
         {/* ---- GALERÍA ---- */}
         <div className="md:col-span-7 flex flex-col lg:flex-row gap-4 w-full">
           <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-x-visible lg:w-20 order-1 lg:order-0">
-            {productImages.map((img, index) => (
+            {galleryImages.map((img, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
                 className={cn(
-                  "relative shrink-0 w-16 h-20 md:w-20 md:h-24 lg:w-full cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-300",
+                  "product-media-thumb bg-secondary shrink-0 w-16 md:w-20 lg:w-full cursor-pointer border-2 transition-all duration-300",
                   selectedImage === index
                     ? "border-black"
                     : "border-transparent",
@@ -166,9 +181,9 @@ export default function ProductView({ product }) {
             ))}
           </div>
 
-          <div className="relative flex-1 aspect-3/4 bg-secondary rounded-2xl overflow-hidden shadow-md order-2 lg:order-0">
+          <div className="product-media-main bg-secondary flex-1 shadow-md order-2 lg:order-0">
             <AdaptiveImage
-              src={productImages[selectedImage]}
+              src={galleryImages[selectedImage]}
               alt={name || `Producto de ${brand}`}
               fill
               priority

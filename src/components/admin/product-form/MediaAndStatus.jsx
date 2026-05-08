@@ -31,7 +31,7 @@ const MediaAndStatus = ({
           {(formData.images || []).map((img, idx) => (
             <div
               key={idx}
-              className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+              className="group product-media-thumb bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
             >
               <img
                 src={img}
