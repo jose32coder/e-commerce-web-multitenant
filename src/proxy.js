@@ -75,7 +75,9 @@ const resolveStorageKeyForPath = (pathname) => {
 };
 
 const getPortalContext = async (supabase, session) => {
-  if (!session?.user?.id) return { type: "anonymous", hasStaffProfile: false };
+  if (!session?.user?.id) {
+    return { type: "anonymous", hasStaffProfile: false, tenantId: null };
+  }
 
   const userMeta = session.user.user_metadata || {};
   const appMeta = session.user.app_metadata || {};
@@ -85,14 +87,26 @@ const getPortalContext = async (supabase, session) => {
   const role = userMeta.role || appMeta.role;
 
   if (accessScope === "platform" || isPlatformAdminEmail(email)) {
-    return { type: "platform", hasStaffProfile: false };
+    return { type: "platform", hasStaffProfile: false, tenantId: null };
   }
 
   if (accessScope === "admin" || role === "admin" || appMeta.role === "admin") {
-    return { type: "admin", hasStaffProfile: true };
+    let tenantId = userMeta.tenant_id || appMeta.tenant_id || null;
+
+    if (!tenantId) {
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("tenant_id")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      tenantId = staffProfile?.tenant_id || null;
+    }
+
+    return { type: "admin", hasStaffProfile: true, tenantId };
   }
 
-  return { type: "unknown", hasStaffProfile: false };
+  return { type: "unknown", hasStaffProfile: false, tenantId: null };
 };
 
 const applyRateLimit = (req) => {
@@ -126,6 +140,28 @@ export async function proxy(req) {
   const rateLimitedResponse = applyRateLimit(req);
   if (rateLimitedResponse) return rateLimitedResponse;
 
+  const requestHeaders = new Headers(req.headers);
+  // Nunca confíes en un x-tenant-id enviado por el cliente.
+  requestHeaders.delete("x-tenant-id");
+  const responseCookies = new Map();
+  const responseHeaders = new Map();
+
+  const buildNextResponse = () => {
+    const nextResponse = NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+
+    responseCookies.forEach(({ value, options }, name) => {
+      nextResponse.cookies.set(name, value, options);
+    });
+
+    responseHeaders.forEach((value, key) => {
+      nextResponse.headers.set(key, value);
+    });
+
+    return nextResponse;
+  };
+
   const pathname = req.nextUrl.pathname;
   const requiresAuthGuard =
     isAdminAreaPath(pathname) ||
@@ -135,14 +171,10 @@ export async function proxy(req) {
   // Evita inicializar Supabase en rutas públicas: reduce overhead y previene
   // efectos secundarios de cookies en rutas multisegmento.
   if (!requiresAuthGuard) {
-    return NextResponse.next({
-      request: { headers: req.headers },
-    });
+    return buildNextResponse();
   }
 
-  let res = NextResponse.next({
-    request: { headers: req.headers },
-  });
+  let res = buildNextResponse();
 
   const storageKey = resolveStorageKeyForPath(pathname);
 
@@ -152,14 +184,22 @@ export async function proxy(req) {
     {
       cookies: {
         getAll: () => req.cookies.getAll(),
-        setAll: (cookiesToSet) => {
+        setAll: (cookiesToSet, headersToSet = {}) => {
           cookiesToSet.forEach(({ name, value }) =>
             req.cookies.set(name, value),
           );
-          res = NextResponse.next({ request: { headers: req.headers } });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            res.cookies.set(name, value, options),
-          );
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            responseCookies.set(name, { value, options });
+          });
+
+          Object.entries(headersToSet).forEach(([key, value]) => {
+            if (typeof value === "string") {
+              responseHeaders.set(key, value);
+            }
+          });
+
+          res = buildNextResponse();
         },
       },
       auth: { storageKey },
@@ -214,6 +254,19 @@ export async function proxy(req) {
     const fallback =
       portalContext.type === "admin" ? "/admin" : PLATFORM_LOGIN_PATH;
     return NextResponse.redirect(new URL(fallback, req.url));
+  }
+
+  if (isAdminAreaPath(pathname) && portalContext.type === "admin") {
+    if (
+      portalContext.tenantId !== null &&
+      portalContext.tenantId !== undefined &&
+      portalContext.tenantId !== ""
+    ) {
+      requestHeaders.set("x-tenant-id", String(portalContext.tenantId));
+    } else {
+      requestHeaders.delete("x-tenant-id");
+    }
+    res = buildNextResponse();
   }
 
   return res;

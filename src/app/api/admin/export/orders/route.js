@@ -19,24 +19,11 @@ export async function GET(request) {
 
     const format = request.nextUrl.searchParams.get("format") === "csv" ? "csv" : "xlsx";
 
+    // Evita romper exportaciones cuando el schema varía entre tenants/entornos
+    // (ej: columnas legacy como shipping_method pueden no existir).
     const { data, error } = await supabase
       .from("orders")
-      .select(`
-        id,
-        order_number,
-        created_at,
-        estado,
-        customer_id,
-        customer_name,
-        customer_id_number,
-        customer_phone,
-        metodo_pago,
-        referencia_pago,
-        shipping_method,
-        shipping_provider,
-        total,
-        items
-      `)
+      .select("*")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
 

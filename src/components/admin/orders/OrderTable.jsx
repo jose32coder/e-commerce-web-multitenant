@@ -44,75 +44,86 @@ export default function OrderTable({
               </td>
             </tr>
           ) : orders.length > 0 ? (
-            orders.map((order) => (
-              <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
-                <td className="px-6 py-4">
-                  <span className="font-black text-slate-900 dark:text-white text-xs">
-                    #{toOrderCode(order)}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <p className="font-bold text-slate-900 dark:text-slate-200 text-sm">
-                    {order.clientes?.nombre_completo || "Desconocido"}
-                  </p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter font-medium">
-                    {order.clientes?.telefono}
-                  </p>
-                </td>
-                <td className="px-6 py-4 hidden sm:table-cell">
-                  <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-xs">
-                    <Calendar size={12} />
-                    {new Date(order.created_at).toLocaleDateString()}
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
-                  {getCurrencySymbol(selectedCurrency)}
-                  {convertPrice(Number(order.total), "USD", selectedCurrency, exchangeRates).toFixed(2)}
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                      order.estado === "pending"
-                        ? "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
-                        : order.estado === "paid"
-                          ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
-                          : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
-                    }`}
-                  >
-                    {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-end gap-2 text-slate-400 dark:text-slate-500">
-                    <button
-                      onClick={() => onViewDetails(order)}
-                      className="p-2 hover:text-slate-900 cursor-pointer dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
-                      title="Ver detalles"
+            orders.map((order) => {
+              const customerName =
+                order.customer_name ||
+                order.clientes?.nombre_completo ||
+                order.clientes?.full_name;
+              const customerPhone =
+                order.customer_phone ||
+                order.clientes?.telefono ||
+                order.clientes?.phone;
+
+              return (
+                <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
+                  <td className="px-6 py-4">
+                    <span className="font-black text-slate-900 dark:text-white text-xs">
+                      #{toOrderCode(order)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-slate-900 dark:text-slate-200 text-sm">
+                      {customerName || "Desconocido"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter font-medium">
+                      {customerPhone || "Sin teléfono"}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4 hidden sm:table-cell">
+                    <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-xs">
+                      <Calendar size={12} />
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
+                    {getCurrencySymbol(selectedCurrency)}
+                    {convertPrice(Number(order.total), "USD", selectedCurrency, exchangeRates).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                        order.estado === "pending"
+                          ? "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
+                          : order.estado === "paid"
+                            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
+                            : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                      }`}
                     >
-                      <Eye size={18} />
-                    </button>
-                    {order.estado === "pending" && (
-                      <>
-                        <button
-                          onClick={() => onUpdateStatus(order.id, "paid")}
-                          className="p-2 hover:text-emerald-600 cursor-pointer dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded-lg transition-all"
-                          title="Completar"
-                        >
-                          <Check size={18} />
-                        </button>
-                        <button
-                          onClick={() => onReject(order.id)}
-                          className="p-2 cursor-pointer hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition-all"
-                          title="Cancelar"
-                        >
-                          <X size={18} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))
+                      {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-end gap-2 text-slate-400 dark:text-slate-500">
+                      <button
+                        onClick={() => onViewDetails(order)}
+                        className="p-2 hover:text-slate-900 cursor-pointer dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
+                        title="Ver detalles"
+                      >
+                        <Eye size={18} />
+                      </button>
+                      {order.estado === "pending" && (
+                        <>
+                          <button
+                            onClick={() => onUpdateStatus(order.id, "paid")}
+                            className="p-2 hover:text-emerald-600 cursor-pointer dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded-lg transition-all"
+                            title="Completar"
+                          >
+                            <Check size={18} />
+                          </button>
+                          <button
+                            onClick={() => onReject(order.id)}
+                            className="p-2 cursor-pointer hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition-all"
+                            title="Cancelar"
+                          >
+                            <X size={18} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
           ) : (
             <tr>
               <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">

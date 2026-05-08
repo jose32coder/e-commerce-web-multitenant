@@ -13,6 +13,20 @@ export default function OrderDetailsModal({
 }) {
   if (!order) return null;
 
+  const customerName =
+    order.customer_name ||
+    order.cliente_nombre ||
+    order.clientes?.nombre_completo ||
+    order.clientes?.full_name;
+  const customerIdNumber =
+    order.customer_id_number ||
+    order.clientes?.cedula ||
+    order.clientes?.id_number;
+  const customerPhone =
+    order.customer_phone ||
+    order.clientes?.telefono ||
+    order.clientes?.phone;
+
   const getCurrencySymbol = (code) => {
     switch (code) {
       case "VES": return "Bs ";
@@ -56,15 +70,15 @@ export default function OrderDetailsModal({
             <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
               <p>
                 <span className="font-bold text-slate-900 dark:text-slate-300">Nombre:</span>{" "}
-                {order.clientes?.nombre_completo || order.cliente_nombre || "No registrado"}
+                {customerName || "No registrado"}
               </p>
               <p>
                 <span className="font-bold text-slate-900 dark:text-slate-300">CI/RIF:</span>{" "}
-                {order.clientes?.cedula || "No registrado"}
+                {customerIdNumber || "No registrado"}
               </p>
               <p>
                 <span className="font-bold text-slate-900 dark:text-slate-300">Teléfono:</span>{" "}
-                {order.clientes?.telefono || "No registrado"}
+                {customerPhone || "No registrado"}
               </p>
               {(order.clientes?.email || order.customer_email) && (
                 <p>

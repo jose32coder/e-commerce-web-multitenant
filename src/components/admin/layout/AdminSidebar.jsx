@@ -107,7 +107,7 @@ export default function AdminSidebar({
         >
           <div className="flex items-center lg:px-5 gap-3 overflow-hidden">
             {/* Icono/Avatar del Logo */}
-            <div className="min-w-[40px] h-[40px] bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl shadow-lg">
+            <div className="min-w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl shadow-lg">
               {site_name?.substring(0, 1).toUpperCase()}
             </div>
 
@@ -126,7 +126,7 @@ export default function AdminSidebar({
           </div>
         </div>
         {/* NAVEGACIÓN */}
-        <nav className={`flex-1 space-y-4 ${isCollapsed ? "px-0" : "px-6"}`}>
+        <nav className="flex-1 space-y-4 px-3">
           {navItems.map(
             (item) =>
               canAccess(item.permission) && (
@@ -143,19 +143,27 @@ export default function AdminSidebar({
         </nav>
 
         {/* SALIR — contraste explícito sobre rail oscuro (icono rojo puro se pierde al colapsar) */}
-        <div className="p-6 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800/50">
           <button
             type="button"
             onClick={handleLogout}
             className={`
-              flex cursor-pointer items-center gap-4 p-4 w-full rounded-2xl transition-all group font-bold text-xs uppercase tracking-widest
-              bg-slate-900/90 text-red-400 ring-1 ring-red-500/35 shadow-inner shadow-black/20
-              hover:bg-red-950/50 hover:text-red-300 hover:ring-red-400/50
-              ${isCollapsed && !isMobileOpen ? "lg:justify-center lg:gap-0" : ""}
-            `}
+      flex cursor-pointer items-center bg-red-500/10 w-full rounded-xl transition-all duration-300 group
+      text-red-500 hover:text-red-400 hover:bg-red-500/15
+      p-2 /* Padding uniforme */
+      ${isCollapsed && !isMobileOpen ? "justify-center" : "px-3 gap-4"}
+    `}
           >
-            <LogOut size={20} className="shrink-0 text-red-300 group-hover:text-red-200" strokeWidth={2} />
-            {(!isCollapsed || isMobileOpen) && <span>Salir</span>}
+            {/* Contenedor de icono con tamaño fijo para que no se mueva */}
+            <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-lg bg-slate-800 group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors">
+              <LogOut size={20} strokeWidth={2} />
+            </div>
+
+            {(!isCollapsed || isMobileOpen) && (
+              <span className="font-semibold text-sm tracking-wide whitespace-nowrap">
+                Cerrar Sesión
+              </span>
+            )}
           </button>
         </div>
       </div>
