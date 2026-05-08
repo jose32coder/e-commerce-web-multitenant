@@ -19,6 +19,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { getOptimizedImage } from "@/lib/getOptimizedImage";
+<<<<<<< Updated upstream
+=======
+
+import { convertPrice } from "@/services/exchangeRates";
+>>>>>>> Stashed changes
 
 export default function MiniCart({ open, setOpen }) {
   const { items, removeItem, updateQuantity, getTotalPrice } = useCartStore();
@@ -226,6 +231,18 @@ export default function MiniCart({ open, setOpen }) {
                           <p className="text-[11px] text-honey-dark/70 line-clamp-1 mt-0.5">
                             {item.short_description}
                           </p>
+<<<<<<< Updated upstream
+=======
+                        )}
+                        <span className="text-[13px] font-bold text-ink mt-1 block">
+                          {currencySymbol}{itemPriceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </span>
+                        {adjustmentConverted > 0 && (
+                          <p className="text-[10px] text-amber-700 font-semibold mt-1">
+                            +{currencySymbol}{adjustmentConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })} por
+                            variante
+                          </p>
+>>>>>>> Stashed changes
                         )}
                         <span className="text-[13px] font-bold text-ink mt-1 block">
                           {currencySymbol}{itemPriceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}

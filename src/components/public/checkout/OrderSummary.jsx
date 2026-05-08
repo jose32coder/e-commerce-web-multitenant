@@ -8,6 +8,9 @@ import { Lock, ArrowRight, Smartphone } from "lucide-react";
 import { convertPrice } from "@/services/exchangeRates";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { getOptimizedImage } from "@/lib/getOptimizedImage";
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 export function OrderSummary({

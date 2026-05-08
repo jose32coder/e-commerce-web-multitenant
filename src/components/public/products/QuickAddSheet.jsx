@@ -60,6 +60,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
   );
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   const regularPrice = Number(price) || 0;
   const offerPrice = Number(discount_price) || 0;
   const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
@@ -69,11 +70,14 @@ export default function QuickAddSheet({ product, open, onClose }) {
   const finalRegularPrice = regularPrice + priceAdjustment;
   const imageUrl = images?.[0] || "/placeholder.jpg";
 =======
+=======
+>>>>>>> Stashed changes
   const firstImage = images?.[0];
   const imageUrl =
     (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
     "/placeholder.jpg";
   const optimizedImageUrl = getOptimizedImage(imageUrl, 600);
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 
   const hasVariants = normalizedVariants.length > 0;
@@ -88,6 +92,8 @@ export default function QuickAddSheet({ product, open, onClose }) {
   const selectorLabel = hasMultipleVariantTypes
     ? "Seleccionar Variante"
     : `Seleccionar ${normalizedVariants[0]?.name || "Variante"}`;
+=======
+>>>>>>> Stashed changes
 
   useEffect(() => {
     if (!open) {
@@ -162,6 +168,9 @@ export default function QuickAddSheet({ product, open, onClose }) {
           className={`flex flex-col sm:flex-row gap-5 sm:gap-5 items-stretch sm:items-start ${hasVariants ? "mb-8" : "mb-6"}`}
         >
           <div className="product-media-main bg-secondary w-full max-w-[200px] mx-auto sm:mx-0 sm:w-24 sm:max-w-none shrink-0">
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
             <AdaptiveImage
               src={optimizedImageUrl}

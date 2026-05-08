@@ -21,6 +21,11 @@ import {
 } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { getOptimizedImage } from "@/lib/getOptimizedImage";
+<<<<<<< Updated upstream
+=======
+
+import { convertPrice } from "@/services/exchangeRates";
+>>>>>>> Stashed changes
 
 export default function ProductView({ product }) {
   const { site_name, commerce_settings, tenant_slug } = useSiteConfig();
@@ -119,6 +124,19 @@ export default function ProductView({ product }) {
       ? productImages.map((img) => getOptimizedImage(img, 1200))
       : ["/placeholder.jpg"];
 
+<<<<<<< Updated upstream
+=======
+  const productImages = Array.isArray(images)
+    ? images
+        .map((img) => (typeof img === "string" ? img : img?.url))
+        .filter(Boolean)
+    : [];
+  const galleryImages =
+    productImages.length > 0
+      ? productImages.map((img) => getOptimizedImage(img, 1200))
+      : ["/placeholder.jpg"];
+
+>>>>>>> Stashed changes
   useEffect(() => {
     if (selectedImage >= galleryImages.length) {
       setSelectedImage(0);

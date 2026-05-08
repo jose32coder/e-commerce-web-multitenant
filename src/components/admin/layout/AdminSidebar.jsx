@@ -1,17 +1,17 @@
 "use client";
 import React from "react";
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  Tags, 
-  BarChart3, 
-  Users, 
-  History, 
-  Settings, 
-  LogOut, 
-  ChevronRight, 
-  ChevronLeft, 
-  X 
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Tags,
+  BarChart3,
+  Users,
+  History,
+  Settings,
+  LogOut,
+  ChevronRight,
+  ChevronLeft,
+  X,
 } from "lucide-react";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { useSiteConfig } from "@/context/SiteConfigContext";
@@ -28,13 +28,48 @@ export default function AdminSidebar({
   const { site_name, commerce_settings } = useSiteConfig();
 
   const navItems = [
-    { href: "/admin", icon: <LayoutDashboard size={20} />, label: "Panel", permission: "Panel" },
-    { href: "/admin/products", icon: <ShoppingBag size={20} />, label: "Productos", permission: "Productos" },
-    { href: "/admin/categories", icon: <Tags size={20} />, label: "Categorías", permission: "Categorías" },
-    { href: "/admin/orders", icon: <BarChart3 size={20} />, label: "Ventas", permission: "Ventas" },
-    { href: "/admin/customers", icon: <Users size={20} />, label: "Clientes", permission: "Clientes" },
-    { href: "/admin/history", icon: <History size={20} />, label: "Bitácora", permission: "Bitácora" },
-    { href: "/admin/settings", icon: <Settings size={20} />, label: "Ajustes", permission: "Ajustes" },
+    {
+      href: "/admin",
+      icon: <LayoutDashboard size={20} />,
+      label: "Panel",
+      permission: "Panel",
+    },
+    {
+      href: "/admin/products",
+      icon: <ShoppingBag size={20} />,
+      label: "Productos",
+      permission: "Productos",
+    },
+    {
+      href: "/admin/categories",
+      icon: <Tags size={20} />,
+      label: "Categorías",
+      permission: "Categorías",
+    },
+    {
+      href: "/admin/orders",
+      icon: <BarChart3 size={20} />,
+      label: "Ventas",
+      permission: "Ventas",
+    },
+    {
+      href: "/admin/customers",
+      icon: <Users size={20} />,
+      label: "Clientes",
+      permission: "Clientes",
+    },
+    {
+      href: "/admin/history",
+      icon: <History size={20} />,
+      label: "Bitácora",
+      permission: "Bitácora",
+    },
+    {
+      href: "/admin/settings",
+      icon: <Settings size={20} />,
+      label: "Ajustes",
+      permission: "Ajustes",
+    },
   ];
 
   return (
@@ -67,16 +102,6 @@ export default function AdminSidebar({
         <div
           className={`flex px-8 py-10 ${isCollapsed ? "justify-center px-11" : "justify-start"}`}
         >
-<<<<<<< Updated upstream
-          <h2 className="font-black tracking-tighter text-2xl uppercase whitespace-nowrap text-slate-900 dark:text-white">
-            <span className="hidden lg:block">
-              {isCollapsed
-                ? site_name.substring(0, 2).toUpperCase()
-                : site_name.toUpperCase()}
-            </span>
-            <span className="lg:hidden">{site_name.toUpperCase()}</span>
-          </h2>
-=======
           <div className="flex items-center lg:px-5 gap-3 overflow-hidden">
             {/* Icono/Avatar del Logo */}
             <div className="min-w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl shadow-lg overflow-hidden">
@@ -106,23 +131,23 @@ export default function AdminSidebar({
               {site_name}
             </h2>
           </div>
->>>>>>> Stashed changes
         </div>
 
         {/* NAVEGACIÓN */}
         <nav className="flex-1 px-6 space-y-4">
-          {navItems.map((item) => (
-            canAccess(item.permission) && (
-              <AdminNavLink
-                key={item.href}
-                href={item.href}
-                icon={item.icon}
-                label={item.label}
-                isCollapsed={isCollapsed}
-                onClick={() => setIsMobileOpen(false)}
-              />
-            )
-          ))}
+          {navItems.map(
+            (item) =>
+              canAccess(item.permission) && (
+                <AdminNavLink
+                  key={item.href}
+                  href={item.href}
+                  icon={item.icon}
+                  label={item.label}
+                  isCollapsed={isCollapsed}
+                  onClick={() => setIsMobileOpen(false)}
+                />
+              ),
+          )}
         </nav>
 
         {/* SALIR */}

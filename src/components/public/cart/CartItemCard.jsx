@@ -41,6 +41,9 @@ export default function CartItemCard({
     item.image_url ||
     "/placeholder.jpg";
   const optimizedItemImage = getOptimizedImage(itemImage, 360);
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
