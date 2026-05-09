@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 
 export default function MiniCart({ open, setOpen }) {
   const { tenant_slug, commerce_settings, exchange_rates } = useSiteConfig();
@@ -145,11 +145,11 @@ export default function MiniCart({ open, setOpen }) {
                             {item.short_description}
                           </p>
                         )}                        <span className="text-[13px] font-bold text-ink mt-1 block">
-                          {currencySymbol}{itemPriceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          {currencySymbol}{formatPrice(itemPriceConverted, targetCurrency)}
                         </span>
                         {adjustmentConverted > 0 && (
                           <p className="text-[10px] text-amber-700 font-semibold mt-1">
-                            +{currencySymbol}{adjustmentConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })} por
+                            +{currencySymbol}{formatPrice(adjustmentConverted, targetCurrency)} por
                             variante
                           </p>
                         )}
@@ -205,7 +205,7 @@ export default function MiniCart({ open, setOpen }) {
                   Subtotal
                 </span>
                 <span className="font-bold text-ink">
-                  {currencySymbol}{subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  {currencySymbol}{formatPrice(subtotal, targetCurrency)}
                 </span>
               </div>
             </div>

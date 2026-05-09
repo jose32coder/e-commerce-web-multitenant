@@ -90,20 +90,24 @@ const getPortalContext = async (supabase, session) => {
     return { type: "platform", hasStaffProfile: false, tenantId: null };
   }
 
-  if (accessScope === "admin" || role === "admin" || appMeta.role === "admin") {
-    let tenantId = userMeta.tenant_id || appMeta.tenant_id || null;
+  const { data: staffProfile } = await supabase
+    .from("staff_profiles")
+    .select("id, tenant_id")
+    .eq("id", session.user.id)
+    .maybeSingle();
 
-    if (!tenantId) {
-      const { data: staffProfile } = await supabase
-        .from("staff_profiles")
-        .select("tenant_id")
-        .eq("id", session.user.id)
-        .maybeSingle();
+  const hasStaffProfile = !!staffProfile?.id;
 
-      tenantId = staffProfile?.tenant_id || null;
-    }
+  if (
+    accessScope === "admin" ||
+    role === "admin" ||
+    appMeta.role === "admin" ||
+    hasStaffProfile
+  ) {
+    const tenantId =
+      userMeta.tenant_id || appMeta.tenant_id || staffProfile?.tenant_id || null;
 
-    return { type: "admin", hasStaffProfile: true, tenantId };
+    return { type: "admin", hasStaffProfile, tenantId };
   }
 
   return { type: "unknown", hasStaffProfile: false, tenantId: null };

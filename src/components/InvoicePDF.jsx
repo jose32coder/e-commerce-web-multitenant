@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   policyText: { fontSize: 8, color: "#666", lineHeight: 1.4 },
 });
 
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 
 export const InvoicePDF = ({
   formData,
@@ -142,9 +142,9 @@ export const InvoicePDF = ({
           <View key={i} style={styles.tableRow}>
             <Text style={styles.cellQty}>{item.quantity}</Text>
             <Text style={styles.cellDesc}>{item.name || item.title}</Text>
-            <Text style={styles.cellPrice}>{currencySymbol}{itemPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+            <Text style={styles.cellPrice}>{currencySymbol}{formatPrice(itemPrice, targetCurrency)}</Text>
             <Text style={styles.cellTotal}>
-              {currencySymbol}{(itemPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {currencySymbol}{formatPrice(itemPrice * item.quantity, targetCurrency)}
             </Text>
           </View>
         );
@@ -154,12 +154,12 @@ export const InvoicePDF = ({
       <View style={styles.totalSection}>
         <View style={styles.totalRow}>
           <Text style={{ fontSize: 10 }}>Subtotal (Aprox):</Text>
-          <Text style={{ fontSize: 10 }}>{currencySymbol}{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+          <Text style={{ fontSize: 10 }}>{currencySymbol}{formatPrice(finalTotal, targetCurrency)}</Text>
         </View>
         <View style={styles.finalTotal}>
           <Text style={{ fontSize: 10, fontWeight: "bold" }}>TOTAL {targetCurrency}</Text>
           <Text style={{ fontSize: 12, fontWeight: "bold" }}>
-            {currencySymbol}{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {currencySymbol}{formatPrice(finalTotal, targetCurrency)}
           </Text>
         </View>
       </View>

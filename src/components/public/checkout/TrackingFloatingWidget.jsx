@@ -14,6 +14,7 @@ import {
   Maximize2,
 } from "lucide-react";
 import Link from "next/link";
+import Swal from "sweetalert2";
 import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { cn } from "@/lib/utils";
@@ -65,9 +66,24 @@ export default function TrackingFloatingWidget() {
   const handleClose = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (confirm("¿Deseas cerrar el seguimiento de este pedido?")) {
-      stopTracking(tenant_slug);
-    }
+    Swal.fire({
+      title: "¿Finalizar Seguimiento?",
+      text: "Se ocultará esta orden de tu pantalla de seguimiento.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#1A1A1A",
+      cancelButtonColor: "#ef4444",
+      confirmButtonText: "Sí, finalizar",
+      cancelButtonText: "Cancelar",
+      background: "#FBF9F6",
+      color: "#1A1A1A",
+      reverseButtons: true,
+    }).then((result) => {
+      if (result.isConfirmed) {
+        stopTracking(tenant_slug);
+        setIsExpanded(false);
+      }
+    });
   };
 
   return (
@@ -106,29 +122,29 @@ export default function TrackingFloatingWidget() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center">
                     <button
                       onClick={() => setIsExpanded(false)}
                       className="p-1.5 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-400 transition-colors cursor-pointer"
                     >
-                      <Minimize2 size={14} />
-                    </button>
-                    <button
-                      onClick={handleClose}
-                      className="p-1.5 hover:bg-rose-50 hover:text-rose-500 rounded-lg text-zinc-400 transition-colors cursor-pointer"
-                    >
-                      <X size={14} />
+                      <X size={16} />
                     </button>
                   </div>
                 </div>
                 <div className="p-3 bg-zinc-50/50 dark:bg-slate-800/50 flex flex-col gap-2">
                   <Link
-                    href={`${baseUrl}/checkout`}
-                    className="flex items-center justify-between w-full bg-ink text-paper px-4 h-11 rounded-2xl font-bold uppercase text-[9px] tracking-widest hover:scale-[1.02] transition-transform active:scale-95 shadow-sm"
+                    href={`${baseUrl}/checkout?view_tracking=true`}
+                    className="flex items-center justify-center gap-2 w-full bg-ink text-paper px-4 h-11 rounded-2xl font-bold uppercase text-[9px] tracking-widest hover:scale-[1.02] transition-transform active:scale-95 shadow-sm"
                   >
                     <span>Ver Detalles</span>
-                    <ExternalLink size={12} />
+                    <ExternalLink size={14} />
                   </Link>
+                  <button
+                    onClick={handleClose}
+                    className="flex items-center justify-center w-full text-zinc-500 hover:text-rose-600 hover:bg-rose-50 px-4 h-10 rounded-2xl font-bold uppercase text-[9px] tracking-widest transition-colors cursor-pointer"
+                  >
+                    Finalizar Seguimiento
+                  </button>
                 </div>
               </>
             ) : (
@@ -159,25 +175,26 @@ export default function TrackingFloatingWidget() {
         )}
       </AnimatePresence>
 
-      {/* Burbuja Flotante Siempre Visible */}
-      <motion.button
-        layout
-        onClick={() => setIsExpanded(!isExpanded)}
-        className={cn(
-          "pointer-events-auto h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all cursor-pointer relative",
-          isExpanded
-            ? "bg-white text-ink border border-honey-light rotate-90 scale-90"
-            : "bg-slate-900 text-white dark:bg-white dark:text-slate-900 scale-100",
+      <AnimatePresence>
+        {!isExpanded && (
+          <motion.button
+            layout
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            onClick={() => setIsExpanded(true)}
+            className="pointer-events-auto h-12 w-12 md:h-14 md:w-14 rounded-full shadow-2xl flex items-center justify-center transition-all cursor-pointer relative bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:scale-105"
+          >
+            <Package size={24} className="scale-90 md:scale-100" />
+            {tracking && (
+              <span className="absolute -top-1 -right-1 flex h-3 w-3 md:h-4 md:w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 md:h-4 md:w-4 bg-orange-500"></span>
+              </span>
+            )}
+          </motion.button>
         )}
-      >
-        {isExpanded ? <X size={20} /> : <Package size={24} />}
-        {tracking && !isExpanded && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500"></span>
-          </span>
-        )}
-      </motion.button>
+      </AnimatePresence>
     </div>
   );
 }

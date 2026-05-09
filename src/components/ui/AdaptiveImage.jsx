@@ -118,9 +118,11 @@ export default function AdaptiveImage({
       ) : (
         <Image
           {...imageProps}
-          // Si la URL es externa pero no es de Cloudinary, evitamos errores de dominio
+          // Optimizamos por defecto, especialmente Supabase. Desactivamos solo si es un host no configurado
           unoptimized={
-            typeof effectiveSrc === "string" && effectiveSrc.startsWith("http")
+            typeof effectiveSrc === "string" && 
+            effectiveSrc.startsWith("http") && 
+            !effectiveSrc.includes("supabase.co")
           }
         />
       )}

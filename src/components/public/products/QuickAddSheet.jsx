@@ -17,7 +17,7 @@ import { ShoppingBag, ArrowRight } from "lucide-react";
 import Swal from "sweetalert2";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
@@ -175,14 +175,16 @@ export default function QuickAddSheet({ product, open, onClose }) {
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent
         side="bottom"
-        className="rounded-t-3xl px-6 pb-10 pt-8 max-w-lg mx-auto sm:rounded-t-3xl border-none"
+        className="rounded-t-3xl px-0 pb-0 pt-6 max-h-[90vh] flex flex-col max-w-lg mx-auto sm:rounded-t-3xl border-none"
       >
-        <SheetHeader className="mb-6">
+        <SheetHeader className="mb-4 px-6 shrink-0">
           <SheetTitle className="sr-only">Añadir {name} al carrito</SheetTitle>
           <SheetDescription className="sr-only">
             Selecciona variante y añade el producto al carrito
           </SheetDescription>
         </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-4 no-scrollbar">
 
         <div
           className={`flex flex-col sm:flex-row gap-5 sm:gap-5 items-stretch sm:items-start ${hasVariants ? "mb-8" : "mb-6"}`}
@@ -217,9 +219,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
                 {hasActiveOffer && (
                   <p className="text-[11px] font-semibold text-red-500 line-through">
                     {currencySymbol}
-                    {finalRegularPrice.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                    })}
+                    {formatPrice(finalRegularPrice, targetCurrency)}
                   </p>
                 )}
                 {hasActiveOffer && (
@@ -230,18 +230,14 @@ export default function QuickAddSheet({ product, open, onClose }) {
               </div>
               <p className="text-lg font-bold text-black tabular-nums">
                 {currencySymbol}
-                {finalPrice.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
+                {formatPrice(finalPrice, targetCurrency)}
               </p>
             </div>
 
             {rawPriceAdjustment > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold">
                 +{currencySymbol}
-                {displayAdjustment.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}{" "}
+                {formatPrice(displayAdjustment, targetCurrency)}{" "}
                 de recargo por combinación.
               </p>
             )}
@@ -293,42 +289,45 @@ export default function QuickAddSheet({ product, open, onClose }) {
             )}
           </div>
         )}
+        </div>
 
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              onClick={handleAddToCart}
-              disabled={hasVariants && !allAttrsSelected}
-              className="h-13 bg-ink cursor-pointer text-paper hover:bg-ink/90 font-bold uppercase text-[10px] tracking-[0.16em] shadow-lg"
-            >
-              <ShoppingBag size={16} className="mr-2" />
-              Añadir
-            </Button>
+        <div className="p-4 sm:p-6 border-t border-gray-100 bg-white shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-10">
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleAddToCart}
+                disabled={hasVariants && !allAttrsSelected}
+                className="h-13 bg-ink cursor-pointer text-paper hover:bg-ink/90 font-bold uppercase text-[10px] tracking-[0.16em] shadow-lg"
+              >
+                <ShoppingBag size={16} className="mr-2" />
+                Añadir
+              </Button>
+
+              <Button
+                onClick={handleBuyNow}
+                disabled={hasVariants && !allAttrsSelected}
+                variant="outline"
+                className="h-13 cursor-pointer border-ink text-ink hover:bg-ink hover:text-paper font-bold uppercase text-[10px] tracking-[0.16em]"
+              >
+                Comprar Ya
+              </Button>
+            </div>
 
             <Button
-              onClick={handleBuyNow}
-              disabled={hasVariants && !allAttrsSelected}
-              variant="outline"
-              className="h-13 cursor-pointer border-ink text-ink hover:bg-ink hover:text-paper font-bold uppercase text-[10px] tracking-[0.16em]"
+              asChild
+              variant="ghost"
+              className="w-full h-10 text-honey-dark hover:text-ink font-bold uppercase text-[9px] tracking-[0.2em]"
             >
-              Comprar Ya
+              <Link
+                href={`${baseUrl}/products/${slug}`}
+                onClick={onClose}
+                className="flex items-center gap-2"
+              >
+                Ver detalle completo
+                <ArrowRight size={12} />
+              </Link>
             </Button>
           </div>
-
-          <Button
-            asChild
-            variant="ghost"
-            className="w-full h-10 text-honey-dark hover:text-ink font-bold uppercase text-[9px] tracking-[0.2em]"
-          >
-            <Link
-              href={`${baseUrl}/products/${slug}`}
-              onClick={onClose}
-              className="flex items-center gap-2"
-            >
-              Ver detalle completo
-              <ArrowRight size={12} />
-            </Link>
-          </Button>
         </div>
       </SheetContent>
     </Sheet>

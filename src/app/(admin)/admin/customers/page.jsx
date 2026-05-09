@@ -9,7 +9,12 @@ import { useSiteConfig } from "@/context/SiteConfigContext";
 import ExportButtons from "@/components/admin/shared/ExportButtons";
 import CustomerFilters from "@/components/admin/customers/CustomerFilters";
 import CustomerTable from "@/components/admin/customers/CustomerTable";
-import CustomerDetailsModal from "@/components/admin/customers/CustomerDetailsModal";
+import ProductPagination from "@/components/admin/products/ProductPagination";
+import dynamic from "next/dynamic";
+
+const CustomerDetailsModal = dynamic(() => import("@/components/admin/customers/CustomerDetailsModal"), {
+  ssr: false,
+});
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
@@ -22,6 +27,8 @@ export default function CustomersPage() {
   const [minSpentUsd, setMinSpentUsd] = useState("");
   const [minItemsQty, setMinItemsQty] = useState("");
   const [onlyWithPurchases, setOnlyWithPurchases] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
 
@@ -121,6 +128,16 @@ export default function CustomersPage() {
         return (a.nombre_completo || "").localeCompare(b.nombre_completo || "");
       return b.totalSpentPaidUsd - a.totalSpentPaidUsd;
     });
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, sortBy, minOrdersPaid, minSpentUsd, minItemsQty, onlyWithPurchases]);
+
+  const totalItems = filteredCustomers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedCustomers = filteredCustomers.slice(startIndex, startIndex + pageSize);
 
   const handleExport = async (format) => {
     setExportLoading(true);
@@ -244,6 +261,8 @@ export default function CustomersPage() {
         setSortBy={setSortBy}
         showAdvancedFilters={showAdvancedFilters}
         setShowAdvancedFilters={setShowAdvancedFilters}
+        pageSize={pageSize}
+        setPageSize={setPageSize}
         advancedFiltersProps={{
           minOrdersPaid,
           setMinOrdersPaid,
@@ -257,10 +276,21 @@ export default function CustomersPage() {
       />
 
       <CustomerTable
-        customers={filteredCustomers}
+        customers={paginatedCustomers}
         loading={loading}
         onViewDetails={setSelectedCustomer}
         buildWhatsappHref={buildWhatsappHref}
+      />
+
+      <ProductPagination
+        loading={loading}
+        filteredProducts={filteredCustomers}
+        startIndex={startIndex}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        setPage={setPage}
       />
 
       {selectedCustomer && (

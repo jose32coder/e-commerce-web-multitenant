@@ -2,6 +2,7 @@ import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import AdminLayoutClient from "@/components/admin/layout/AdminLayoutClient";
 import { getSiteConfigServerCached } from "@/lib/siteConfig.server";
+import { PLATFORM_BRAND_NAME } from "@/lib/siteConfig";
 
 export async function generateMetadata() {
   const supabase = await createClient();
@@ -12,12 +13,22 @@ export async function generateMetadata() {
   const tenantId =
     user?.user_metadata?.tenant_id || user?.app_metadata?.tenant_id;
 
+  if (!user) {
+    return {
+      title: {
+        default: `${PLATFORM_BRAND_NAME} | Admin`,
+        template: `%s | ${PLATFORM_BRAND_NAME}`,
+      },
+    };
+  }
+
   const siteConfig = await getSiteConfigServerCached({ tenantId });
+  const resolvedBrand = siteConfig?.site_name || PLATFORM_BRAND_NAME;
 
   return {
     title: {
-      default: `${siteConfig.site_name} | Admin`,
-      template: `%s | ${siteConfig.site_name}`,
+      default: `${resolvedBrand} | Admin`,
+      template: `%s | ${resolvedBrand}`,
     },
   };
 }

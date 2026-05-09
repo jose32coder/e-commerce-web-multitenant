@@ -1,20 +1,23 @@
 import Link from "next/link";
 import Image from "next/image";
 import { UserRound } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { PLATFORM_BRAND_NAME } from "@/lib/siteConfig";
+import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import {
+  PLATFORM_BRAND_NAME,
+  normalizeCommerceSettings,
+  resolveLegacyCommerceSettings,
+} from "@/lib/siteConfig";
 import TenantList from "@/components/TenantList";
 
 const HERO_COPY =
   "Explora acá las mejores tiendas y compra productos de calidad.";
 
 async function getTenantCards() {
-  const supabase = await createClient("sb-platform-auth");
+  const supabase = getAdminSupabaseClient();
 
-  // Asegúrate de que tu tabla 'tenants' tenga la columna 'category'
   const { data: tenantsData, error: tenantsError } = await supabase
     .from("tenants")
-    .select("tenant_id, name, slug, status, store_type")
+    .select("tenant_id, name, slug, status, store_type, logo_url")
     .eq("status", "Active")
     .order("created_at", { ascending: true });
 
@@ -30,7 +33,9 @@ async function getTenantCards() {
 
   const { data: settingsRows } = await supabase
     .from("site_settings")
-    .select("tenant_id, products_intro, home_intro")
+    .select(
+      "tenant_id, products_intro, home_intro, commerce_settings, footer_commerce",
+    )
     .in("tenant_id", tenantIds);
 
   const settingsByTenant = new Map(
@@ -39,20 +44,44 @@ async function getTenantCards() {
 
   return tenants.map((tenant, index) => {
     const settings = settingsByTenant.get(tenant.tenant_id);
-    const title =
+    const autoTitle =
       settings?.products_intro?.title ||
       settings?.home_intro?.title ||
       "Curated Goods";
-    const description =
+    const autoDescription =
       settings?.products_intro?.description ||
       settings?.home_intro?.description ||
       "Experiencia premium personalizada.";
+    const commerceSource =
+      settings?.commerce_settings ||
+      resolveLegacyCommerceSettings(settings) ||
+      {};
+    const normalizedCommerce = normalizeCommerceSettings(commerceSource);
+    const tenantCardConfig = normalizedCommerce.tenant_selector_card || {};
+    const useCustomText = tenantCardConfig.text_mode === "custom";
+    const eyebrowText = useCustomText
+      ? tenantCardConfig.custom_eyebrow
+      : autoTitle;
+    const cardDescription = useCustomText
+      ? tenantCardConfig.custom_description
+      : autoDescription;
+    const cardTitle = useCustomText
+      ? tenantCardConfig.custom_title
+      : tenant.name;
 
     return {
       ...tenant,
-      eyebrow: String(title).toUpperCase().slice(0, 32),
-      description,
-      delay: `${index * 40}ms`, // Carga fluida para muchas tiendas
+      eyebrow: String(eyebrowText || "")
+        .toUpperCase()
+        .slice(0, 48),
+      description: cardDescription,
+      card_title: cardTitle || tenant.name,
+      card_variant: tenantCardConfig.variant || "editorial",
+      card_style: tenantCardConfig.card_style || "legacy",
+      hide_deploy_label: tenantCardConfig.hide_deploy_label === true,
+      background_image_url: tenantCardConfig.background_image_url || "",
+      // logo_url comes directly from tenants table now
+      delay: `${index * 40}ms`,
     };
   });
 }
@@ -105,7 +134,8 @@ export default async function TenantSelectorPage() {
           <div className="absolute inset-0 flex items-center justify-center p-6">
             <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 md:p-8 text-center max-w-md shadow-2xl">
               <p className="font-serif italic text-xl md:text-2xl text-zinc-800">
-                "El futuro del comercio independiente comienza aquí."
+                &ldquo;El futuro del comercio independiente comienza
+                aquí.&rdquo;
               </p>
             </div>
           </div>

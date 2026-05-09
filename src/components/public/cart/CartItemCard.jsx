@@ -4,7 +4,7 @@ import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { motion } from "framer-motion";
 import { Minus, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
 
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function CartItemCard({
@@ -88,11 +88,11 @@ export default function CartItemCard({
         <div className="flex justify-between items-end mt-4">
           <div>
             <span className="text-lg font-bold text-ink">
-              {currencySymbol}{priceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              {currencySymbol}{formatPrice(priceConverted, targetCurrency)}
             </span>
             {adjustmentConverted > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold mt-1">
-                +{currencySymbol}{adjustmentConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })} por variante
+                +{currencySymbol}{formatPrice(adjustmentConverted, targetCurrency)} por variante
               </p>
             )}
           </div>

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Swal from "sweetalert2";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 
 const MODULE_DESCRIPTIONS = {
   Panel: "Acceso al Dashboard Principal",
@@ -85,6 +86,8 @@ const InfoField = ({
 
 const Profile = () => {
   const supabase = createClient();
+  const { site_name, commerce_settings } = useSiteConfig();
+  const logoUrl = commerce_settings?.logo_url;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -194,6 +197,12 @@ const Profile = () => {
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
+              ) : logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Store Logo"
+                  className="w-full h-full object-contain p-2"
+                />
               ) : (
                 <User size={40} className="text-slate-600" />
               )}
@@ -216,6 +225,7 @@ const Profile = () => {
               <span className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">
                 ID: {profile.id?.substring(0, 8)}
               </span>
+
             </div>
           </div>
 

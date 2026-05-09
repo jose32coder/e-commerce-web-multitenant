@@ -4,7 +4,7 @@ import React from "react";
 import { Truck, Store } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSiteConfig } from "@/context/SiteConfigContext";
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import {
   DEFAULT_COMMERCE_SETTINGS,
   normalizeCommerceSettings,
@@ -45,7 +45,7 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
           {
             id: "local",
             label: "Delivery Local",
-            description: `Entrega rápida en la zona por ${currencySymbol}${deliveryFeeConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+            description: `Entrega rápida en la zona por ${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)}`,
             icon: <Truck className="w-5 h-5" />,
             paymentType: "paid",
           },
@@ -56,12 +56,12 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
           {
             id: "national",
             label: "Envío Nacional",
-            description: 
-              nationalType === "cod" 
-                ? "Enviamos por agencias (MRW, Zoom). Cobro en Destino." 
+            description:
+              nationalType === "cod"
+                ? "Enviamos por agencias (MRW, Zoom). Cobro en Destino."
                 : nationalType === "free"
                   ? "Envío gratuito a nivel nacional."
-                  : `Envío por agencia (${currencySymbol}${nationalFeeConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })})`,
+                  : `Envío por agencia (${currencySymbol}${formatPrice(nationalFeeConverted, targetCurrency)})`,
             icon: <Truck className="w-5 h-5" />,
             paymentType: nationalType === "fixed" ? "paid" : nationalType,
           },
@@ -72,7 +72,7 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
           {
             id: "pickup",
             label: "Retiro en Tienda",
-            description: "Pasa por nuestro local y ahorra el envío.",
+            description: "Pasa por nuestro local y retira en tienda",
             icon: <Store className="w-5 h-5" />,
             paymentType: "free",
           },
@@ -126,7 +126,7 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
               </p>
               <p className="text-[9px] text-zinc-500 font-bold leading-tight">
                 {method.id === "local" && Number(deliveryFee) === 0
-                  ? "Envío gratuito"
+                  ? "Gratuito"
                   : method.description}
               </p>
             </div>

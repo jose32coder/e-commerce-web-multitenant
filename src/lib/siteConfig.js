@@ -51,10 +51,7 @@ export const HERO_OVERLAY_VALIGN_TOP = "top";
 export const HERO_OVERLAY_VALIGN_MIDDLE = "middle";
 export const HERO_OVERLAY_VALIGN_BOTTOM = "bottom";
 
-const HERO_VARIANTS = new Set([
-  HERO_VARIANT_CLASSIC,
-  HERO_VARIANT_CINEMATIC,
-]);
+const HERO_VARIANTS = new Set([HERO_VARIANT_CLASSIC, HERO_VARIANT_CINEMATIC]);
 
 const HERO_OVERLAY_ALIGNS = new Set([
   HERO_OVERLAY_ALIGN_LEFT,
@@ -90,7 +87,10 @@ export const normalizeHomeIntro = (homeIntro) => {
   }
 
   let hero_overlay_align = merged.hero_overlay_align;
-  if (rawVariant === "centered" && !HERO_OVERLAY_ALIGNS.has(hero_overlay_align)) {
+  if (
+    rawVariant === "centered" &&
+    !HERO_OVERLAY_ALIGNS.has(hero_overlay_align)
+  ) {
     hero_overlay_align = HERO_OVERLAY_ALIGN_CENTER;
   }
   if (!HERO_OVERLAY_ALIGNS.has(hero_overlay_align)) {
@@ -124,6 +124,26 @@ export const normalizeHomeIntro = (homeIntro) => {
 export const DEFAULT_PRODUCTS_INTRO = {
   title: "Tu tienda de ecommerce",
   description: "Compra todo lo que necesitas en un solo lugar.",
+};
+
+export const TENANT_SELECTOR_CARD_VARIANT_EDITORIAL = "editorial";
+export const TENANT_SELECTOR_CARD_VARIANT_MINIMAL = "minimal";
+
+export const TENANT_SELECTOR_CARD_TEXT_MODE_AUTO = "auto";
+export const TENANT_SELECTOR_CARD_TEXT_MODE_CUSTOM = "custom";
+
+export const TENANT_SELECTOR_CARD_STYLE_LEGACY = "legacy";
+export const TENANT_SELECTOR_CARD_STYLE_MODERN = "modern";
+
+export const DEFAULT_TENANT_SELECTOR_CARD = {
+  variant: TENANT_SELECTOR_CARD_VARIANT_EDITORIAL,
+  card_style: TENANT_SELECTOR_CARD_STYLE_LEGACY,
+  text_mode: TENANT_SELECTOR_CARD_TEXT_MODE_AUTO,
+  hide_deploy_label: false,
+  background_image_url: "",
+  custom_eyebrow: "Todo lo que necesitas aca lo encuentras",
+  custom_title: "Tu tienda ideal",
+  custom_description: "Compra todo lo que necesitas en un solo lugar.",
 };
 
 export const DEFAULT_HEADER_MENU = [
@@ -221,11 +241,49 @@ export const DEFAULT_COMMERCE_SETTINGS = {
   currency_symbol: "$",
   logo_url: "",
   whatsapp_stock_check: false,
+  tenant_selector_card: DEFAULT_TENANT_SELECTOR_CARD,
   shipping_providers: [
     { id: "mrw", name: "MRW", enabled: true },
     { id: "zoom", name: "Zoom", enabled: true },
     { id: "tealca", name: "Tealca", enabled: true },
   ],
+};
+
+export const normalizeTenantSelectorCard = (value) => {
+  const merged = {
+    ...DEFAULT_TENANT_SELECTOR_CARD,
+    ...(value || {}),
+  };
+
+  const variant =
+    merged.variant === TENANT_SELECTOR_CARD_VARIANT_MINIMAL
+      ? TENANT_SELECTOR_CARD_VARIANT_MINIMAL
+      : TENANT_SELECTOR_CARD_VARIANT_EDITORIAL;
+
+  const card_style =
+    merged.card_style === TENANT_SELECTOR_CARD_STYLE_MODERN
+      ? TENANT_SELECTOR_CARD_STYLE_MODERN
+      : TENANT_SELECTOR_CARD_STYLE_LEGACY;
+
+  return {
+    variant,
+    card_style,
+    text_mode:
+      merged.text_mode === TENANT_SELECTOR_CARD_TEXT_MODE_CUSTOM
+        ? TENANT_SELECTOR_CARD_TEXT_MODE_CUSTOM
+        : TENANT_SELECTOR_CARD_TEXT_MODE_AUTO,
+    hide_deploy_label: merged.hide_deploy_label === true,
+    background_image_url: String(merged.background_image_url || "").trim(),
+    custom_eyebrow:
+      String(merged.custom_eyebrow || "").trim() ||
+      DEFAULT_TENANT_SELECTOR_CARD.custom_eyebrow,
+    custom_title:
+      String(merged.custom_title || "").trim() ||
+      DEFAULT_TENANT_SELECTOR_CARD.custom_title,
+    custom_description:
+      String(merged.custom_description || "").trim() ||
+      DEFAULT_TENANT_SELECTOR_CARD.custom_description,
+  };
 };
 
 export const normalizeHeaderMenu = (menu) => {
@@ -327,6 +385,9 @@ export const normalizeCommerceSettings = (commerceSettings) => {
     shipping_national_type: normalized.shipping_national_type || "cod",
     shipping_national_fee: Number(normalized.shipping_national_fee ?? 0),
     shipping_pickup_enabled: normalized.shipping_pickup_enabled !== false,
+    tenant_selector_card: normalizeTenantSelectorCard(
+      normalized.tenant_selector_card,
+    ),
   };
 };
 
@@ -336,7 +397,7 @@ const resolveLegacyFooterSettings = (row = {}) => {
   return legacy.footer_settings || legacy.footer || legacy;
 };
 
-const resolveLegacyCommerceSettings = (row = {}) => {
+export const resolveLegacyCommerceSettings = (row = {}) => {
   const legacy = row?.footer_commerce;
   if (!legacy || typeof legacy !== "object") return null;
   return legacy.commerce_settings || legacy.commerce || legacy;
