@@ -363,7 +363,8 @@ export default function CategoriesPage() {
 
       {/* Tabla de Resultados (Solo Lectura) */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left">
           <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
             <tr>
               <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
@@ -480,7 +481,8 @@ export default function CategoriesPage() {
               </tr>
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {/* Paginación (debajo de la tabla) */}

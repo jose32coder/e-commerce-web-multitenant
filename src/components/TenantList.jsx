@@ -47,7 +47,7 @@ export default function TenantList({ initialTenants }) {
   return (
     <div className="space-y-6">
       {/* BARRA DE BÚSQUEDA Y FILTROS - Ajuste de sticky para no tapar todo en móvil */}
-      <div className="sticky top-[56px] md:top-16 z-20 bg-slate-50/95 backdrop-blur-md py-4 space-y-4 px-1">
+      <div className="sticky top-14 md:top-16 z-20 bg-slate-50/95 backdrop-blur-md py-4 space-y-4 px-1">
         <div className="relative group">
           <Search
             className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
@@ -113,9 +113,9 @@ export default function TenantList({ initialTenants }) {
                   href={`/${tenant.slug}`}
                   className={
                     isModern
-                      ? "group relative overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-900 shadow-xl transition-transform duration-300 hover:-translate-y-1 min-h-[260px] md:min-h-[340px]"
+                      ? "group relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 shadow-xl transition-transform duration-300 hover:-translate-y-1 min-h-65 md:min-h-85"
                       : isEditorial
-                        ? "group relative overflow-hidden rounded-[1.5rem] border border-slate-900 bg-slate-900 p-4 md:p-6 flex flex-col justify-between min-h-[260px] md:min-h-[340px] shadow-lg transition-transform duration-300 hover:-translate-y-1"
+                        ? "group relative overflow-hidden rounded-3xl border border-slate-900 bg-slate-900 p-4 md:p-6 flex flex-col justify-between min-h-65 md:min-h-85 shadow-lg transition-transform duration-300 hover:-translate-y-1"
                         : "group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-4 sm:p-5 flex flex-col items-center justify-center text-center shadow-sm transition-transform duration-300 hover:-translate-y-1"
                   }
                   style={{

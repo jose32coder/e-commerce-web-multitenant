@@ -74,6 +74,7 @@ const ProductForm = ({
     variants: [],
     manage_stock: true, // Por defecto manejamos stock
     base_currency: commerce_settings?.currency_code || "USD",
+    use_variant_only_pricing: false,
   });
 
   useEffect(() => {
@@ -100,6 +101,9 @@ const ProductForm = ({
           ),
           manage_stock: editingProduct.manage_stock ?? (editingProduct.stock < 900000), // Si es muy alto, asumimos que no maneja stock
           base_currency: editingProduct.base_currency || commerce_settings?.currency_code || "USD",
+          use_variant_only_pricing:
+            editingProduct.use_variant_only_pricing === true || 
+            (Number(editingProduct.price) === 0 && initialVariants.length > 0),
         });
       } else {
         resetForm();
@@ -130,6 +134,7 @@ const ProductForm = ({
       variants: [], // <-- SIEMPRE ARRAY VACÍO (Esto evita el error en VariantManager)
       manage_stock: true,
       base_currency: commerce_settings?.currency_code || "USD",
+      use_variant_only_pricing: false,
     });
   };
 
@@ -275,11 +280,21 @@ const ProductForm = ({
 
   const validateForm = () => {
     const errors = [];
+    const variantOnlyPricing = formData.use_variant_only_pricing === true;
+    const cleanedVariants = sanitizeVariants(formData.variants || []);
     if (!formData.name?.trim()) errors.push("El nombre es obligatorio");
     if (!formData.category_ids || formData.category_ids.length === 0)
       errors.push("Selecciona al menos una categoría");
-    if (!formData.price || parseFloat(formData.price) <= 0)
+    if (!variantOnlyPricing && (!formData.price || parseFloat(formData.price) <= 0))
       errors.push("El precio base debe ser mayor a 0");
+    if (
+      variantOnlyPricing &&
+      !cleanedVariants.some((variant) => Number(variant.price_adjustment) > 0)
+    ) {
+      errors.push(
+        "Activa al menos una variante con precio mayor a 0 para usar precio solo por variantes",
+      );
+    }
     if ((formData.images || []).length > 5)
       errors.push("Solo se permiten hasta 5 imágenes por producto");
 
@@ -344,6 +359,10 @@ const ProductForm = ({
       // 5. Construir objeto final para enviar
       const finalFormData = {
         ...formData,
+        price: formData.use_variant_only_pricing ? 0 : formData.price,
+        discount_price: formData.use_variant_only_pricing
+          ? ""
+          : formData.discount_price,
         category_ids: [
           ...new Set((formData.category_ids || []).filter(Boolean)),
         ],

@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   DEFAULT_COMMERCE_SETTINGS,
+  formatWhatsappContactNumber,
   normalizeCommerceSettings,
   normalizeWhatsappNumber,
 } from "@/lib/siteConfig";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
 import { createClient } from "@/lib/supabase/client";
+import { buildCheckoutWhatsappMessage } from "@/lib/checkoutWhatsappMessage";
 
 export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
   const { commerce_settings, tenant_slug } = useSiteConfig();
@@ -24,6 +26,8 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
   // Obtenemos el estado desde el store global
   const tracking = tenant_slug ? trackings[tenant_slug] : null;
   const currentStatus = tracking?.status || "pending";
+  const currentStatusRef = useRef(currentStatus);
+  const rejectionReasonRef = useRef("");
   const orderCode =
     tracking?.orderCode ||
     (orderId ? String(orderId).slice(-6).toUpperCase() : "N/A");
@@ -33,6 +37,44 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
     if (!orderId || !tenant_slug) return;
 
     console.log(`[Tracking] Iniciando monitoreo para orden: ${orderId}`);
+    let isActive = true;
+
+    const applyIncomingState = (nextStatus, nextReason) => {
+      if (!isActive) return;
+      if (nextStatus && nextStatus !== currentStatusRef.current) {
+        updateTrackingStatus(tenant_slug, nextStatus);
+        currentStatusRef.current = nextStatus;
+      }
+      if (nextReason && nextReason !== rejectionReasonRef.current) {
+        setRejectionReason(nextReason);
+        rejectionReasonRef.current = nextReason;
+      }
+    };
+
+    const fetchStatusFromServer = async () => {
+      const params = new URLSearchParams({
+        order_id: String(orderId),
+        tenant_slug: String(tenant_slug),
+      });
+      const response = await fetch(
+        `/api/public/orders/status?${params.toString()}`,
+        {
+          cache: "no-store",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Status API ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (!payload?.status) return null;
+
+      return {
+        estado: payload.status,
+        motivo_rechazo: payload.rejectionReason || "",
+      };
+    };
 
     // 1. Suscribirse a cambios en tiempo real (WebSockets)
     const channel = supabase
@@ -49,11 +91,7 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
           const newStatus = payload.new.estado;
           const reason = payload.new.motivo_rechazo;
           console.log(`[Realtime] Cambio detectado: ${newStatus}`);
-          
-          if (newStatus && newStatus !== currentStatus) {
-            updateTrackingStatus(tenant_slug, newStatus);
-            if (reason) setRejectionReason(reason);
-          }
+          applyIncomingState(newStatus, reason);
         },
       )
       .subscribe((status) => {
@@ -66,62 +104,91 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
     const MAX_DELAY = 30000; // Máximo cada 30 segundos
 
     const fetchCurrentStatus = async () => {
-      // Si el componente se desmontó, no hacer nada
-      if (!orderId) return;
+      if (!isActive) return;
 
-      console.log(`[Polling] Verificando estado... (delay actual: ${currentDelay}ms)`);
-      
-      let { data, error } = await supabase
-        .from("orders")
-        .select("estado, motivo_rechazo")
-        .eq("id", orderId)
-        .maybeSingle();
+      console.log(
+        `[Polling] Verificando estado... (delay actual: ${currentDelay}ms)`,
+      );
 
-      if (error && error.message.includes("motivo_rechazo")) {
-        const retry = await supabase
+      let data = null;
+      let error = null;
+
+      try {
+        data = await fetchStatusFromServer();
+      } catch (serverError) {
+        error = serverError;
+      }
+
+      if (!data) {
+        let fallback = await supabase
           .from("orders")
-          .select("estado")
+          .select("estado, motivo_rechazo")
           .eq("id", orderId)
           .maybeSingle();
-        data = retry.data;
-        error = retry.error;
+
+        if (
+          fallback.error &&
+          fallback.error.message.includes("motivo_rechazo")
+        ) {
+          fallback = await supabase
+            .from("orders")
+            .select("estado")
+            .eq("id", orderId)
+            .maybeSingle();
+        }
+
+        data = fallback.data;
+        if (fallback.error) {
+          error = fallback.error;
+        }
       }
 
-      if (data) {
-        if (data.estado !== currentStatus) {
-          console.log(`[Polling] Estado actualizado: ${data.estado}`);
-          updateTrackingStatus(tenant_slug, data.estado);
-        }
-        if (data.motivo_rechazo && data.motivo_rechazo !== rejectionReason) {
-          setRejectionReason(data.motivo_rechazo);
-        }
-        
-        // Si el estado sigue siendo pendiente, programar siguiente consulta con backoff
+      if (data?.estado) {
+        console.log(`[Polling] Estado detectado: ${data.estado}`);
+        applyIncomingState(data.estado, data.motivo_rechazo);
+
         if (data.estado === "pending") {
-          currentDelay = Math.min(currentDelay * 1.5, MAX_DELAY);
+          currentDelay = Math.min(Math.round(currentDelay * 1.5), MAX_DELAY);
           timeoutId = setTimeout(fetchCurrentStatus, currentDelay);
         }
-      } else if (error) {
-        console.error(`[Tracking] Error en polling:`, error.message);
-        // Reintentar de todos modos tras un error
-        timeoutId = setTimeout(fetchCurrentStatus, currentDelay);
+        return;
       }
+
+      if (error) {
+        console.error(`[Tracking] Error en polling:`, error.message);
+      }
+
+      // Incluso sin data ni error explícito, seguimos intentando.
+      timeoutId = setTimeout(fetchCurrentStatus, currentDelay);
     };
 
     fetchCurrentStatus();
 
     return () => {
+      isActive = false;
       supabase.removeChannel(channel);
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [orderId, tenant_slug, updateTrackingStatus, currentStatus, rejectionReason]);
+  }, [orderId, tenant_slug, updateTrackingStatus]);
+
+  useEffect(() => {
+    currentStatusRef.current = currentStatus;
+  }, [currentStatus]);
+
+  useEffect(() => {
+    rejectionReasonRef.current = rejectionReason;
+  }, [rejectionReason]);
 
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
   );
 
   const configuredWhatsapp = normalizeWhatsappNumber(commerce.whatsapp_number);
-  const supportWhatsapp = whatsappNumber || configuredWhatsapp;
+  const countryCode = String(commerce?.customer_phone_country_code || "58");
+  const supportWhatsapp = formatWhatsappContactNumber(
+    whatsappNumber || configuredWhatsapp,
+    countryCode,
+  );
 
   const motivo =
     rejectionReason || "Verifica los datos de tu pago e intenta nuevamente.";
@@ -129,6 +196,14 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
   const supportMessage = `Hola, mi pedido #${orderCode} tiene problemas con la validación. ¿Que ocurrió?.`;
   const supportHref = supportWhatsapp
     ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+    : "#";
+
+  const resendMessage = buildCheckoutWhatsappMessage(
+    tracking?.whatsappPayload || {},
+  );
+  const canResend = Boolean(tracking?.whatsappPayload && supportWhatsapp);
+  const resendHref = canResend
+    ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(resendMessage)}`
     : "#";
 
   // Efecto para disparar el onSuccess cuando el estado cambia a 'paid'
@@ -202,21 +277,36 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
         <Loader2 size={64} className="opacity-20" />
       </motion.div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h2 className="text-2xl font-serif font-black text-ink uppercase tracking-tight animate-pulse">
           {currentStatus === "paid"
             ? "¡Pago Validado!"
             : "Validando tu pago..."}
         </h2>
-        <p className="text-honey-dark max-w-sm mx-auto text-sm">
+        <p className="text-zinc-400 max-w-sm mx-auto text-sm">
           {currentStatus === "paid"
             ? "Estamos procesando tu orden final. Un momento por favor."
             : "Por favor, espera en esta pantalla mientras nuestro equipo confirma tu pago vía WhatsApp."}
         </p>
-        <div className="text-[10px] uppercase tracking-widest text-honey-dark/50 font-bold bg-white px-4 py-2 rounded-full border border-honey-light inline-block mt-4">
+        <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 px-4 py-2 rounded-full border border-zinc-300 inline-block mt-4">
           Orden #{orderCode}
         </div>
       </div>
+      {canResend && (
+        <div className="flex flex-col items-center gap-3">
+          <Button
+            asChild
+            className="rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white px-6 font-bold uppercase text-[10px] tracking-widest"
+          >
+            <a href={resendHref} target="_blank" rel="noopener noreferrer">
+              Reenviar por WhatsApp
+            </a>
+          </Button>
+          <p className="text-[10px] text-honey-dark/70 uppercase tracking-widest font-bold">
+            Si no se envió el primer mensaje, reinténtalo aquí.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

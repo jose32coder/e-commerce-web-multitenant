@@ -13,6 +13,15 @@ const normalizeProductVariants = (variants = []) =>
       Number(variant.stock_quantity ?? variant.stock_adjustment ?? 0) || 0,
   }));
 
+const getMissingColumnName = (error) => {
+  const message = error?.message || error?.details || "";
+  if (!message) return null;
+  const pgrstMatch = message.match(/Could not find the '([^']+)' column/i);
+  if (pgrstMatch?.[1]) return pgrstMatch[1];
+  const pgMatch = message.match(/column ["']?([^"'\s]+)["']? does not exist/i);
+  return pgMatch?.[1] || null;
+};
+
 const mapProductForClient = (product) => {
   const stockObj = Array.isArray(product.product_stock)
     ? product.product_stock[0]
@@ -105,17 +114,45 @@ export async function POST(request) {
       slug,
       variants = [],
       tenant_id: payloadTenantId,
+      use_variant_only_pricing,
+      base_currency,
     } = body;
     const normalizedCategoryIds = [
       ...new Set((category_ids || []).filter(Boolean)),
     ];
     const normalizedImages = (images || []).slice(0, 5);
 
-    if (!name || !price || normalizedCategoryIds.length === 0) {
+    const variantOnlyPricing = use_variant_only_pricing === true;
+    const parsedPrice = Number(price);
+    const hasPricedVariant = (variants || []).some(
+      (variant) =>
+        Number(variant?.price_adjustment ?? variant?.price_override ?? 0) > 0,
+    );
+
+    if (!name || normalizedCategoryIds.length === 0) {
       return NextResponse.json(
         {
           success: false,
-          error: "Nombre, precio y al menos una categoría son obligatorios",
+          error: "Nombre y al menos una categoría son obligatorios",
+        },
+        { status: 400 },
+      );
+    }
+    if (!variantOnlyPricing && !(parsedPrice > 0)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "El precio base debe ser mayor a 0",
+        },
+        { status: 400 },
+      );
+    }
+    if (variantOnlyPricing && !hasPricedVariant) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Debes definir al menos una variante con precio mayor a 0 para usar precio solo por variantes",
         },
         { status: 400 },
       );
@@ -137,31 +174,56 @@ export async function POST(request) {
     }
 
     // 1. Insertar el producto
-    const { data: product, error: pError } = await supabase
-      .from("products")
-      .insert([
-        {
-          name,
-          short_description,
-          description,
-          price: parseFloat(price),
-          discount_price: discount_price ? parseFloat(discount_price) : null,
-          images: normalizedImages,
-          status: status || "draft",
-          featured: featured || false,
-          slug:
-            slug ||
-            name
-              .toLowerCase()
-              .replace(/ /g, "-")
-              .replace(/[^\w-]+/g, ""),
-          category_id:
-            normalizedCategoryIds.length > 0 ? normalizedCategoryIds[0] : null,
-          tenant_id: tenantId,
-        },
-      ])
-      .select()
-      .single();
+    const productPayload = {
+      name,
+      short_description,
+      description,
+      price: variantOnlyPricing ? 0 : parsedPrice,
+      discount_price:
+        variantOnlyPricing || !discount_price
+          ? null
+          : parseFloat(discount_price),
+      images: normalizedImages,
+      status: status || "draft",
+      featured: featured || false,
+      slug:
+        slug ||
+        name
+          .toLowerCase()
+          .replace(/ /g, "-")
+          .replace(/[^\w-]+/g, ""),
+      category_id:
+        normalizedCategoryIds.length > 0 ? normalizedCategoryIds[0] : null,
+      tenant_id: tenantId,
+      use_variant_only_pricing: variantOnlyPricing,
+      base_currency: base_currency || "USD",
+    };
+
+    let insertPayload = { ...productPayload };
+    let product = null;
+    let pError = null;
+
+    while (true) {
+      const result = await supabase
+        .from("products")
+        .insert([insertPayload])
+        .select()
+        .single();
+
+      if (!result.error) {
+        product = result.data;
+        break;
+      }
+
+      const missingColumn = getMissingColumnName(result.error);
+      if (missingColumn && Object.prototype.hasOwnProperty.call(insertPayload, missingColumn)) {
+        delete insertPayload[missingColumn];
+        continue;
+      }
+
+      pError = result.error;
+      break;
+    }
 
     if (pError) throw pError;
     const productId = product.id;

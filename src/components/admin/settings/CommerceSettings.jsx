@@ -382,9 +382,9 @@ export default function CommerceSettings({ value, onChange }) {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="flex flex-col my-5 gap-2">
         <label className={labelClassName}>Metodos de pago activos</label>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {PAYMENT_OPTIONS.map((method) => {
             const active = isMethodActive(method);
             return (

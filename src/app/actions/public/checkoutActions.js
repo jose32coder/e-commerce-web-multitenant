@@ -13,6 +13,7 @@ const CheckoutSchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   paymentMethod: z.string().min(1, "Método de pago requerido"),
   reference: z.string().min(3, "Referencia demasiado corta").max(50),
+  customerPhoneCountryCode: z.string().optional().nullable(),
   tenantId: z.union([z.string(), z.number()]).nullable().optional(),
   tenantSlug: z.string().nullable().optional(),
   shippingMethod: z.enum(["local", "national", "delivery", "pickup"]),
@@ -111,11 +112,6 @@ export async function processCheckoutOrder(formData, items = [], total) {
 
     const validatedData = validation.data;
 
-    const normalizedCustomerPhone = formatWhatsappContactNumber(
-      validatedData.phone,
-      "58",
-    );
-
     let tenantId = validatedData.tenantId;
     const tenantSlug = validatedData.tenantSlug;
 
@@ -149,6 +145,36 @@ export async function processCheckoutOrder(formData, items = [], total) {
         `No se pudo validar el tenant del pedido: ${getErrorMessage(tenantError)}`,
       );
     }
+
+    let defaultPhoneCountryCode = String(
+      validatedData.customerPhoneCountryCode || "",
+    ).replace(/\D/g, "");
+
+    if (defaultPhoneCountryCode !== "57" && defaultPhoneCountryCode !== "58") {
+      const { data: siteSettings } = await supabase
+        .from("site_settings")
+        .select("commerce_settings, footer_commerce")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      const configuredCode =
+        siteSettings?.commerce_settings?.customer_phone_country_code ||
+        siteSettings?.footer_commerce?.commerce_settings
+          ?.customer_phone_country_code ||
+        siteSettings?.footer_commerce?.customer_phone_country_code ||
+        "58";
+
+      defaultPhoneCountryCode = String(configuredCode).replace(/\D/g, "");
+    }
+
+    if (defaultPhoneCountryCode !== "57" && defaultPhoneCountryCode !== "58") {
+      defaultPhoneCountryCode = "58";
+    }
+
+    const normalizedCustomerPhone = formatWhatsappContactNumber(
+      validatedData.phone,
+      defaultPhoneCountryCode,
+    );
 
     // 0.2 Rate Limit basado en DB (Cooldown de 60 segundos por cliente)
     const { data: recentOrder } = await supabase

@@ -45,6 +45,7 @@ export default function ProductView({ product }) {
     images,
     product_variants,
     base_currency = "USD",
+    use_variant_only_pricing,
   } = product;
 
   const [selectedImage, setSelectedImage] = useState(0);
@@ -105,15 +106,38 @@ export default function ProductView({ product }) {
   // ----------------------------------------------------------------
   const rawRegularPrice = Number(price) || 0;
   const rawOfferPrice = Number(discount_price) || 0;
+  const isVariantOnlyPricing = use_variant_only_pricing === true;
+  const variantAbsolutePrices = (product_variants || [])
+    .map((variant) =>
+      Number(variant?.price_adjustment ?? variant?.price_override ?? 0),
+    )
+    .filter((value) => value > 0);
+  const minVariantAbsolutePrice =
+    variantAbsolutePrices.length > 0 ? Math.min(...variantAbsolutePrices) : 0;
   const hasActiveOffer = rawOfferPrice > 0 && rawOfferPrice < rawRegularPrice;
-  const rawBasePrice = hasActiveOffer ? rawOfferPrice : rawRegularPrice;
+  const rawBasePrice = isVariantOnlyPricing
+    ? 0
+    : hasActiveOffer
+      ? rawOfferPrice
+      : rawRegularPrice;
   const rawPriceOverride = Number(
     selectedVariant?.price_override ?? selectedVariant?.price_adjustment ?? 0,
   );
+  const rawDisplayedPrice = isVariantOnlyPricing
+    ? selectedVariant
+      ? rawPriceOverride
+      : minVariantAbsolutePrice
+    : rawBasePrice + rawPriceOverride;
 
-  const finalPrice = convertPrice(rawBasePrice + rawPriceOverride, base_currency, targetCurrency, exchange_rates);
+  const finalPrice = convertPrice(rawDisplayedPrice, base_currency, targetCurrency, exchange_rates);
   const finalRegularPrice = convertPrice(rawRegularPrice + rawPriceOverride, base_currency, targetCurrency, exchange_rates);
   const displayOverride = convertPrice(rawPriceOverride, base_currency, targetCurrency, exchange_rates);
+  const displayFromPrice = convertPrice(
+    minVariantAbsolutePrice,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
 
   const productImages = Array.isArray(images) ? images : ["/placeholder.jpg"];
 
@@ -192,22 +216,29 @@ export default function ProductView({ product }) {
               {name}
             </h1>
             <div className="mt-2 flex items-end gap-3">
-              {hasActiveOffer && (
+              {hasActiveOffer && !isVariantOnlyPricing && (
                 <p className="text-sm font-semibold text-red-500 line-through">
                   {currencySymbol}{formatPrice(finalRegularPrice, targetCurrency)}
                 </p>
               )}
               <p className="text-3xl font-bold text-black">
+                {isVariantOnlyPricing && !selectedVariant ? "Desde " : ""}
                 {currencySymbol}{formatPrice(finalPrice, targetCurrency)}
               </p>
             </div>
-            {rawPriceOverride > 0 && (
+            {rawPriceOverride > 0 && !isVariantOnlyPricing && (
               <p className="mt-1 text-xs font-medium text-amber-700">
                 Esta combinación tiene un recargo de +{currencySymbol}
                 {formatPrice(displayOverride, targetCurrency)}.
               </p>
             )}
-            {hasActiveOffer && (
+            {isVariantOnlyPricing && !selectedVariant && (
+              <p className="mt-1 text-xs font-semibold text-emerald-600 uppercase tracking-wide">
+                Precio variable por presentación (desde {currencySymbol}
+                {formatPrice(displayFromPrice, targetCurrency)})
+              </p>
+            )}
+            {hasActiveOffer && !isVariantOnlyPricing && (
               <p className="mt-1 text-xs font-semibold text-red-500 uppercase tracking-wide">
                 Oferta activa
               </p>

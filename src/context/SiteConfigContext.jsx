@@ -94,8 +94,9 @@ export const SiteConfigProvider = ({
       const supabase = createClient();
 
       // Cargar config en paralelo
+      const resolvedTenantId = tenantId ?? initialData?.tenant_id ?? undefined;
       const data = await getSiteConfig({
-        tenantId,
+        tenantId: resolvedTenantId,
         tenantSlug: tenantSlug || undefined,
       });
 
@@ -137,7 +138,7 @@ export const SiteConfigProvider = ({
       console.error("Context fetch error:", error);
       setConfig((prev) => ({ ...prev, loading: false }));
     }
-  }, [tenantId, tenantSlug]);
+  }, [tenantId, tenantSlug, initialData?.tenant_id]);
 
   const patchConfig = useCallback((partial = {}) => {
     if (!partial || typeof partial !== "object") return;
@@ -198,15 +199,18 @@ export const SiteConfigProvider = ({
 
     // Real-time updates
     const supabase = createClient();
+    const activeTenantId = tenantId ?? config?.tenant_id ?? null;
+    if (!activeTenantId) return;
+
     const channel = supabase
-      .channel(`site_settings_changes_${tenantId || "default"}`)
+      .channel(`site_settings_changes_${activeTenantId}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "site_settings",
-          filter: tenantId ? `tenant_id=eq.${tenantId}` : "tenant_id=eq.1",
+          filter: `tenant_id=eq.${activeTenantId}`,
         },
         (payload) => {
           const nextRow = payload?.new || {};
@@ -260,7 +264,7 @@ export const SiteConfigProvider = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tenantId, fetchConfig]);
+  }, [tenantId, config?.tenant_id, fetchConfig]);
 
   return (
     <SiteConfigContext.Provider

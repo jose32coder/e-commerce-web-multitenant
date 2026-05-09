@@ -18,11 +18,13 @@ import Swal from "sweetalert2";
 import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { cn } from "@/lib/utils";
+import { buildCheckoutWhatsappMessage } from "@/lib/checkoutWhatsappMessage";
+import { formatWhatsappContactNumber, normalizeWhatsappNumber } from "@/lib/siteConfig";
 
 export default function TrackingFloatingWidget() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const { tenant_slug } = useSiteConfig();
+  const { tenant_slug, commerce_settings } = useSiteConfig();
   const { trackings, stopTracking } = useOrderTrackingStore();
 
   const tracking = tenant_slug ? trackings[tenant_slug] : null;
@@ -62,6 +64,14 @@ export default function TrackingFloatingWidget() {
     ? statusConfig[tracking.status] || statusConfig.default
     : null;
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
+  const supportWhatsapp = formatWhatsappContactNumber(
+    normalizeWhatsappNumber(commerce_settings?.whatsapp_number),
+    String(commerce_settings?.customer_phone_country_code || "58"),
+  );
+  const resendHref =
+    tracking?.whatsappPayload && supportWhatsapp
+      ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(buildCheckoutWhatsappMessage(tracking.whatsappPayload))}`
+      : "";
 
   const handleClose = (e) => {
     e.preventDefault();
@@ -139,6 +149,16 @@ export default function TrackingFloatingWidget() {
                     <span>Ver Detalles</span>
                     <ExternalLink size={14} />
                   </Link>
+                  {resendHref && (
+                    <a
+                      href={resendHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-full bg-emerald-500 text-white px-4 h-10 rounded-2xl font-bold uppercase text-[9px] tracking-widest hover:bg-emerald-600 transition-colors"
+                    >
+                      Reenviar WhatsApp
+                    </a>
+                  )}
                   <button
                     onClick={handleClose}
                     className="flex items-center justify-center w-full text-zinc-500 hover:text-rose-600 hover:bg-rose-50 px-4 h-10 rounded-2xl font-bold uppercase text-[9px] tracking-widest transition-colors cursor-pointer"

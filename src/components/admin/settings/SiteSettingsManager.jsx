@@ -621,6 +621,12 @@ export default function SiteSettingsManager() {
         type: "error",
         message: err.message || "Error al guardar sección",
       });
+      await Swal.fire({
+        title: "Error al guardar",
+        text: err.message || "Ocurrió un error al guardar esta sección.",
+        icon: "error",
+        confirmButtonColor: "#0f172a",
+      });
     } finally {
       setLoading(false);
     }
@@ -659,7 +665,7 @@ export default function SiteSettingsManager() {
   const tabs = [
     { id: "general", label: "Identidad y Navegación" },
     { id: "home", label: "Contenido y Home" },
-    { id: "footer", label: "Footer y Comercio" },
+    { id: "footer", label: "Comercio y Footer" },
   ];
 
   return (

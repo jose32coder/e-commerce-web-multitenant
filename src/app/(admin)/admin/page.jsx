@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import { convertPrice } from "@/services/exchangeRates";
+import { X } from "lucide-react";
 
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState({
@@ -21,7 +23,10 @@ export default function AdminDashboard() {
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { tenant_id: tenantId } = useSiteConfig();
+  const [dashboardCurrency, setDashboardCurrency] = useState("USD");
+  const [showLowStockModal, setShowLowStockModal] = useState(false);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const { tenant_id: tenantId, exchange_rates } = useSiteConfig();
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -30,9 +35,7 @@ export default function AdminDashboard() {
         const embedded = order?.customer || order?.cliente || {};
         return {
           full_name:
-            embedded?.full_name ||
-            order?.customer_name ||
-            "Desconocido",
+            embedded?.full_name || order?.customer_name || "Desconocido",
         };
       };
 
@@ -94,13 +97,28 @@ export default function AdminDashboard() {
         totalOrdersQuery = totalOrdersQuery.eq("tenant_id", tenantId);
       const { count: ordenesTotales } = await totalOrdersQuery;
 
-      // 3. Stock Bajo (menor o igual a 5)
+      // 3. Stock Bajo (detalles)
       let lowStockQuery = supabase
         .from("product_stock")
-        .select("*", { count: "exact", head: true })
+        .select(
+          `
+          quantity,
+          products (
+            id,
+            name
+          )
+        `,
+        )
         .lte("quantity", 5);
       if (tenantId) lowStockQuery = lowStockQuery.eq("tenant_id", tenantId);
-      const { count: stockBajo } = await lowStockQuery;
+      const { data: lowStockData } = await lowStockQuery;
+
+      const lowStockItems = (lowStockData || []).map((item) => ({
+        id: item.products?.id,
+        name: item.products?.name || "Producto sin nombre",
+        quantity: item.quantity,
+      }));
+      setLowStockProducts(lowStockItems);
 
       // 4. Últimas Órdenes
       let recentQuery = supabase
@@ -116,7 +134,7 @@ export default function AdminDashboard() {
       setMetrics({
         ventasHoy,
         ordenesTotales: ordenesTotales || 0,
-        stockBajo: stockBajo || 0,
+        stockBajo: lowStockItems.length,
       });
       setRecentOrders(await attachCustomers(recientes || []));
       setLoading(false);
@@ -152,13 +170,24 @@ export default function AdminDashboard() {
             loading ? (
               <Loader2 className="animate-spin text-slate-300" size={32} />
             ) : (
-              `$${metrics.ventasHoy.toFixed(2)}`
+              `${dashboardCurrency === "VES" ? "Bs " : "$"}${convertPrice(metrics.ventasHoy, "USD", dashboardCurrency, exchange_rates).toFixed(2)}`
             )
           }
           trend={loading ? "..." : "Hoy"}
           isPositive={true}
           icon={TrendingUp}
           color="bg-emerald-500"
+          rightElement={
+            <select
+              value={dashboardCurrency}
+              onChange={(e) => setDashboardCurrency(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-400 outline-none cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              <option value="USD">USD</option>
+              <option value="VES">VES</option>
+            </select>
+          }
         />
         <StatCard
           label="Órdenes Históricas"
@@ -187,8 +216,69 @@ export default function AdminDashboard() {
           isPositive={metrics.stockBajo === 0}
           icon={Package}
           color={metrics.stockBajo > 0 ? "bg-orange-500" : "bg-slate-300"}
+          onClick={() => metrics.stockBajo > 0 && setShowLowStockModal(true)}
+          className={
+            metrics.stockBajo > 0 ? "cursor-pointer hover:scale-[1.02]" : ""
+          }
         />
       </div>
+
+      {/* MODAL STOCK BAJO */}
+      {showLowStockModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 isolate">
+          {/* Overlay con mayor opacidad para dar contraste */}
+          <div
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => setShowLowStockModal(false)}
+          />
+
+          {/* Contenedor del Modal */}
+          <div className="relative z-[110] bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+            <header className="p-8 pb-4 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+                  Productos en <br />{" "}
+                  <span className="text-orange-500">Stock Bajo</span>
+                </h3>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-2">
+                  Revisión de inventario
+                </p>
+              </div>
+              <button
+                onClick={() => setShowLowStockModal(false)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400"
+              >
+                <X size={20} />
+              </button>
+            </header>
+
+            <div className="max-h-[50vh] overflow-y-auto p-6 pt-2 space-y-3 no-scrollbar">
+              {lowStockProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 group hover:border-orange-200 transition-colors"
+                >
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate pr-4">
+                    {product.name}
+                  </span>
+                  <span className="px-3 py-1.5 bg-orange-500 text-white text-[10px] font-black rounded-xl shrink-0 shadow-lg shadow-orange-500/20">
+                    QUEDAN: {product.quantity}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <footer className="p-8 pt-4">
+              <button
+                onClick={() => setShowLowStockModal(false)}
+                className="w-full py-4 bg-slate-900 dark:bg-orange-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:shadow-orange-500/10 active:scale-[0.98] transition-all"
+              >
+                Entendido
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
 
       {/* TABLA DE ÓRDENES RECIENTES Y ACCIONES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -211,55 +301,64 @@ export default function AdminDashboard() {
                 <Loader2 className="animate-spin" size={24} />
               </div>
             ) : recentOrders.length > 0 ? (
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Orden
-                    </th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Cliente
-                    </th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Total
-                    </th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Estado
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                  {recentOrders.map((order) => (
-                    <tr
-                      key={order.id}
-                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
-                    >
-                      <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
-                        #{order.order_number ? String(order.order_number).padStart(5, "0") : String(order.id).slice(-6).toUpperCase()}
-                      </td>
-                      <td className="px-6 py-4 text-slate-900 dark:text-slate-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
-                        {order.clientes?.full_name || "Desconocido"}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
-                        ${Number(order.total).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                            order.estado === "pending"
-                              ? "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
-                              : order.estado === "paid"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                                : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
-                          }`}
-                        >
-                          {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
-                        </span>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px] text-left text-sm">
+                  <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Orden
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Cliente
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Total
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Estado
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                    {recentOrders.map((order) => (
+                      <tr
+                        key={order.id}
+                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
+                      >
+                        <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
+                          #
+                          {order.order_number
+                            ? String(order.order_number).padStart(5, "0")
+                            : String(order.id).slice(-6).toUpperCase()}
+                        </td>
+                        <td className="px-6 py-4 text-slate-900 dark:text-slate-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
+                          {order.clientes?.full_name || "Desconocido"}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
+                          ${Number(order.total).toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                              order.estado === "pending"
+                                ? "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
+                                : order.estado === "paid"
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                  : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                            }`}
+                          >
+                            {order.estado === "pending"
+                              ? "Pendiente"
+                              : order.estado === "paid"
+                                ? "Completado"
+                                : "Cancelado"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className="py-12 text-center text-slate-400 text-sm">
                 No hay órdenes registradas
@@ -295,19 +394,29 @@ export default function AdminDashboard() {
   );
 }
 
-function StatCard({ label, value, trend, isPositive, icon: Icon, color }) {
+function StatCard({
+  label,
+  value,
+  trend,
+  isPositive,
+  icon: Icon,
+  color,
+  onClick,
+  className = "",
+  rightElement,
+}) {
   return (
     <div
-      className="
+      onClick={onClick}
+      className={`
       relative overflow-hidden
       bg-white dark:bg-slate-800 p-8 rounded-2xl dark:rounded-3xl
       border border-slate-100 dark:border-slate-700/50
       shadow-sm dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]
       transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]
-      hover:shadow-lg dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)]
-      hover:-translate-y-2
-      group cursor-default
-    "
+      ${onClick ? "hover:shadow-lg dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-2 cursor-pointer" : "cursor-default"}
+      group ${className}
+    `}
     >
       {/* Luz interna en hover (Sólo Dark Mode) */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl transition-all duration-500 group-hover:bg-white/10 hidden dark:block" />
@@ -318,15 +427,18 @@ function StatCard({ label, value, trend, isPositive, icon: Icon, color }) {
         >
           <Icon size={20} strokeWidth={2.5} />
         </div>
-        <span
-          className={`text-[10px] font-black px-3 py-1 rounded-full border ${
-            isPositive
-              ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
-              : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
-          }`}
-        >
-          {trend}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span
+            className={`text-[10px] font-black px-3 py-1 rounded-full border ${
+              isPositive
+                ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+                : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
+            }`}
+          >
+            {trend}
+          </span>
+          {rightElement}
+        </div>
       </div>
       <div className="relative z-10">
         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-1 dark:group-hover:text-slate-300 transition-colors">

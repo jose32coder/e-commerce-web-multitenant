@@ -2,9 +2,9 @@
 import React from "react";
 import { Eye, Check, X, Calendar, Loader2, FileText } from "lucide-react";
 import { convertPrice } from "@/services/exchangeRates";
-import { PDFDownloadLink } from "@react-pdf/renderer";
 import { InvoicePDF } from "@/components/InvoicePDF";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import Swal from "sweetalert2";
 
 export default function OrderTable({ 
   orders, 
@@ -24,6 +24,61 @@ export default function OrderTable({
       case "USD": return "$ ";
       default: return `${code} `;
     }
+  };
+
+  const handleInvoiceAction = async (order, customerName, customerPhone) => {
+    const choice = await Swal.fire({
+      title: "Nota de Entrega",
+      text: "¿Cómo deseas abrir el PDF?",
+      icon: "question",
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "Abrir en navegador",
+      denyButtonText: "Descargar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#0f172a",
+      denyButtonColor: "#2563eb",
+    });
+
+    if (!(choice.isConfirmed || choice.isDenied)) return;
+
+    const { pdf } = await import("@react-pdf/renderer");
+    const doc = (
+      <InvoicePDF
+        formData={{
+          name: customerName,
+          idNumber: order.customer_id_number || order.clientes?.id_number || "N/A",
+          phone: customerPhone,
+          paymentMethod: order.metodo_pago || "Transferencia",
+          reference: order.referencia_pago || "N/A",
+        }}
+        finalTotal={Number(order.total)}
+        purchasedItems={order.items || []}
+        orderCode={toOrderCode(order)}
+        brand={site_name}
+        issueDate={new Date(order.created_at).toLocaleDateString()}
+        currencySymbol={getCurrencySymbol(selectedCurrency)}
+        targetCurrency={selectedCurrency}
+        exchangeRates={exchangeRates}
+      />
+    );
+
+    const blob = await pdf(doc).toBlob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    if (choice.isConfirmed) {
+      window.open(objectUrl, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+      return;
+    }
+
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `Nota_Entrega_${toOrderCode(order)}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
   };
 
   return (
@@ -106,34 +161,18 @@ export default function OrderTable({
                         <Eye size={18} />
                       </button>
 
-                      <PDFDownloadLink
-                        document={
-                          <InvoicePDF
-                            formData={{
-                              name: customerName,
-                              idNumber: order.customer_id_number || order.clientes?.id_number || "N/A",
-                              phone: customerPhone,
-                              paymentMethod: order.metodo_pago || "Transferencia",
-                              reference: order.referencia_pago || "N/A"
-                            }}
-                            finalTotal={Number(order.total)}
-                            purchasedItems={order.items || []}
-                            orderCode={toOrderCode(order)}
-                            brand={site_name}
-                            issueDate={new Date(order.created_at).toLocaleDateString()}
-                            currencySymbol={getCurrencySymbol(selectedCurrency)}
-                            targetCurrency={selectedCurrency}
-                            exchangeRates={exchangeRates}
-                          />
-                        }
-                        fileName={`Nota_Entrega_${toOrderCode(order)}.pdf`}
-                        className="p-2 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-all"
-                        title="Descargar Nota"
-                      >
-                        {({ loading }) => (
-                          <FileText size={18} className={loading ? "animate-pulse" : ""} />
-                        )}
-                      </PDFDownloadLink>
+                      {order.estado === "paid" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleInvoiceAction(order, customerName, customerPhone)
+                          }
+                          className="p-2 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-all cursor-pointer"
+                          title="Nota de Entrega"
+                        >
+                          <FileText size={18} />
+                        </button>
+                      )}
                       {order.estado === "pending" && (
                         <>
                           <button

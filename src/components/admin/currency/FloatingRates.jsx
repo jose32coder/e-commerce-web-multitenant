@@ -26,7 +26,7 @@ export default function FloatingRates() {
   }, [isOpen]);
 
   return (
-    <div className="fixed bottom-6 right-6 z-9999">
+    <div className="fixed bottom-6 right-6 z-30">
       <AnimatePresence>
         {isOpen && (
           <motion.div

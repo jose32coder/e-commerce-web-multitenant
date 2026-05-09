@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Loader2, Package, CheckSquare, Square, Eye, Edit, Trash2 } from "lucide-react";
+import { convertPrice } from "@/services/exchangeRates";
 
 export default function ProductTable({ 
   loading, 
@@ -10,8 +11,18 @@ export default function ProductTable({
   toggleSelect, 
   handleView, 
   handleEdit, 
-  handleDelete 
+  handleDelete,
+  exchangeRates = null,
+  targetCurrency = "USD",
+  primaryCurrency = "USD"
 }) {
+  const getCurrencySymbol = (code) => {
+    switch (code) {
+      case "VES": return "Bs ";
+      case "USD": return "$ ";
+      default: return `${code} `;
+    }
+  };
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
       <table className="w-full text-left font-sans">
@@ -52,7 +63,33 @@ export default function ProductTable({
               </td>
             </tr>
           ) : filteredProducts.length > 0 ? (
-            paginatedProducts.map((product) => (
+            paginatedProducts.map((product) => {
+              const variantPrices = (product.product_variants || product.variants || [])
+                .map((variant) =>
+                  Number(
+                    variant?.price_adjustment ?? variant?.price_override ?? 0,
+                  ),
+                )
+                .filter((value) => value > 0);
+              const minVariantPrice =
+                variantPrices.length > 0 ? Math.min(...variantPrices) : 0;
+                
+              const baseCurrency = product.base_currency || primaryCurrency;
+              
+              const displayPrice = convertPrice(
+                Number(product.price),
+                baseCurrency,
+                targetCurrency,
+                exchangeRates
+              );
+
+              const displayMinVariantPrice = convertPrice(
+                minVariantPrice,
+                baseCurrency,
+                targetCurrency,
+                exchangeRates
+              );
+              return (
               <tr
                 key={product.id}
                 className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group"
@@ -98,7 +135,21 @@ export default function ProductTable({
                   </div>
                 </td>
                 <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
-                  ${Number(product.price).toFixed(2)}
+                  {product.use_variant_only_pricing || Number(product.price) === 0 ? (
+                    minVariantPrice > 0 ? (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-0.5">Desde</span>
+                        <span>{getCurrencySymbol(targetCurrency)}{displayMinVariantPrice.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-orange-500 uppercase tracking-widest font-black leading-tight">Por Variante</span>
+                        <span className="text-[10px] text-slate-400 font-bold italic">Configura precios</span>
+                      </div>
+                    )
+                  ) : (
+                    `${getCurrencySymbol(targetCurrency)}${displayPrice.toFixed(2)}`
+                  )}
                 </td>
                 <td className="px-6 py-4 hidden sm:table-cell">
                   <div className="flex flex-col gap-1">
@@ -155,7 +206,8 @@ export default function ProductTable({
                   </div>
                 </td>
               </tr>
-            ))
+              );
+            })
           ) : (
             <tr>
               <td

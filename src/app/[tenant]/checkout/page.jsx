@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
@@ -35,10 +35,46 @@ import { useSiteConfig } from "@/context/SiteConfigContext";
 import {
   DEFAULT_COMMERCE_SETTINGS,
   DEFAULT_SITE_NAME,
+  formatWhatsappContactNumber,
   normalizeCommerceSettings,
   normalizeWhatsappNumber,
 } from "@/lib/siteConfig";
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
+import { buildCheckoutWhatsappMessage } from "@/lib/checkoutWhatsappMessage";
+
+function generateIdempotencyKey() {
+  if (typeof globalThis !== "undefined" && globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  if (
+    typeof globalThis !== "undefined" &&
+    globalThis.crypto?.getRandomValues &&
+    typeof Uint8Array !== "undefined"
+  ) {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`;
+  }
+
+  return `fallback-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function resolvePhoneCountryCode(value, fallback = "58") {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits === "57" || digits === "58") return digits;
+  return fallback;
+}
+
+function inferPhoneCountryCode(phone, fallback = "58") {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.startsWith("57")) return "57";
+  if (digits.startsWith("58")) return "58";
+  return fallback;
+}
 
 export default function CheckoutPage() {
   const {
@@ -81,12 +117,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     // Generamos la llave una sola vez al montar
     if (typeof window !== "undefined") {
-      setIdempotencyKey(crypto.randomUUID());
+      setIdempotencyKey(generateIdempotencyKey());
     }
   }, []);
 
   const [idType, setIdType] = useState("V");
   const [errors, setErrors] = useState({});
+  const activeTrackingPromptRef = useRef(null);
 
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
@@ -94,7 +131,10 @@ export default function CheckoutPage() {
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
   );
   const activePaymentMethods = (commerce.payment_methods || []).filter(Boolean);
-  const whatsappNumber = normalizeWhatsappNumber(commerce.whatsapp_number);
+  const whatsappNumber = formatWhatsappContactNumber(
+    normalizeWhatsappNumber(commerce.whatsapp_number),
+    resolvePhoneCountryCode(commerce?.customer_phone_country_code, "58"),
+  );
   const brandImageLabel = brand.replace(/\s+/g, "+");
   const selectedPaymentMethod =
     formData.paymentMethod || activePaymentMethods[0] || "";
@@ -125,9 +165,48 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const currentTracking = trackings[tenant_slug];
-    const viewTracking = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('view_tracking') === 'true' : false;
+    const viewTracking =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("view_tracking") ===
+          "true"
+        : false;
+
+    const applyTrackedState = (tracking) => {
+      setOrderId(tracking.orderId);
+      if (tracking.status === "paid") {
+        setIsSuccess(true);
+        setIsWaiting(false);
+      } else {
+        setIsSuccess(false);
+        setIsWaiting(true);
+      }
+      setIsPendingOrderRestored(true);
+    };
 
     if (currentTracking?.orderId) {
+      const trackingOrderId = String(currentTracking.orderId);
+      const isCurrentOrder =
+        orderId !== null && orderId !== undefined
+          ? String(orderId) === trackingOrderId
+          : false;
+      const shouldOpenTrackingDirectly =
+        viewTracking ||
+        isCurrentOrder ||
+        isWaiting ||
+        isSuccess ||
+        items.length === 0;
+
+      if (shouldOpenTrackingDirectly) {
+        applyTrackedState(currentTracking);
+        return;
+      }
+
+      if (activeTrackingPromptRef.current === trackingOrderId) {
+        return;
+      }
+
+      activeTrackingPromptRef.current = trackingOrderId;
+
       if (!viewTracking) {
         Swal.fire({
           title: "Tienes una orden activa",
@@ -142,34 +221,31 @@ export default function CheckoutPage() {
           color: "#1A1A1A",
         }).then((result) => {
           if (result.isConfirmed) {
-            setOrderId(currentTracking.orderId);
-            if (currentTracking.status === "paid") {
-              setIsSuccess(true);
-              setIsWaiting(false);
-            } else {
-              setIsWaiting(true);
-            }
+            applyTrackedState(currentTracking);
           } else {
             stopTracking(tenant_slug);
             setIsWaiting(false);
+            setIsSuccess(false);
           }
           setIsPendingOrderRestored(true);
         });
       } else {
-        setOrderId(currentTracking.orderId);
-        if (currentTracking.status === "paid") {
-          setIsSuccess(true);
-          setIsWaiting(false);
-        } else {
-          setIsWaiting(true);
-        }
-        setIsPendingOrderRestored(true);
+        applyTrackedState(currentTracking);
       }
     } else {
+      activeTrackingPromptRef.current = null;
       setIsWaiting(false);
       setIsPendingOrderRestored(true);
     }
-  }, [tenant_slug, trackings, stopTracking]);
+  }, [
+    tenant_slug,
+    trackings,
+    stopTracking,
+    orderId,
+    isWaiting,
+    isSuccess,
+    items.length,
+  ]);
 
   const deliveryEnabled = commerce.delivery_enabled !== false;
 
@@ -230,10 +306,11 @@ export default function CheckoutPage() {
   );
 
   const handleCustomerFound = (customer) => {
+    const nextPhone = customer.phone || "";
     setFormData((prev) => ({
       ...prev,
       name: customer.full_name || "",
-      phone: customer.phone || "",
+      phone: nextPhone,
       email: customer.email || "",
     }));
 
@@ -307,6 +384,10 @@ export default function CheckoutPage() {
             ...formData,
             idNumber: fullIdNumber,
             paymentMethod: selectedPaymentMethod,
+            customerPhoneCountryCode: resolvePhoneCountryCode(
+              commerce?.customer_phone_country_code,
+              inferPhoneCountryCode(formData.phone, "58"),
+            ),
             tenantId: tenant_id || null,
             tenantSlug: tenant_slug || null,
             idempotencyKey, // Enviamos la llave de seguridad
@@ -347,41 +428,39 @@ export default function CheckoutPage() {
               ? safeOrderId.slice(-6).toUpperCase()
               : "";
 
-          const orderIdShort = displayOrderCode ? `(#${displayOrderCode})` : "";
           const orderCode = displayOrderCode;
 
-          if (safeOrderId) {
-            startTracking(tenant_slug, safeOrderId, orderCode);
-          }
-
+          const deliveryMethod =
+            !deliveryEnabled || formData.shippingMethod === "pickup"
+              ? "Retiro en Tienda"
+              : "Delivery";
           const shippingMethodLabel =
             !deliveryEnabled || formData.shippingMethod === "pickup"
               ? "RETIRO EN TIENDA 🛍️"
               : isFreeShipping
                 ? "GRATIS ✨"
                 : `${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)} 🚚`;
+          const shippingLabel = `${shippingMethodLabel}${formData.shippingProvider ? ` (${formData.shippingProvider.toUpperCase()})` : ""}`;
+          const whatsappPayload = {
+            brand,
+            paymentMethod: selectedPaymentMethod,
+            deliveryMethod,
+            customerName: formData.name,
+            idNumber: fullIdNumber,
+            reference: formData.reference,
+            customerPhone: formData.phone,
+            orderCode: displayOrderCode,
+            orderDetails,
+            totalLabel: `${currencySymbol}${formatPrice(totalConverted, targetCurrency)}`,
+            shippingLabel,
+            notes: formData.notes || "Ninguna",
+          };
 
-          const message = `Hola ${brand}! 👋
+          const message = buildCheckoutWhatsappMessage(whatsappPayload);
 
-He realizado un pago por ${selectedPaymentMethod}.
-
-📌 *MÉTODO DE ENTREGA*: ${!deliveryEnabled || formData.shippingMethod === "pickup" ? "Retiro en Tienda" : "Delivery"}
-
-📌 *DATOS DEL PAGO*
-- Titular: ${formData.name}
-- CI/RIF: ${fullIdNumber}
-- Ref: ${formData.reference}
-- Telf: ${formData.phone}
-
-🛒 *PEDIDO ${orderIdShort}*
-${orderDetails}
-
-💰 *TOTAL*: ${currencySymbol}${formatPrice(totalConverted, targetCurrency)}
-🚚 *ENVÍO*: ${shippingMethodLabel}${formData.shippingProvider ? ` (${formData.shippingProvider.toUpperCase()})` : ""}
-
-📝 *NOTAS*: ${formData.notes || "Ninguna"}
-
-📸 *Adjunto el comprobante de pago aquí abajo:*`;
+          if (safeOrderId) {
+            startTracking(tenant_slug, safeOrderId, orderCode, whatsappPayload);
+          }
 
           Swal.close();
 

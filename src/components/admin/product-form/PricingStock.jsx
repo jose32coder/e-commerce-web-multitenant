@@ -31,24 +31,32 @@ const PricingStock = ({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const applyConversion = () => {
+  const applyConversion = (targetField = "price") => {
     if (!exchangeRates || !calcValue) return;
 
     const amount = parseFloat(calcValue);
     const targetBaseCurrency = formData.base_currency || primaryCurrency;
-    
+
     // Convertir del workingCurrency al baseCurrency del producto
-    const result = convertPrice(amount, workingCurrency, targetBaseCurrency, exchangeRates);
+    const result = convertPrice(
+      amount,
+      workingCurrency,
+      targetBaseCurrency,
+      exchangeRates,
+    );
 
     setFormData((prev) => ({
       ...prev,
-      price: result.toFixed(2), // Restauramos decimales para mayor precisión
+      [targetField]: result.toFixed(2),
     }));
     setCalcValue("");
   };
 
   const hasDiscount =
     formData.discount_price && parseFloat(formData.discount_price) > 0;
+  const variantOnlyPricing = 
+    formData.use_variant_only_pricing === true || 
+    (Number(formData.price) === 0 && formData.variants?.length > 0);
 
   // Estilo base para los contenedores de las cards (p-4 en móvil, p-5 en desktop)
   const cardBaseStyle =
@@ -56,6 +64,43 @@ const PricingStock = ({
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+      {!readOnly && (
+        <div className="flex items-center justify-between p-3 md:p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/70">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+              Precio solo por variantes
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              Permite guardar el producto sin precio base.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setFormData((prev) => ({
+                ...prev,
+                use_variant_only_pricing: !prev.use_variant_only_pricing,
+                price: !prev.use_variant_only_pricing
+                  ? "0"
+                  : prev.price === "0"
+                    ? ""
+                    : prev.price,
+                discount_price: !prev.use_variant_only_pricing
+                  ? ""
+                  : prev.discount_price,
+              }))
+            }
+            className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer ${
+              variantOnlyPricing
+                ? "bg-emerald-600 text-white"
+                : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+            }`}
+          >
+            {variantOnlyPricing ? "Activo" : "Inactivo"}
+          </button>
+        </div>
+      )}
+
       {/* Grid de Inputs: 1 columna en móvil, 3 en desktop */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {/* Precio Base */}
@@ -89,7 +134,7 @@ const PricingStock = ({
             )}
           </div>
           <Input
-            required
+            required={!variantOnlyPricing}
             type="number"
             name="price"
             step="0.01"
@@ -97,8 +142,13 @@ const PricingStock = ({
             className="h-10 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 dark:text-white rounded-md font-bold text-lg px-3 focus-visible:ring-1 focus-visible:ring-slate-400 transition-all no-spin"
             value={formData.price}
             onChange={handleChange}
-            disabled={readOnly}
+            disabled={readOnly || variantOnlyPricing}
           />
+          {variantOnlyPricing && (
+            <p className="mt-2 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              El precio final lo define la variante seleccionada.
+            </p>
+          )}
 
           {/* Previsualización de conversión en vivo */}
           {exchangeRates && parseFloat(formData.price) > 0 && (
@@ -106,17 +156,30 @@ const PricingStock = ({
               {(formData.base_currency || primaryCurrency) !== "USD" && (
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
                   Ref. Interna: ${" "}
-                  {convertPrice(parseFloat(formData.price), formData.base_currency || primaryCurrency, "USD", exchangeRates).toFixed(2)}{" "}
+                  {convertPrice(
+                    parseFloat(formData.price),
+                    formData.base_currency || primaryCurrency,
+                    "USD",
+                    exchangeRates,
+                  ).toFixed(2)}{" "}
                   USD
                 </p>
               )}
-              {(formData.base_currency || primaryCurrency) === "USD" && primaryCurrency !== "USD" && (
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
-                  Público: ≈{" "}
-                  {convertPrice(parseFloat(formData.price), "USD", primaryCurrency, exchangeRates).toLocaleString(undefined, { minimumFractionDigits: 2 })}{" "}
-                  {primaryCurrency}
-                </p>
-              )}
+              {(formData.base_currency || primaryCurrency) === "USD" &&
+                primaryCurrency !== "USD" && (
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                    Público: ≈{" "}
+                    {convertPrice(
+                      parseFloat(formData.price),
+                      "USD",
+                      primaryCurrency,
+                      exchangeRates,
+                    ).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    })}{" "}
+                    {primaryCurrency}
+                  </p>
+                )}
             </div>
           )}
         </div>
@@ -142,10 +205,25 @@ const PricingStock = ({
               >
                 <TrendingDown size={12} />
               </div>
-              Oferta ($)
+              Oferta
             </label>
+            {!readOnly ? (
+              <select
+                name="base_currency"
+                value={formData.base_currency || primaryCurrency}
+                onChange={handleChange}
+                className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5 outline-none border-none cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                <option value="USD">USD</option>
+                <option value="VES">VES</option>
+              </select>
+            ) : (
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5">
+                {formData.base_currency || primaryCurrency}
+              </span>
+            )}
             {hasDiscount && (
-              <span className="text-[9px] font-bold bg-rose-600 text-white px-1.5 py-0.5 rounded uppercase">
+              <span className="text-[9px] font-bold bg-rose-600 text-white px-1.5 py-0.5 rounded uppercase ml-auto">
                 Activa
               </span>
             )}
@@ -271,18 +349,30 @@ const PricingStock = ({
               />
             </div>
 
-            <button
-              type="button"
-              onClick={applyConversion}
-              disabled={!calcValue || parseFloat(calcValue) <= 0}
-              className="h-10 px-6 bg-slate-700 hover:bg-slate-900 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-md font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg shadow-slate-600/20 flex items-center gap-2 cursor-pointer"
-            >
-              <RefreshCw
-                size={14}
-                className={calcValue ? "animate-spin-slow" : ""}
-              />
-              Aplicar a Precio
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => applyConversion("price")}
+                disabled={!calcValue || parseFloat(calcValue) <= 0}
+                className="h-10 px-4 bg-slate-700 hover:bg-slate-900 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-md font-black text-[9px] uppercase tracking-widest transition-all shadow-lg shadow-slate-600/20 flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw
+                  size={14}
+                  className={calcValue ? "animate-spin-slow" : ""}
+                />
+                Aplicar a Precio
+              </button>
+
+              <button
+                type="button"
+                onClick={() => applyConversion("discount_price")}
+                disabled={!calcValue || parseFloat(calcValue) <= 0}
+                className="h-10 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-md font-black text-[9px] uppercase tracking-widest transition-all shadow-lg shadow-rose-600/10 flex items-center gap-2 cursor-pointer"
+              >
+                <TrendingDown size={14} />
+                Aplicar a Oferta
+              </button>
+            </div>
           </div>
 
           {calcValue && exchangeRates && (
@@ -293,8 +383,14 @@ const PricingStock = ({
                 <span className="text-slate-700 dark:text-slate-400">
                   {(() => {
                     const amount = parseFloat(calcValue);
-                    const targetBaseCurrency = formData.base_currency || primaryCurrency;
-                    const result = convertPrice(amount, workingCurrency, targetBaseCurrency, exchangeRates);
+                    const targetBaseCurrency =
+                      formData.base_currency || primaryCurrency;
+                    const result = convertPrice(
+                      amount,
+                      workingCurrency,
+                      targetBaseCurrency,
+                      exchangeRates,
+                    );
                     return `${result.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${targetBaseCurrency}`;
                   })()}
                 </span>

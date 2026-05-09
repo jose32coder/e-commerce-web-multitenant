@@ -111,7 +111,7 @@ export function CustomerForm({
             <Select
               value={idType}
               onChange={(e) => handleIdTypeChange(e.target.value)}
-              className="w-[80px] h-14 bg-[#F3F4F6] border-none rounded-md focus:ring-ink/10 font-bold text-ink cursor-pointer"
+              className="w-20 h-14 bg-[#F3F4F6] border-none rounded-md focus:ring-ink/10 font-bold text-ink cursor-pointer"
             >
               <option value="V">V</option>
               <option value="E">E</option>

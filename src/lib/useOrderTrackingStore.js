@@ -4,13 +4,13 @@ import { persist } from "zustand/middleware";
 export const useOrderTrackingStore = create()(
   persist(
     (set, get) => ({
-      // Estructura: { [tenantSlug]: { orderId, orderCode, status, lastUpdate } }
+      // Estructura: { [tenantSlug]: { orderId, orderCode, status, lastUpdate, whatsappPayload? } }
       trackings: {},
 
       /**
        * Inicia el rastreo para un tenant específico
        */
-      startTracking: (tenantSlug, orderId, orderCode) => {
+      startTracking: (tenantSlug, orderId, orderCode, whatsappPayload = null) => {
         if (!tenantSlug || !orderId) return;
         const { trackings } = get();
         
@@ -21,6 +21,10 @@ export const useOrderTrackingStore = create()(
               orderId,
               orderCode: orderCode || orderId.slice(-6).toUpperCase(),
               status: "pending",
+              whatsappPayload:
+                whatsappPayload && typeof whatsappPayload === "object"
+                  ? whatsappPayload
+                  : null,
               lastUpdate: Date.now(),
             },
           },

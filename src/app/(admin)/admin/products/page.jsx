@@ -30,6 +30,7 @@ export default function ProductsPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [tableCurrency, setTableCurrency] = useState("USD");
   const config = useSiteConfig();
   const tenantId = config?.tenant_id;
   const supabase = createClient();
@@ -534,6 +535,17 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm mr-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Ver en:</span>
+            <select
+              value={tableCurrency}
+              onChange={(e) => setTableCurrency(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white outline-none cursor-pointer"
+            >
+              <option value="USD">USD</option>
+              <option value="VES">VES</option>
+            </select>
+          </div>
           <button
             onClick={handleCreate}
             className="flex items-center gap-2 px-5 py-3 rounded-md transition-all font-bold text-xs uppercase tracking-widest shadow-lg bg-slate-900 dark:bg-white dark:text-slate-900 text-white hover:bg-slate-800 dark:hover:bg-slate-200 shadow-slate-200 dark:shadow-none cursor-pointer w-full sm:w-auto justify-center"
@@ -573,6 +585,9 @@ export default function ProductsPage() {
         handleView={handleView}
         handleEdit={handleEdit}
         handleDelete={handleDelete}
+        exchangeRates={config?.exchange_rates}
+        targetCurrency={tableCurrency}
+        primaryCurrency={config?.commerce_settings?.currency_code}
       />
 
       <ProductPagination

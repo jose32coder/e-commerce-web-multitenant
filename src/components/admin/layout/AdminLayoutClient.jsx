@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Swal from "sweetalert2";
@@ -39,6 +39,8 @@ export default function AdminLayoutClient({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const seenOrderToastIdsRef = useRef(new Set());
+  const realtimeDebugEnabled = process.env.NODE_ENV !== "production";
 
   // Redirección si no hay sesión (excepto en /access)
   useEffect(() => {
@@ -84,6 +86,69 @@ export default function AdminLayoutClient({
   useEffect(() => {
     document.body.style.overflow = isMobileOpen ? "hidden" : "unset";
   }, [isMobileOpen]);
+
+  // Realtime global alert for new sales
+  useEffect(() => {
+    const tenantId = initialProfile?.tenant_id ?? initialSiteConfig?.tenant_id;
+    if (!tenantId) return;
+
+    const channel = supabase
+      .channel(`admin-new-orders-${tenantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        (payload) => {
+          console.log("[Realtime][Admin][orders:INSERT]", payload);
+          const newOrderId = payload?.new?.id;
+          if (!newOrderId) return;
+          if (seenOrderToastIdsRef.current.has(newOrderId)) return;
+
+          seenOrderToastIdsRef.current.add(newOrderId);
+          if (seenOrderToastIdsRef.current.size > 100) {
+            seenOrderToastIdsRef.current.clear();
+            seenOrderToastIdsRef.current.add(newOrderId);
+          }
+
+          const orderCode = payload?.new?.order_number
+            ? String(payload.new.order_number).padStart(5, "0")
+            : String(newOrderId).slice(-6).toUpperCase();
+          const customerName = payload?.new?.customer_name || "";
+
+          Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon: "success",
+            title: `🛒 Nueva venta #${orderCode}`,
+            text: customerName
+              ? `Cliente: ${customerName}`
+              : "Se registró una nueva orden en tiempo real.",
+            showConfirmButton: false,
+            timer: 5000,
+            timerProgressBar: true,
+            customClass: {
+              popup: "!bg-emerald-50 !border !border-emerald-200",
+            },
+          });
+        },
+      )
+      .subscribe((status) => {
+        console.log("[Realtime][Admin] channel status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [
+    supabase,
+    initialProfile?.tenant_id,
+    initialSiteConfig?.tenant_id,
+    realtimeDebugEnabled,
+  ]);
 
   const toggleSidebar = () => {
     const newState = !isCollapsed;
@@ -172,7 +237,7 @@ export default function AdminLayoutClient({
             className={`
             flex-1 p-4 lg:p-6 pt-24 lg:pt-28 pb-24 lg:pb-28 transition-all duration-500
             ${isCollapsed ? "lg:ml-20" : "lg:ml-64"}
-            ml-0 w-full max-w-full overflow-x-hidden
+            ml-0 w-full max-w-full overflow-x-auto
           `}
           >
             {children}

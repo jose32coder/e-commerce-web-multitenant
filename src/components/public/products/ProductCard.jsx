@@ -34,6 +34,8 @@ export default function ProductCard({
     slug,
     images,
     base_currency = "USD",
+    use_variant_only_pricing,
+    product_variants,
   } = product;
 
   // Lógica para determinar qué etiquetas de categoría mostrar
@@ -61,12 +63,41 @@ export default function ProductCard({
 
   const rawRegularPrice = Number(price) || 0;
   const rawOfferPrice = Number(discount_price) || 0;
+  const isVariantOnlyPricing = use_variant_only_pricing === true;
+  const variantAbsolutePrices = (product_variants || [])
+    .map((variant) =>
+      Number(variant?.price_adjustment ?? variant?.price_override ?? 0),
+    )
+    .filter((value) => value > 0);
+  const minVariantAbsolutePrice =
+    variantAbsolutePrices.length > 0 ? Math.min(...variantAbsolutePrices) : 0;
 
-  const regularPrice = convertPrice(rawRegularPrice, base_currency, targetCurrency, exchange_rates);
-  const offerPrice = convertPrice(rawOfferPrice, base_currency, targetCurrency, exchange_rates);
+  const regularPrice = convertPrice(
+    rawRegularPrice,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
+  const offerPrice = convertPrice(
+    rawOfferPrice,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
+  const fromVariantPrice = convertPrice(
+    minVariantAbsolutePrice,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
 
-  const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
-  const displayPrice = hasActiveOffer ? offerPrice : regularPrice;
+  const hasActiveOffer =
+    !isVariantOnlyPricing && offerPrice > 0 && offerPrice < regularPrice;
+  const displayPrice = isVariantOnlyPricing
+    ? fromVariantPrice
+    : hasActiveOffer
+      ? offerPrice
+      : regularPrice;
 
   // En Supabase guardas un array de strings, por lo que images[0] es directamente la URL
   const rawImageUrl = images?.[0] || "/placeholder.jpg";
@@ -154,6 +185,7 @@ export default function ProductCard({
                 </span>
               )}
               <span className="text-[13px] font-bold text-black">
+                {isVariantOnlyPricing ? "Desde " : ""}
                 {currencySymbol}
                 {formatPrice(displayPrice, targetCurrency)}
               </span>
@@ -173,6 +205,7 @@ export default function ProductCard({
                   </span>
                 )}
                 <span className="text-[14px] font-bold text-black">
+                  {isVariantOnlyPricing ? "Desde " : ""}
                   {currencySymbol}
                   {formatPrice(displayPrice, targetCurrency)}
                 </span>

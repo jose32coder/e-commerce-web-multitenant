@@ -599,6 +599,7 @@ export const updateSiteConfig = async (payload, { tenantId } = {}) => {
   // Invalidamos la caché local para forzar que el próximo getSiteConfig sea fresco
   const cacheKey = getClientCacheKey({ tenantId: finalTenantId });
   clearClientCachedSiteConfig(cacheKey);
+  clearClientCachedSiteConfig("default");
 
   // Incluimos tenantId para asegurar consistencia de la fila en un solo campo
   const rowPayload = {

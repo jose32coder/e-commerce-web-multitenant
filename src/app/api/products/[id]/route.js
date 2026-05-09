@@ -14,6 +14,15 @@ const mapVariantToDb = (variant, { tenantId, productId }) => ({
   sku: variant.sku || null,
 });
 
+const getMissingColumnName = (error) => {
+  const message = error?.message || error?.details || "";
+  if (!message) return null;
+  const pgrstMatch = message.match(/Could not find the '([^']+)' column/i);
+  if (pgrstMatch?.[1]) return pgrstMatch[1];
+  const pgMatch = message.match(/column ["']?([^"'\s]+)["']? does not exist/i);
+  return pgMatch?.[1] || null;
+};
+
 // PUT /api/products/[id]
 export async function PUT(request, { params }) {
   try {
@@ -33,12 +42,38 @@ export async function PUT(request, { params }) {
       slug,
       variants = [],
       tenant_id: payloadTenantId,
+      use_variant_only_pricing,
+      base_currency,
     } = body;
 
     const normalizedCategoryIds = [
       ...new Set((category_ids || []).filter(Boolean)),
     ];
     const normalizedImages = (images || []).slice(0, 5);
+    const variantOnlyPricing = use_variant_only_pricing === true;
+    const parsedPrice = Number(price);
+    const hasPricedVariant = (variants || []).some(
+      (variant) =>
+        Number(variant?.price_adjustment ?? variant?.price_override ?? 0) > 0,
+    );
+
+    if (!variantOnlyPricing && !(parsedPrice > 0)) {
+      return NextResponse.json(
+        { success: false, error: "El precio base debe ser mayor a 0" },
+        { status: 400 },
+      );
+    }
+
+    if (variantOnlyPricing && !hasPricedVariant) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Debes definir al menos una variante con precio mayor a 0 para usar precio solo por variantes",
+        },
+        { status: 400 },
+      );
+    }
 
     const supabase = await createClient();
     const { tenantId } = await resolveTenantContext(supabase, {
@@ -46,31 +81,50 @@ export async function PUT(request, { params }) {
     });
 
     // 1. Actualizar el producto principal
-    let productUpdate = supabase
-      .from("products")
-      .update({
-        name,
-        short_description,
-        description,
-        price: parseFloat(price),
-        discount_price: discount_price ? parseFloat(discount_price) : null,
-        images: normalizedImages,
-        status,
-        featured,
-        slug,
-        // Guardamos la primera categoría como principal para compatibilidad
-        category_id:
-          normalizedCategoryIds.length > 0 ? normalizedCategoryIds[0] : null,
-      })
-      .eq("id", id);
+    const productPayload = {
+      name,
+      short_description,
+      description,
+      price: variantOnlyPricing ? 0 : parsedPrice,
+      discount_price:
+        variantOnlyPricing || !discount_price ? null : parseFloat(discount_price),
+      images: normalizedImages,
+      status,
+      featured,
+      slug,
+      category_id:
+        normalizedCategoryIds.length > 0 ? normalizedCategoryIds[0] : null,
+      use_variant_only_pricing: variantOnlyPricing,
+      base_currency: base_currency || "USD",
+    };
 
-    if (tenantId) {
-      productUpdate = productUpdate.eq("tenant_id", tenantId);
+    let updatePayload = { ...productPayload };
+    let product = null;
+    let pError = null;
+
+    while (true) {
+      let productUpdate = supabase.from("products").update(updatePayload).eq("id", id);
+      if (tenantId) {
+        productUpdate = productUpdate.eq("tenant_id", tenantId);
+      }
+
+      const result = await productUpdate.select().single();
+
+      if (!result.error) {
+        product = result.data;
+        break;
+      }
+
+      const missingColumn = getMissingColumnName(result.error);
+      if (missingColumn && Object.prototype.hasOwnProperty.call(updatePayload, missingColumn)) {
+        delete updatePayload[missingColumn];
+        continue;
+      }
+
+      pError = result.error;
+      break;
     }
 
-    const { data: product, error: pError } = await productUpdate
-      .select()
-      .single();
     if (pError) throw pError;
 
     // 2. CORRECCIÓN DE STOCK: Actualización absoluta y auditoría

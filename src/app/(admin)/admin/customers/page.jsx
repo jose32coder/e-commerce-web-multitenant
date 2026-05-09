@@ -2,7 +2,11 @@
 import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { createClient } from "@/lib/supabase/client";
-import { formatWhatsappContactNumber } from "@/lib/siteConfig";
+import {
+  DEFAULT_COMMERCE_SETTINGS,
+  formatWhatsappContactNumber,
+  normalizeCommerceSettings,
+} from "@/lib/siteConfig";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 
 // Componentes extraídos
@@ -33,6 +37,9 @@ export default function CustomersPage() {
   const [exportLoading, setExportLoading] = useState(false);
 
   const { tenant_id: tenantId, exchange_rates, site_name, commerce_settings } = useSiteConfig();
+  const commerce = normalizeCommerceSettings(
+    commerce_settings || DEFAULT_COMMERCE_SETTINGS,
+  );
   const supabase = createClient();
 
   const toOrderCode = (order) => {
@@ -368,7 +375,10 @@ export default function CustomersPage() {
   };
 
   const buildWhatsappHref = (phone) => {
-    const normalized = formatWhatsappContactNumber(phone, "58");
+    const normalized = formatWhatsappContactNumber(
+      phone,
+      commerce?.customer_phone_country_code || "58",
+    );
     return normalized ? `https://wa.me/${normalized}` : "#";
   };
 
