@@ -121,8 +121,8 @@ export default function TenantList({ initialTenants }) {
                   style={{
                     animationDelay: tenant.delay,
                     backgroundImage:
-                      isModern && tenant.background_image_url
-                        ? `linear-gradient(to bottom, rgba(15,23,42,0.35), rgba(15,23,42,0.9)), url(${tenant.background_image_url})`
+                      (isModern || isEditorial) && tenant.background_image_url
+                        ? `linear-gradient(to bottom, rgba(15,23,42,0.35), rgba(15,23,42,0.9)), url('${tenant.background_image_url}')`
                         : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",

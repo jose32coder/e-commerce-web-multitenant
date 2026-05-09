@@ -9,6 +9,8 @@ import {
 } from "@/lib/siteConfig";
 import TenantList from "@/components/TenantList";
 
+export const revalidate = 0;
+
 const HERO_COPY =
   "Explora acá las mejores tiendas y compra productos de calidad.";
 

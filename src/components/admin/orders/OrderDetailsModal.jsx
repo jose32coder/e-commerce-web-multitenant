@@ -2,9 +2,10 @@
 import React from "react";
 import { X, Calendar, Download, FileText } from "lucide-react";
 import { convertPrice } from "@/services/exchangeRates";
-import { PDFDownloadLink } from "@react-pdf/renderer";
+import { pdf } from "@react-pdf/renderer";
 import { InvoicePDF } from "@/components/InvoicePDF";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import Swal from "sweetalert2";
 
 export default function OrderDetailsModal({ 
   order, 
@@ -14,7 +15,18 @@ export default function OrderDetailsModal({
   exchangeRates,
   toOrderCode
 }) {
-  const { site_name } = useSiteConfig();
+  const { site_name, commerce_settings } = useSiteConfig();
+  const rawLogoUrl = commerce_settings?.logo_url || "";
+  let logoUrl = rawLogoUrl 
+    ? (rawLogoUrl.startsWith("http") || rawLogoUrl.startsWith("data:")
+        ? rawLogoUrl 
+        : `${typeof window !== "undefined" ? window.location.origin : ""}${rawLogoUrl.startsWith("/") ? "" : "/"}${rawLogoUrl}`)
+    : "";
+
+  // Forzar formato PNG para Cloudinary ya que react-pdf no soporta WebP (f_auto)
+  if (logoUrl.includes("cloudinary.com")) {
+    logoUrl = logoUrl.replace("f_auto", "f_png");
+  }
   if (!order) return null;
 
   const customerName =
@@ -39,63 +51,123 @@ export default function OrderDetailsModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-5 sm:p-10 relative">
-        <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 items-center z-10">
-          <select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer"
-          >
-            <option value="USD">USD</option>
-            <option value="VES">VES</option>
-          </select>
-          <PDFDownloadLink
-            document={
-              <InvoicePDF
-                formData={{
-                  name: customerName,
-                  idNumber: customerIdNumber,
-                  phone: customerPhone,
-                  paymentMethod: order.metodo_pago || "Transferencia",
-                  reference: order.referencia_pago || "N/A"
-                }}
-                finalTotal={Number(order.total)}
-                purchasedItems={order.items || []}
-                orderCode={toOrderCode(order)}
-                brand={site_name}
-                issueDate={new Date(order.created_at).toLocaleDateString()}
-                currencySymbol={getCurrencySymbol(selectedCurrency)}
-                targetCurrency={selectedCurrency}
-                exchangeRates={exchangeRates}
-              />
-            }
-            fileName={`Nota_Entrega_${toOrderCode(order)}.pdf`}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg"
-          >
-            {({ loading }) => (
-              <>
-                {loading ? <FileText size={14} className="animate-pulse" /> : <Download size={14} />}
-                <span>Nota de Entrega</span>
-              </>
-            )}
-          </PDFDownloadLink>
+  const handlePrintOptions = async () => {
+    const result = await Swal.fire({
+      title: "Opciones de Reporte",
+      text: "¿Deseas visualizar el reporte en el navegador o descargarlo directamente?",
+      icon: "question",
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "Visualizar",
+      denyButtonText: "Descargar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#0f172a",
+      denyButtonColor: "#2563eb",
+      cancelButtonColor: "#f1f5f9",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl uppercase text-[10px] tracking-widest px-6 py-3 font-bold",
+        denyButton: "rounded-xl uppercase text-[10px] tracking-widest px-6 py-3 font-bold ml-2",
+        cancelButton: "rounded-xl uppercase text-[10px] tracking-widest px-6 py-3 font-bold ml-2 text-slate-500",
+      },
+      buttonsStyling: false,
+    });
 
-          <button
-            onClick={onClose}
-            className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    if (result.isConfirmed) {
+      await generateAndHandlePDF("view");
+    } else if (result.isDenied) {
+      await generateAndHandlePDF("download");
+    }
+  };
 
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white mb-6">
-          Detalles de la Orden{" "}
-          <span className="text-slate-400 dark:text-slate-500">
-            #{toOrderCode(order)}
-          </span>
-        </h2>
+  const generateAndHandlePDF = async (action) => {
+    Swal.fire({
+      title: "GENERANDO REPORTE",
+      text: "Por favor espere mientras preparamos el archivo.",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const doc = (
+        <InvoicePDF
+          formData={{
+            name: customerName,
+            idNumber: customerIdNumber,
+            phone: customerPhone,
+            paymentMethod: order.metodo_pago || "Transferencia",
+            reference: order.referencia_pago || "N/A"
+          }}
+          finalTotal={Number(order.total)}
+          purchasedItems={order.items || []}
+          orderCode={toOrderCode(order)}
+          brand={site_name}
+          logoUrl={logoUrl}
+          issueDate={new Date(order.created_at).toLocaleDateString()}
+          currencySymbol={getCurrencySymbol(selectedCurrency)}
+          targetCurrency={selectedCurrency}
+          exchangeRates={exchangeRates}
+        />
+      );
+
+      console.log("Generando PDF con logo:", logoUrl);
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+
+      Swal.close();
+
+      if (action === "view") {
+        window.open(url, "_blank");
+      } else {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `Nota_Entrega_${toOrderCode(order)}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Error", "No se pudo generar el reporte", "error");
+    }
+  };
+
+  return (    <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-6 sm:p-8 relative">
+        {/* Botón de cerrar (siempre en la esquina) */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all z-20"
+        >
+          <X size={20} />
+        </button>
+
+        <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8 pr-10">
+          <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+            Detalles <span className="text-slate-400 dark:text-slate-500">#{toOrderCode(order)}</span>
+          </h2>
+          
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-[10px] font-bold uppercase tracking-tighter cursor-pointer h-10"
+            >
+              <option value="USD">USD</option>
+              <option value="VES">VES</option>
+            </select>
+            
+            <button
+              onClick={handlePrintOptions}
+              className="flex items-center gap-2 px-4 h-10 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg whitespace-nowrap"
+            >
+              <FileText size={14} />
+              <span>Nota de Entrega</span>
+            </button>
+          </div>
+        </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div className="space-y-4">

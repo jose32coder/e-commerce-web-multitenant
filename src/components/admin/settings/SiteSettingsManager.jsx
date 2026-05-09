@@ -460,7 +460,6 @@ export default function SiteSettingsManager() {
     if (!Object.keys(payload).length) return;
 
     if (section === "general") {
-      const slugChanged = newTenantSlug !== tenantSlug;
       const nameChanged = siteName !== currentName;
 
       // 1. Validar límite de cambios de nombre/slug (3 al mes)
@@ -474,7 +473,7 @@ export default function SiteSettingsManager() {
         return;
       }
 
-      if (slugChanged) {
+      if (nameChanged) {
         // Validar disponibilidad del slug
         const { data: existing } = await supabase
           .from("tenants")
@@ -508,23 +507,16 @@ export default function SiteSettingsManager() {
 
       setLoading(true);
       try {
-        if (slugChanged || nameChanged) {
+        if (nameChanged) {
           const tenantUpdate = {
             name: siteName,
-          };
-
-          if (slugChanged) {
-            tenantUpdate.slug = newTenantSlug;
-            tenantUpdate.slug_updated_at = new Date().toISOString();
-          }
-
-          // Si el nombre cambió, actualizamos el historial
-          if (nameChanged) {
-            tenantUpdate.name_change_history = [
+            slug: newTenantSlug,
+            slug_updated_at: new Date().toISOString(),
+            name_change_history: [
               ...nameChangeHistory,
               new Date().toISOString(),
-            ];
-          }
+            ],
+          };
 
           const { error: tErr } = await supabase
             .from("tenants")
@@ -561,7 +553,7 @@ export default function SiteSettingsManager() {
           site_name: siteName,
           header_menu: headerMenu,
           commerce_settings: payload.commerce_settings,
-          tenant_slug: slugChanged ? newTenantSlug : tenantSlug,
+          tenant_slug: nameChanged ? newTenantSlug : tenantSlug,
         });
 
         Swal.fire({

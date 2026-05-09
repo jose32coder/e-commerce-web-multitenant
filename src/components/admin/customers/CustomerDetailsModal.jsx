@@ -24,37 +24,41 @@ export default function CustomerDetailsModal({
 
   return (
     <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-5 sm:p-10 relative">
-        <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 items-center z-10">
-          <select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer"
-          >
-            <option value="USD">USD</option>
-            <option value="VES">VES</option>
-          </select>
-          <button
-            onClick={onClose}
-            className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all"
-          >
-            <X size={20} />
-          </button>
-        </div>
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-6 sm:p-8 relative">
+        {/* Botón de cerrar (siempre en la esquina) */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all z-20"
+        >
+          <X size={20} />
+        </button>
 
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-50 dark:border-slate-700/50">
-            <User size={32} />
+        <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8 pr-10">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-50 dark:border-slate-700/50 shrink-0">
+              <User size={32} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white truncate">
+                {customer.nombre_completo}
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 font-mono text-xs sm:text-sm tracking-tight">
+                CI/RIF: {customer.cedula}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
-              {customer.nombre_completo}
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 font-mono text-sm tracking-tight">
-              CI/RIF: {customer.cedula}
-            </p>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-[10px] font-bold uppercase tracking-tighter cursor-pointer h-10"
+            >
+              <option value="USD">USD</option>
+              <option value="VES">VES</option>
+            </select>
           </div>
-        </div>
+        </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div className="space-y-4">
