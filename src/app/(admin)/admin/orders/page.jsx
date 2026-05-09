@@ -9,7 +9,12 @@ import { updateOrderStatusAction } from "@/app/actions/admin/orderActions";
 import ExportButtons from "@/components/admin/shared/ExportButtons";
 import OrderFilters from "@/components/admin/orders/OrderFilters";
 import OrderTable from "@/components/admin/orders/OrderTable";
-import OrderDetailsModal from "@/components/admin/orders/OrderDetailsModal";
+import ProductPagination from "@/components/admin/products/ProductPagination";
+import dynamic from "next/dynamic";
+
+const OrderDetailsModal = dynamic(() => import("@/components/admin/orders/OrderDetailsModal"), {
+  ssr: false,
+});
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -23,6 +28,8 @@ export default function OrdersPage() {
   const [toDate, setToDate] = useState("");
   const [minTotal, setMinTotal] = useState("");
   const [maxTotal, setMaxTotal] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [shippingMethodFilter, setShippingMethodFilter] = useState("all");
   const [shippingProviderFilter, setShippingProviderFilter] = useState("all");
@@ -175,6 +182,16 @@ export default function OrdersPage() {
       paymentOk
     );
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, fromDate, toDate, minTotal, maxTotal, paymentFilter, shippingMethodFilter, shippingProviderFilter]);
+
+  const totalItems = filteredOrders.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pageSize);
 
   const handleExport = async (format) => {
     setExportLoading(true);
@@ -450,6 +467,8 @@ export default function OrdersPage() {
         setSelectedCurrency={setSelectedCurrency}
         showAdvancedFilters={showAdvancedFilters}
         setShowAdvancedFilters={setShowAdvancedFilters}
+        pageSize={pageSize}
+        setPageSize={setPageSize}
         advancedFiltersProps={{
           fromDate,
           setFromDate,
@@ -472,7 +491,7 @@ export default function OrdersPage() {
       />
 
       <OrderTable
-        orders={filteredOrders}
+        orders={paginatedOrders}
         loading={loading}
         selectedCurrency={selectedCurrency}
         exchangeRates={exchange_rates}
@@ -480,6 +499,17 @@ export default function OrdersPage() {
         onViewDetails={setSelectedOrder}
         onUpdateStatus={updateStatus}
         onReject={handleReject}
+      />
+
+      <ProductPagination
+        loading={loading}
+        filteredProducts={filteredOrders}
+        startIndex={startIndex}
+        pageSize={pageSize}
+        totalItems={totalItems}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        setPage={setPage}
       />
 
       {selectedOrder && (

@@ -4,7 +4,7 @@ import { normalizeCommerceSettings } from "@/lib/siteConfig";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 
 export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
   const { commerce_settings, tenant_slug, exchange_rates } = useSiteConfig();
@@ -41,7 +41,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
             Subtotal
           </span>
           <span className="font-bold text-ink">
-            {currencySymbol}{subtotalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {currencySymbol}{formatPrice(subtotalConverted, targetCurrency)}
           </span>
         </div>
 
@@ -51,7 +51,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
               Descuento
             </span>
             <span className="font-bold text-red-500">
-              -{currencySymbol}{discountConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              -{currencySymbol}{formatPrice(discountConverted, targetCurrency)}
             </span>
           </div>
         )}
@@ -69,7 +69,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
             {isFree
               ? "Gratuito"
               : deliveryFee > 0
-                ? `${currencySymbol}${deliveryFeeConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                ? `${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)}`
                 : "Cobro en destino"}
           </span>
         </div>
@@ -80,14 +80,14 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
               Total
             </span>
             <span className="text-3xl font-serif font-bold text-ink">
-              {currencySymbol}{totalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              {currencySymbol}{formatPrice(totalConverted, targetCurrency)}
             </span>
           </div>
           {threshold > 0 && (
             <p className="text-[9px] text-honey-dark italic font-medium text-center mt-2">
               {isFree
                 ? "✨ ¡Envío gratuito aplicado!"
-                : `* Envío gratuito en compras mayores a ${currencySymbol}${thresholdConverted.toLocaleString("en-US", { minimumFractionDigits: 0 })}`}
+                : `* Envío gratuito en compras mayores a ${currencySymbol}${formatPrice(thresholdConverted, targetCurrency)}`}
             </p>
           )}
         </div>

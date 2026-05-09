@@ -9,6 +9,8 @@ export default function CustomerFilters({
   setSortBy, 
   showAdvancedFilters, 
   setShowAdvancedFilters,
+  pageSize,
+  setPageSize,
   advancedFiltersProps
 }) {
   const {
@@ -21,7 +23,7 @@ export default function CustomerFilters({
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4 space-y-3">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-        <div className="relative md:col-span-8">
+        <div className="relative md:col-span-6">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
             size={18}
@@ -44,6 +46,21 @@ export default function CustomerFilters({
           <option value="orders_desc">Mas pedidos</option>
           <option value="name_asc">Nombre A-Z</option>
         </select>
+        <div className="md:col-span-2 flex items-center justify-between md:justify-end gap-2 bg-slate-50 dark:bg-slate-900 rounded-lg px-3 h-10">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Mostrar
+          </span>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="bg-transparent text-slate-900 dark:text-white border-none focus:ring-0 outline-none text-xs font-black uppercase tracking-widest cursor-pointer py-1"
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
         <button
           type="button"
           onClick={() => setShowAdvancedFilters((prev) => !prev)}

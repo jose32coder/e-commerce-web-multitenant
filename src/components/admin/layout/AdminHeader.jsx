@@ -13,7 +13,8 @@ export default function AdminHeader({
   userRole,
   pathname,
 }) {
-  const { site_name } = useSiteConfig();
+  const { site_name, commerce_settings } = useSiteConfig();
+  const logoUrl = commerce_settings?.logo_url;
 
   const getPageTitle = (path) => {
     const titles = {
@@ -47,8 +48,11 @@ export default function AdminHeader({
           <Menu size={20} strokeWidth={2.5} />
         </button>
 
-        {/* Título Desktop */}
-        <div className="hidden lg:block">
+        {/* Título Desktop e Icono */}
+        <div className="hidden lg:flex items-center gap-3">
+          {logoUrl && (
+            <img src={logoUrl} alt={site_name} className="h-8 w-auto object-contain" />
+          )}
           <h1 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-slate-500">
             Dashboard /{" "}
             <span className="text-slate-900 dark:text-white">
@@ -60,9 +64,17 @@ export default function AdminHeader({
 
       {/* Centro (Título Móvil) */}
       <div className="lg:hidden flex-1 flex justify-center items-center px-2 overflow-hidden">
-        <span className="font-black uppercase tracking-tighter text-sm sm:text-base text-slate-900 dark:text-white truncate max-w-full text-center">
-          {site_name} Admin
-        </span>
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt={site_name}
+            className="h-8 max-w-[120px] object-contain"
+          />
+        ) : (
+          <span className="font-black uppercase tracking-tighter text-sm sm:text-base text-slate-900 dark:text-white truncate max-w-full text-center">
+            {site_name} Admin
+          </span>
+        )}
       </div>
 
       {/* Tema & Perfil (Derecha) */}
@@ -92,6 +104,12 @@ export default function AdminHeader({
                 src={userProfile.avatar_url}
                 alt="Avatar"
                 className="w-full h-full object-cover"
+              />
+            ) : logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="Store Logo"
+                className="w-full h-full object-contain p-1"
               />
             ) : (
               <User size={18} />

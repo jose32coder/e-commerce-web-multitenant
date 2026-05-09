@@ -201,11 +201,12 @@ export default function HeroCinematic({
   return (
     <section ref={sectionRef} className={sectionClass}>
       <div
-        className={`${cardClass} ${count > 1 ? "cursor-grab active:cursor-grabbing touch-pan-y" : ""}`}
+        className={`${cardClass} ${count > 1 ? "cursor-grab active:cursor-grabbing touch-pan-y" : ""} select-none`}
         onPointerDown={handleSwipePointerDown}
         onPointerUp={handleSwipePointerUp}
         onPointerCancel={handleSwipePointerCancel}
         onLostPointerCapture={handleLostPointerCapture}
+        onDragStart={(e) => e.preventDefault()}
       >
         {slides.map((s, i) => (
           <div
@@ -225,6 +226,7 @@ export default function HeroCinematic({
               className="object-cover object-center"
               priority={i === 0}
               sizes={imageSizes}
+              draggable={false}
             />
             <div className={`absolute inset-0 ${baseScrim}`} aria-hidden />
             {boostScrim ? (

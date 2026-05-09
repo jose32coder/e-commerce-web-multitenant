@@ -13,9 +13,9 @@ const CheckoutSchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   paymentMethod: z.string().min(1, "Método de pago requerido"),
   reference: z.string().min(3, "Referencia demasiado corta").max(50),
-  tenantId: z.string().uuid("ID de tienda inválido"),
-  tenantSlug: z.string(),
-  shippingMethod: z.enum(["delivery", "pickup"]),
+  tenantId: z.union([z.string(), z.number()]).nullable().optional(),
+  tenantSlug: z.string().nullable().optional(),
+  shippingMethod: z.enum(["local", "national", "delivery", "pickup"]),
   shippingProvider: z.string().optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
   idempotencyKey: z.string().uuid().optional(),
@@ -93,14 +93,19 @@ const createOrderWithFallback = async (supabase, payload) => {
   }
 };
 
-export async function processCheckoutOrder(formData, items, total) {
+export async function processCheckoutOrder(formData, items = [], total) {
   try {
+    items = Array.isArray(items) ? items : [];
     const supabase = getAdminSupabaseClient();
+
+    if (items.length === 0) {
+      throw new Error("El carrito está vacío o no se pudieron leer los productos del pedido.");
+    }
 
     // 0. Validación de Esquema (Anti-Inyección y Datos Corruptos)
     const validation = CheckoutSchema.safeParse(formData);
     if (!validation.success) {
-      const errorMsg = validation.error.errors.map(e => e.message).join(", ");
+      const errorMsg = validation.error.issues.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
       throw new Error(`Datos inválidos: ${errorMsg}`);
     }
 

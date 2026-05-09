@@ -1,7 +1,10 @@
 "use client";
 import React from "react";
-import { X, Calendar } from "lucide-react";
+import { X, Calendar, Download, FileText } from "lucide-react";
 import { convertPrice } from "@/services/exchangeRates";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { InvoicePDF } from "@/components/InvoicePDF";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function OrderDetailsModal({ 
   order, 
@@ -11,6 +14,7 @@ export default function OrderDetailsModal({
   exchangeRates,
   toOrderCode
 }) {
+  const { site_name } = useSiteConfig();
   if (!order) return null;
 
   const customerName =
@@ -47,6 +51,37 @@ export default function OrderDetailsModal({
             <option value="USD">USD</option>
             <option value="VES">VES</option>
           </select>
+          <PDFDownloadLink
+            document={
+              <InvoicePDF
+                formData={{
+                  name: customerName,
+                  idNumber: customerIdNumber,
+                  phone: customerPhone,
+                  paymentMethod: order.metodo_pago || "Transferencia",
+                  reference: order.referencia_pago || "N/A"
+                }}
+                finalTotal={Number(order.total)}
+                purchasedItems={order.items || []}
+                orderCode={toOrderCode(order)}
+                brand={site_name}
+                issueDate={new Date(order.created_at).toLocaleDateString()}
+                currencySymbol={getCurrencySymbol(selectedCurrency)}
+                targetCurrency={selectedCurrency}
+                exchangeRates={exchangeRates}
+              />
+            }
+            fileName={`Nota_Entrega_${toOrderCode(order)}.pdf`}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg"
+          >
+            {({ loading }) => (
+              <>
+                {loading ? <FileText size={14} className="animate-pulse" /> : <Download size={14} />}
+                <span>Nota de Entrega</span>
+              </>
+            )}
+          </PDFDownloadLink>
+
           <button
             onClick={onClose}
             className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all"

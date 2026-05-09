@@ -198,7 +198,7 @@ export default function Header() {
               href={`${baseUrl}/`}
               className="hidden lg:flex items-center gap-3"
             >
-              {commerce_settings?.logo_url ? (
+              {commerce_settings?.logo_url && (
                 <div className="relative h-10 w-10 overflow-hidden rounded-md">
                   <AdaptiveImage
                     src={commerce_settings.logo_url}
@@ -207,13 +207,12 @@ export default function Header() {
                     className="object-contain"
                   />
                 </div>
-              ) : (
-                <h1
-                  className={`text-xl font-serif font-bold tracking-tighter uppercase drop-shadow-sm ${ink}`}
-                >
-                  {site_name}
-                </h1>
               )}
+              <h1
+                className={`text-xl font-serif font-bold tracking-tighter uppercase drop-shadow-sm ${ink}`}
+              >
+                {site_name}
+              </h1>
             </Link>
           </div>
 
@@ -383,19 +382,19 @@ export default function Header() {
             <Link
               href="/"
               // Reducimos el padding en móviles para que sea casi circular
-              className="flex items-center gap-0 md:gap-3 p-2 md:px-4 md:py-3 rounded-full bg-paper/60 backdrop-blur-xl border border-honey-light/50 shadow-2xl shadow-zinc-900/10 hover:bg-paper/80 hover:scale-105 transition-all group"
+              className="flex items-center gap-0 md:gap-3 p-2 md:pl-3 md:pr-6 md:py-3 rounded-full bg-paper/60 backdrop-blur-xl border border-honey-light/50 shadow-2xl shadow-zinc-900/10 hover:bg-paper/80 hover:scale-105 transition-all group"
             >
               {/* Icono: Siempre visible */}
-              <div className="w-8 h-8 md:w-8 md:h-8 rounded-full bg-ink flex items-center justify-center text-paper group-hover:rotate-12 transition-transform">
-                <ShoppingBag size={14} />
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-ink flex items-center justify-center text-paper group-hover:rotate-12 transition-transform">
+                <ShoppingBag size={16} className="md:w-5 md:h-5" />
               </div>
 
               {/* Texto: Oculto en móviles, visible desde tablets (md) en adelante */}
-              <div className="hidden md:flex flex-col pr-2">
+              <div className="hidden md:flex flex-col pr-1">
                 <span className="text-[9px] font-black uppercase tracking-[0.15em] text-honey-dark opacity-60 leading-none mb-1">
                   Volver a
                 </span>
-                <span className="text-[11px] font-black uppercase tracking-widest text-ink leading-none">
+                <span className="text-[12px] font-black uppercase tracking-widest text-ink leading-none">
                   DeployShop
                 </span>
               </div>

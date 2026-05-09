@@ -11,6 +11,8 @@ export default function OrderFilters({
   setSelectedCurrency, 
   showAdvancedFilters, 
   setShowAdvancedFilters,
+  pageSize,
+  setPageSize,
   advancedFiltersProps
 }) {
   const {
@@ -60,6 +62,21 @@ export default function OrderFilters({
           <option value="USD">USD</option>
           <option value="VES">VES</option>
         </select>
+        <div className="md:col-span-2 flex items-center justify-between md:justify-end gap-2 bg-slate-50 dark:bg-slate-900 rounded-lg px-3 h-10">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Mostrar
+          </span>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="bg-transparent text-slate-900 dark:text-white border-none focus:ring-0 outline-none text-xs font-black uppercase tracking-widest cursor-pointer py-1"
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
         <button
           type="button"
           onClick={() => setShowAdvancedFilters((prev) => !prev)}

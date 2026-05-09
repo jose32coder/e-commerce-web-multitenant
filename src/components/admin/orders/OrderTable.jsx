@@ -1,7 +1,10 @@
 "use client";
 import React from "react";
-import { Eye, Check, X, Calendar, Loader2 } from "lucide-react";
+import { Eye, Check, X, Calendar, Loader2, FileText } from "lucide-react";
 import { convertPrice } from "@/services/exchangeRates";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { InvoicePDF } from "@/components/InvoicePDF";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function OrderTable({ 
   orders, 
@@ -13,6 +16,7 @@ export default function OrderTable({
   onUpdateStatus, 
   onReject 
 }) {
+  const { site_name } = useSiteConfig();
   const getCurrencySymbol = (code) => {
     switch (code) {
       case "VES": return "Bs ";
@@ -101,6 +105,35 @@ export default function OrderTable({
                       >
                         <Eye size={18} />
                       </button>
+
+                      <PDFDownloadLink
+                        document={
+                          <InvoicePDF
+                            formData={{
+                              name: customerName,
+                              idNumber: order.customer_id_number || order.clientes?.id_number || "N/A",
+                              phone: customerPhone,
+                              paymentMethod: order.metodo_pago || "Transferencia",
+                              reference: order.referencia_pago || "N/A"
+                            }}
+                            finalTotal={Number(order.total)}
+                            purchasedItems={order.items || []}
+                            orderCode={toOrderCode(order)}
+                            brand={site_name}
+                            issueDate={new Date(order.created_at).toLocaleDateString()}
+                            currencySymbol={getCurrencySymbol(selectedCurrency)}
+                            targetCurrency={selectedCurrency}
+                            exchangeRates={exchangeRates}
+                          />
+                        }
+                        fileName={`Nota_Entrega_${toOrderCode(order)}.pdf`}
+                        className="p-2 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-all"
+                        title="Descargar Nota"
+                      >
+                        {({ loading }) => (
+                          <FileText size={18} className={loading ? "animate-pulse" : ""} />
+                        )}
+                      </PDFDownloadLink>
                       {order.estado === "pending" && (
                         <>
                           <button

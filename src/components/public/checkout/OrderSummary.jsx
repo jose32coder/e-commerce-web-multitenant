@@ -4,11 +4,11 @@ import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { Button } from "@/components/ui/button";
 import { Lock, ArrowRight, Smartphone } from "lucide-react";
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export function OrderSummary({
-  items,
+  items = [],
   subtotal,
   total,
   onVerify,
@@ -20,6 +20,7 @@ export function OrderSummary({
   showStockInquiry = false,
   onStockInquiry = () => {},
 }) {
+  const safeItems = Array.isArray(items) ? items : [];
   const { commerce_settings, exchange_rates } = useSiteConfig();
   const [mounted, setMounted] = useState(false);
 
@@ -49,7 +50,7 @@ export function OrderSummary({
       </h3>
 
       <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-        {mounted && items.map((item) => {
+        {mounted && safeItems.map((item) => {
           const itemBaseCurrency = item.base_currency || "USD";
           const itemTotalPriceConverted = convertPrice(
             ((Number(item.price) || 0) + (Number(item.price_adjustment) || 0)) * item.quantity,
@@ -92,7 +93,7 @@ export function OrderSummary({
                   <span>Cant: {item.quantity}</span>
                 </p>
                 <p className="text-[12px] font-bold text-ink mt-1">
-                  {currencySymbol}{itemTotalPriceConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  {currencySymbol}{formatPrice(itemTotalPriceConverted, targetCurrency)}
                 </p>
               </div>
             </div>
@@ -104,7 +105,7 @@ export function OrderSummary({
         <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-400">
           <span>Subtotal</span>
           <span className="text-ink">
-            {currencySymbol}{subtotalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {currencySymbol}{formatPrice(subtotalConverted, targetCurrency)}
           </span>
         </div>
 
@@ -118,7 +119,7 @@ export function OrderSummary({
                 : shippingPaymentType === "cod"
                   ? "Cobro en destino"
                   : deliveryFee > 0
-                    ? `${currencySymbol}${deliveryFeeConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                    ? `${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)}`
                     : "Cobro en destino"}
           </span>
         </div>
@@ -128,7 +129,7 @@ export function OrderSummary({
             Total
           </span>
           <span className="text-2xl font-black">
-            {currencySymbol}{totalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {currencySymbol}{formatPrice(totalConverted, targetCurrency)}
           </span>
         </div>
       </div>

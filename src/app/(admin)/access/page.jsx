@@ -16,6 +16,47 @@ export default function LoginPage() {
   const hostname = PLATFORM_BRAND_HOSTNAME.replace(/^https?:\/\//, "");
   const currentYear = new Date().getFullYear();
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const redirectIfSessionExists = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const user = session?.user;
+      if (!user || cancelled) return;
+
+      const accessScope =
+        user.user_metadata?.access_scope || user.app_metadata?.access_scope;
+
+      if (accessScope === "platform") {
+        router.replace("/tenants");
+        return;
+      }
+
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (
+        staffProfile?.id ||
+        accessScope === "admin" ||
+        user.user_metadata?.role === "admin" ||
+        user.app_metadata?.role === "admin"
+      ) {
+        router.replace("/admin");
+      }
+    };
+
+    redirectIfSessionExists();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, supabase]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);

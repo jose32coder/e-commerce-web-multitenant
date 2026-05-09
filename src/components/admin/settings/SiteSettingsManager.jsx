@@ -191,6 +191,16 @@ export default function SiteSettingsManager() {
     setNewTenantSlug(autoSlug);
   };
 
+  const handleTenantCardConfigChange = (nextTenantCard) => {
+    setCommerceSettings((prev) => ({
+      ...prev,
+      tenant_selector_card: {
+        ...prev.tenant_selector_card,
+        ...(nextTenantCard || {}),
+      },
+    }));
+  };
+
   const handleAddSlide = () => {
     if (slides.length >= 3) return;
 
@@ -383,6 +393,68 @@ export default function SiteSettingsManager() {
     }
   };
 
+  const handleTenantCardBackgroundUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const localPreviewUrl = URL.createObjectURL(file);
+    setCommerceSettings((prev) => ({
+      ...prev,
+      tenant_selector_card: {
+        ...prev.tenant_selector_card,
+        background_image_url: localPreviewUrl,
+      },
+    }));
+
+    setUploading(true);
+    setStatus({ type: "", message: "" });
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_CONFIG.uploadPreset);
+    formData.append(
+      "folder",
+      buildTenantCloudinaryFolder({
+        tenantSlug,
+        tenantId,
+        area: "site",
+        subpath: "tenant-card",
+      }),
+    );
+
+    try {
+      const res = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Error al subir imagen de fondo");
+
+      const data = await res.json();
+      const optimizedUrl = data.secure_url.replace(
+        "/upload/",
+        "/upload/w_1600,q_auto,f_auto/",
+      );
+
+      setCommerceSettings((prev) => ({
+        ...prev,
+        tenant_selector_card: {
+          ...prev.tenant_selector_card,
+          background_image_url: optimizedUrl,
+        },
+      }));
+      URL.revokeObjectURL(localPreviewUrl);
+    } catch (err) {
+      console.error(err);
+      setStatus({
+        type: "error",
+        message: "Error al subir la imagen de fondo",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSaveSection = async (section) => {
     const payload = getPayloadForSection(section);
     if (!Object.keys(payload).length) return;
@@ -440,7 +512,7 @@ export default function SiteSettingsManager() {
           const tenantUpdate = {
             name: siteName,
           };
-          
+
           if (slugChanged) {
             tenantUpdate.slug = newTenantSlug;
             tenantUpdate.slug_updated_at = new Date().toISOString();
@@ -463,6 +535,15 @@ export default function SiteSettingsManager() {
             console.error("Error actualizando tabla tenants:", tErr);
             throw new Error(`Error en tabla tenants: ${tErr.message}`);
           }
+        }
+
+        // Sync logo_url to tenants table for platform-wide access
+        const logoUrlToSave = commerceSettings?.logo_url || null;
+        if (logoUrlToSave !== undefined) {
+          await supabase
+            .from("tenants")
+            .update({ logo_url: logoUrlToSave })
+            .eq("tenant_id", tenantId);
         }
 
         await updateSiteConfig(payload, { tenantId });
@@ -496,7 +577,9 @@ export default function SiteSettingsManager() {
         console.error("DETALLE DEL ERROR AL GUARDAR:", err);
         Swal.fire({
           title: "Error al guardar",
-          text: err.message || "Ocurrió un error inesperado al actualizar la configuración",
+          text:
+            err.message ||
+            "Ocurrió un error inesperado al actualizar la configuración",
           icon: "error",
           confirmButtonColor: "#0f172a",
         });
@@ -554,13 +637,13 @@ export default function SiteSettingsManager() {
   const getPayloadForSection = (section) => {
     switch (section) {
       case "general":
-        return { 
-          site_name: siteName, 
+        return {
+          site_name: siteName,
           header_menu: headerMenu,
           commerce_settings: {
             ...commerceSettings,
-            logo_url: commerceSettings.logo_url
-          }
+            logo_url: commerceSettings.logo_url,
+          },
         };
       case "home":
         return {
@@ -627,10 +710,14 @@ export default function SiteSettingsManager() {
                 tenantSlug={newTenantSlug}
                 logoUrl={commerceSettings?.logo_url}
                 onLogoUpload={handleLogoUpload}
+                tenantCardConfig={commerceSettings?.tenant_selector_card}
+                onTenantCardConfigChange={handleTenantCardConfigChange}
+                onTenantCardBackgroundUpload={handleTenantCardBackgroundUpload}
+                isUploadingLogo={uploading}
+                isUploadingTenantCardBackground={uploading}
                 nameChangeLimitReached={nameChangeLimitReached}
                 changesLeft={changesLeft}
                 isLoading={isLoadingIdentity}
-                isUploadingLogo={uploading}
               />
             </div>
 
@@ -652,7 +739,11 @@ export default function SiteSettingsManager() {
                 onClick={() => handleSaveSection("general")}
                 className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                {loading ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Save size={18} />
+                )}
                 Guardar Identidad
               </button>
             </div>
@@ -665,7 +756,9 @@ export default function SiteSettingsManager() {
               slides={slides}
               homeIntro={homeIntro}
               onHomeIntroPatch={(patch) =>
-                setHomeIntro((prev) => normalizeHomeIntro({ ...prev, ...patch }))
+                setHomeIntro((prev) =>
+                  normalizeHomeIntro({ ...prev, ...patch }),
+                )
               }
               onAddSlide={handleAddSlide}
               onRemoveSlide={handleRemoveSlide}
@@ -697,7 +790,11 @@ export default function SiteSettingsManager() {
                 onClick={() => handleSaveSection("home")}
                 className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                {loading ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Save size={18} />
+                )}
                 Guardar Contenido
               </button>
             </div>
@@ -732,7 +829,11 @@ export default function SiteSettingsManager() {
                 onClick={() => handleSaveSection("footer")}
                 className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                {loading ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Save size={18} />
+                )}
                 Guardar Comercio
               </button>
             </div>

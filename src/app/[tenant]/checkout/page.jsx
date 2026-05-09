@@ -38,7 +38,7 @@ import {
   normalizeCommerceSettings,
   normalizeWhatsappNumber,
 } from "@/lib/siteConfig";
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 
 export default function CheckoutPage() {
   const {
@@ -99,6 +99,15 @@ export default function CheckoutPage() {
   const selectedPaymentMethod =
     formData.paymentMethod || activePaymentMethods[0] || "";
 
+  useEffect(() => {
+    if (!formData.paymentMethod && activePaymentMethods.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        paymentMethod: activePaymentMethods[0],
+      }));
+    }
+  }, [activePaymentMethods, formData.paymentMethod]);
+
   const currencySymbol = commerce?.currency_symbol || "$";
   const targetCurrency = commerce?.currency_code || "USD";
 
@@ -112,18 +121,55 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  const { trackings, startTracking } = useOrderTrackingStore();
+  const { trackings, startTracking, stopTracking } = useOrderTrackingStore();
 
   useEffect(() => {
     const currentTracking = trackings[tenant_slug];
+    const viewTracking = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('view_tracking') === 'true' : false;
+
     if (currentTracking?.orderId) {
-      setOrderId(currentTracking.orderId);
-      setIsWaiting(true);
+      if (!viewTracking) {
+        Swal.fire({
+          title: "Tienes una orden activa",
+          text: "Para iniciar una nueva compra, debes finalizar el seguimiento de tu orden actual. ¿Qué deseas hacer?",
+          icon: "info",
+          showCancelButton: true,
+          confirmButtonColor: "#1A1A1A",
+          cancelButtonColor: "#ef4444",
+          confirmButtonText: "Ver mi orden actual",
+          cancelButtonText: "Nueva compra",
+          background: "#FBF9F6",
+          color: "#1A1A1A",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            setOrderId(currentTracking.orderId);
+            if (currentTracking.status === "paid") {
+              setIsSuccess(true);
+              setIsWaiting(false);
+            } else {
+              setIsWaiting(true);
+            }
+          } else {
+            stopTracking(tenant_slug);
+            setIsWaiting(false);
+          }
+          setIsPendingOrderRestored(true);
+        });
+      } else {
+        setOrderId(currentTracking.orderId);
+        if (currentTracking.status === "paid") {
+          setIsSuccess(true);
+          setIsWaiting(false);
+        } else {
+          setIsWaiting(true);
+        }
+        setIsPendingOrderRestored(true);
+      }
     } else {
       setIsWaiting(false);
+      setIsPendingOrderRestored(true);
     }
-    setIsPendingOrderRestored(true);
-  }, [tenant_slug, trackings]);
+  }, [tenant_slug, trackings, stopTracking]);
 
   const deliveryEnabled = commerce.delivery_enabled !== false;
 
@@ -254,66 +300,68 @@ export default function CheckoutPage() {
           color: "#1A1A1A",
         });
 
-        const fullIdNumber = `${idType}${formData.idNumber}`;
-        const payload = {
-          ...formData,
-          idNumber: fullIdNumber,
-          paymentMethod: selectedPaymentMethod,
-          tenantId: tenant_id || null,
-          tenantSlug: tenant_slug || null,
-          idempotencyKey, // Enviamos la llave de seguridad
-        };
-        // Nota: Guardamos 'total' (en USD) en la base de datos para mantener consistencia financiera
-        const response = await processCheckoutOrder(payload, items, total);
+        try {
+          const fullIdNumber = `${idType}${formData.idNumber}`;
+          const currentItems = Array.isArray(items) ? items : [];
+          const payload = {
+            ...formData,
+            idNumber: fullIdNumber,
+            paymentMethod: selectedPaymentMethod,
+            tenantId: tenant_id || null,
+            tenantSlug: tenant_slug || null,
+            idempotencyKey, // Enviamos la llave de seguridad
+          };
+          // Nota: Guardamos 'total' (en USD) en la base de datos para mantener consistencia financiera
+          const response = await processCheckoutOrder(payload, currentItems, total);
 
-        if (!response.success) {
-          Swal.fire({
-            title: "Error al procesar",
-            text:
-              response.error ||
-              "Ocurrió un problema guardando tu pedido. Por favor intenta de nuevo.",
-            icon: "error",
-            confirmButtonColor: "#1A1A1A",
-            background: "#FBF9F6",
-            color: "#1A1A1A",
-          });
-          return;
-        }
+          if (!response || !response.success) {
+            Swal.fire({
+              title: "Error al procesar",
+              text:
+                response?.error ||
+                "Ocurrió un problema guardando tu pedido. Por favor intenta de nuevo.",
+              icon: "error",
+              confirmButtonColor: "#1A1A1A",
+              background: "#FBF9F6",
+              color: "#1A1A1A",
+            });
+            return;
+          }
 
-        const orderDetails = items
-          .map(
-            (item) =>
-              `- ${item.name} (Variante: ${item.variant || "Única"}) x${item.quantity}`,
-          )
-          .join("\n");
+          const orderDetails = currentItems
+            .map(
+              (item) =>
+                `- ${item.name} (Variante: ${item.variant || "Única"}) x${item.quantity}`,
+            )
+            .join("\n");
 
-        const safeOrderId =
-          response?.orderId !== undefined && response?.orderId !== null
-            ? String(response.orderId)
-            : "";
-        const safeOrderNumber = response?.orderNumber || "";
+          const safeOrderId =
+            response?.orderId !== undefined && response?.orderId !== null
+              ? String(response.orderId)
+              : "";
+          const safeOrderNumber = response?.orderNumber || "";
 
-        const displayOrderCode = safeOrderNumber
-          ? String(safeOrderNumber).padStart(5, "0")
-          : safeOrderId
-            ? safeOrderId.slice(-6).toUpperCase()
-            : "";
+          const displayOrderCode = safeOrderNumber
+            ? String(safeOrderNumber).padStart(5, "0")
+            : safeOrderId
+              ? safeOrderId.slice(-6).toUpperCase()
+              : "";
 
-        const orderIdShort = displayOrderCode ? `(#${displayOrderCode})` : "";
-        const orderCode = displayOrderCode;
+          const orderIdShort = displayOrderCode ? `(#${displayOrderCode})` : "";
+          const orderCode = displayOrderCode;
 
-        if (safeOrderId) {
-          startTracking(tenant_slug, safeOrderId, orderCode);
-        }
+          if (safeOrderId) {
+            startTracking(tenant_slug, safeOrderId, orderCode);
+          }
 
-        const shippingMethodLabel =
-          !deliveryEnabled || formData.shippingMethod === "pickup"
-            ? "RETIRO EN TIENDA 🛍️"
-            : isFreeShipping
-              ? "GRATIS ✨"
-              : `${currencySymbol}${deliveryFeeConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })} 🚚`;
+          const shippingMethodLabel =
+            !deliveryEnabled || formData.shippingMethod === "pickup"
+              ? "RETIRO EN TIENDA 🛍️"
+              : isFreeShipping
+                ? "GRATIS ✨"
+                : `${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)} 🚚`;
 
-        const message = `Hola ${brand}! 👋
+          const message = `Hola ${brand}! 👋
 
 He realizado un pago por ${selectedPaymentMethod}.
 
@@ -328,29 +376,38 @@ He realizado un pago por ${selectedPaymentMethod}.
 🛒 *PEDIDO ${orderIdShort}*
 ${orderDetails}
 
-💰 *TOTAL*: ${currencySymbol}${totalConverted.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+💰 *TOTAL*: ${currencySymbol}${formatPrice(totalConverted, targetCurrency)}
 🚚 *ENVÍO*: ${shippingMethodLabel}${formData.shippingProvider ? ` (${formData.shippingProvider.toUpperCase()})` : ""}
 
 📝 *NOTAS*: ${formData.notes || "Ninguna"}
 
 📸 *Adjunto el comprobante de pago aquí abajo:*`;
 
-        Swal.close();
+          Swal.close();
 
-        const whatsappHref = whatsappNumber
-          ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
-          : "";
+          const whatsappHref = whatsappNumber
+            ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+            : "";
 
-        if (whatsappHref) window.open(whatsappHref, "_blank");
+          if (whatsappHref) window.open(whatsappHref, "_blank");
 
-        if (response.success) {
           // Pasamos el total ya convertido para la UI de éxito
           setFinalTotal(totalConverted);
           setOrderId(safeOrderId);
           setOrderNumber(safeOrderNumber);
-          setPurchasedItems([...items]);
+          setPurchasedItems([...currentItems]);
           clearCart();
           setIsWaiting(true);
+        } catch (err) {
+          console.error("Error inesperado en checkout:", err);
+          Swal.fire({
+            title: "Error al procesar",
+            text: err?.message || "Ocurrió un error inesperado. Por favor intenta de nuevo.",
+            icon: "error",
+            confirmButtonColor: "#1A1A1A",
+            background: "#FBF9F6",
+            color: "#1A1A1A",
+          });
         }
       }
     });

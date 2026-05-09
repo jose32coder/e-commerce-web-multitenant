@@ -21,7 +21,7 @@ import {
 } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 
 export default function ProductView({ product }) {
   const { site_name, commerce_settings, tenant_slug, exchange_rates } = useSiteConfig();
@@ -194,17 +194,17 @@ export default function ProductView({ product }) {
             <div className="mt-2 flex items-end gap-3">
               {hasActiveOffer && (
                 <p className="text-sm font-semibold text-red-500 line-through">
-                  {currencySymbol}{finalRegularPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  {currencySymbol}{formatPrice(finalRegularPrice, targetCurrency)}
                 </p>
               )}
               <p className="text-3xl font-bold text-black">
-                {currencySymbol}{finalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {currencySymbol}{formatPrice(finalPrice, targetCurrency)}
               </p>
             </div>
             {rawPriceOverride > 0 && (
               <p className="mt-1 text-xs font-medium text-amber-700">
                 Esta combinación tiene un recargo de +{currencySymbol}
-                {displayOverride.toLocaleString("en-US", { minimumFractionDigits: 2 })}.
+                {formatPrice(displayOverride, targetCurrency)}.
               </p>
             )}
             {hasActiveOffer && (

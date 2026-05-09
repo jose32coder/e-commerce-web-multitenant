@@ -24,7 +24,8 @@ export default function AdminSidebar({
   canAccess,
   handleLogout,
 }) {
-  const { site_name } = useSiteConfig();
+  const { site_name, commerce_settings } = useSiteConfig();
+  const logoUrl = commerce_settings?.logo_url;
 
   const navItems = [
     {
@@ -107,8 +108,16 @@ export default function AdminSidebar({
         >
           <div className="flex items-center lg:px-5 gap-3 overflow-hidden">
             {/* Icono/Avatar del Logo */}
-            <div className="min-w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl shadow-lg">
-              {site_name?.substring(0, 1).toUpperCase()}
+            <div className="min-w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-900 font-black text-xl shadow-lg overflow-hidden border border-white/20">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={site_name}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                site_name?.substring(0, 1).toUpperCase()
+              )}
             </div>
 
             {/* Nombre del Sitio */}

@@ -2,9 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import ProductForm from "@/components/admin/ProductForm";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
+import dynamic from "next/dynamic";
+
+const ProductForm = dynamic(() => import("@/components/admin/ProductForm"), {
+  ssr: false,
+});
 
 // Componentes extraídos (con estilos originales preservados)
 import ExportButtons from "@/components/admin/shared/ExportButtons";

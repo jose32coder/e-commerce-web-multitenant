@@ -9,7 +9,7 @@ import { getOptimizedImage } from "@/lib/getOptimizedImage";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
-import { convertPrice } from "@/services/exchangeRates";
+import { convertPrice, formatPrice } from "@/services/exchangeRates";
 
 export default function ProductCard({
   product,
@@ -117,7 +117,6 @@ export default function ProductCard({
 
           <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-          {/* Botón de Añadir dentro del contenedor de imagen para alineación perfecta */}
           <Button
             onClick={handleQuickAdd}
             size="icon"
@@ -151,16 +150,12 @@ export default function ProductCard({
               {hasActiveOffer && (
                 <span className="text-[10px] font-semibold text-red-500 line-through">
                   {currencySymbol}
-                  {regularPrice.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                  })}
+                  {formatPrice(regularPrice, targetCurrency)}
                 </span>
               )}
               <span className="text-[13px] font-bold text-black">
                 {currencySymbol}
-                {displayPrice.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
+                {formatPrice(displayPrice, targetCurrency)}
               </span>
             </div>
           </div>
@@ -174,16 +169,12 @@ export default function ProductCard({
                 {hasActiveOffer && (
                   <span className="text-[10px] font-semibold text-red-500 line-through">
                     {currencySymbol}
-                    {regularPrice.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                    })}
+                    {formatPrice(regularPrice, targetCurrency)}
                   </span>
                 )}
                 <span className="text-[14px] font-bold text-black">
                   {currencySymbol}
-                  {displayPrice.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                  })}
+                  {formatPrice(displayPrice, targetCurrency)}
                 </span>
               </div>
             </div>

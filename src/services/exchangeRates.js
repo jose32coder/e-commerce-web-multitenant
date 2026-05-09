@@ -132,6 +132,28 @@ export function formatCurrency(amount, currencyCode = "USD") {
     style: "currency",
     currency: currencyCode,
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return formatter.format(amount);
+}
+
+/**
+ * Formatea un número como precio (sin el símbolo de moneda) con 2 decimales exactos
+ * y formato según la moneda (ej: Bolívares con punto para miles y coma para decimales).
+ */
+export function formatPrice(amount, currencyCode = "USD") {
+  if (amount === undefined || amount === null || isNaN(amount)) return "0,00";
+
+  const locales = {
+    USD: "en-US",
+    VES: "es-VE",
+  };
+
+  // Forzamos 2 decimales para evitar el error de los 3 decimales mencionado por el usuario
+  const formatter = new Intl.NumberFormat(locales[currencyCode] || "en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 
   return formatter.format(amount);
