@@ -4,22 +4,41 @@ import { UserRound } from "lucide-react";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import {
   PLATFORM_BRAND_NAME,
+  formatWhatsappContactNumber,
   normalizeCommerceSettings,
+  normalizeFooterSettings,
   resolveLegacyCommerceSettings,
+  resolveLegacyFooterSettings,
 } from "@/lib/siteConfig";
 import TenantList from "@/components/TenantList";
 
 export const revalidate = 0;
 
+const normalizeExternalUrl = (value) => {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+};
+
+const normalizeInstagramUrl = (value) => {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (url.startsWith("@")) {
+    return `https://instagram.com/${url.slice(1)}`;
+  }
+  return normalizeExternalUrl(url);
+};
+
 const HERO_COPY =
   "Explora acá las mejores tiendas y compra productos de calidad.";
 
-// ... (getTenantCards se mantiene igual, la lógica de datos no cambia)
 async function getTenantCards() {
   const supabase = getAdminSupabaseClient();
   const { data: tenantsData, error: tenantsError } = await supabase
     .from("tenants")
-    .select("tenant_id, name, slug, status, store_type, logo_url")
+    .select(
+      "tenant_id, name, slug, status, store_type, logo_url, whatsapp_number",
+    )
     .eq("status", "Active")
     .order("created_at", { ascending: true });
 
@@ -32,11 +51,10 @@ async function getTenantCards() {
   if (tenants.length === 0) return [];
   const tenantIds = tenants.map((tenant) => tenant.tenant_id);
 
+  // Seleccionamos todo (*) para evitar errores con columnas faltantes y asegurar que traemos footer_commerce
   const { data: settingsRows } = await supabase
     .from("site_settings")
-    .select(
-      "tenant_id, products_intro, home_intro, commerce_settings, footer_commerce",
-    )
+    .select("*")
     .in("tenant_id", tenantIds);
 
   const settingsByTenant = new Map(
@@ -44,7 +62,30 @@ async function getTenantCards() {
   );
 
   return tenants.map((tenant, index) => {
-    const settings = settingsByTenant.get(tenant.tenant_id);
+    const settings = settingsByTenant.get(tenant.tenant_id) || {};
+    
+    // Resolvemos las configuraciones priorizando las columnas modernas si existen
+    const legacyCommerce = resolveLegacyCommerceSettings(settings) || {};
+    const currentCommerce = settings?.commerce_settings || {};
+    
+    // Construimos la fuente de verdad para el comercio
+    const commerceSource = {
+      ...legacyCommerce,
+      ...currentCommerce,
+    };
+
+    // Normalizamos para aplicar defaults y asegurar estructura
+    const normalizedCommerce = normalizeCommerceSettings(commerceSource);
+    const tenantCardConfig = normalizedCommerce.tenant_selector_card || {};
+    
+    const legacyFooter = resolveLegacyFooterSettings(settings) || {};
+    const currentFooter = settings?.footer_settings || {};
+    const footerSource = {
+      ...legacyFooter,
+      ...currentFooter,
+    };
+    const normalizedFooter = normalizeFooterSettings(footerSource);
+
     const autoTitle =
       settings?.products_intro?.title ||
       settings?.home_intro?.title ||
@@ -53,13 +94,23 @@ async function getTenantCards() {
       settings?.products_intro?.description ||
       settings?.home_intro?.description ||
       "Experiencia premium personalizada.";
-    const commerceSource =
-      settings?.commerce_settings ||
-      resolveLegacyCommerceSettings(settings) ||
-      {};
-    const normalizedCommerce = normalizeCommerceSettings(commerceSource);
-    const tenantCardConfig = normalizedCommerce.tenant_selector_card || {};
+    
     const useCustomText = tenantCardConfig.text_mode === "custom";
+    const whatsappNumber = formatWhatsappContactNumber(
+      normalizedCommerce.whatsapp_number,
+      normalizedCommerce.customer_phone_country_code,
+    );
+
+    // Si no se encuentra en la configuración normalizada, intentamos buscarlo en footer_commerce
+    let finalBg = tenantCardConfig.background_image_url;
+    if (!finalBg && settings.footer_commerce) {
+      finalBg =
+        settings.footer_commerce.background_image_url ||
+        settings.footer_commerce.commerce_settings?.tenant_selector_card
+          ?.background_image_url ||
+        settings.footer_commerce.commerce_settings?.background_image_url ||
+        "";
+    }
 
     return {
       ...tenant,
@@ -77,7 +128,10 @@ async function getTenantCards() {
       card_variant: tenantCardConfig.variant || "editorial",
       card_style: tenantCardConfig.card_style || "legacy",
       hide_deploy_label: tenantCardConfig.hide_deploy_label === true,
-      background_image_url: tenantCardConfig.background_image_url || "",
+      background_image_url: finalBg || "",
+      whatsapp_url: whatsappNumber ? `https://wa.me/${whatsappNumber}` : "",
+      instagram_url: normalizeInstagramUrl(normalizedFooter.instagram_url),
+      store_url: tenant.store_url || `/${tenant.slug}`,
       delay: `${index * 40}ms`,
     };
   });

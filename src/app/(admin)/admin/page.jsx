@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { convertPrice } from "@/services/exchangeRates";
 import { X } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState({
@@ -287,12 +288,12 @@ export default function AdminDashboard() {
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
               Órdenes Recientes
             </h2>
-            <a
+            <Link
               href="/admin/orders"
               className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-1 hover:underline"
             >
               Ver todas <ArrowUpRight size={14} />
-            </a>
+            </Link>
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-sm overflow-hidden">
@@ -454,7 +455,7 @@ function StatCard({
 
 function QuickAction({ title, description, href }) {
   return (
-    <a
+    <Link
       href={href}
       className="
       flex items-center justify-between p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700/50
@@ -473,6 +474,6 @@ function QuickAction({ title, description, href }) {
       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-transparent dark:border-slate-700/50 flex items-center justify-center text-slate-400 dark:text-slate-400 group-hover:bg-slate-900 dark:group-hover:bg-slate-700 group-hover:text-white transition-all dark:shadow-inner">
         <ArrowUpRight size={20} />
       </div>
-    </a>
+    </Link>
   );
 }
