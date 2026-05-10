@@ -366,6 +366,16 @@ export default function CheckoutPage() {
       color: "#1A1A1A",
     }).then(async (result) => {
       if (result.isConfirmed) {
+        const whatsappPopup = whatsappNumber
+          ? window.open("about:blank", "_blank")
+          : null;
+
+        if (whatsappPopup && !whatsappPopup.closed) {
+          whatsappPopup.document.title = "Redirigiendo a WhatsApp...";
+          whatsappPopup.document.body.innerHTML =
+            "<p style='font-family: Arial, sans-serif; padding: 24px; color: #111827;'>Preparando tu mensaje de WhatsApp...</p>";
+        }
+
         Swal.fire({
           title: "Procesando pedido...",
           text: "Estamos guardando tu información y reservando tu inventario.",
@@ -396,6 +406,9 @@ export default function CheckoutPage() {
           const response = await processCheckoutOrder(payload, currentItems, total);
 
           if (!response || !response.success) {
+            if (whatsappPopup && !whatsappPopup.closed) {
+              whatsappPopup.close();
+            }
             Swal.fire({
               title: "Error al procesar",
               text:
@@ -468,7 +481,21 @@ export default function CheckoutPage() {
             ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
             : "";
 
-          if (whatsappHref) window.open(whatsappHref, "_blank");
+          if (whatsappPopup && whatsappHref) {
+            try {
+              whatsappPopup.location.replace(whatsappHref);
+              whatsappPopup.focus();
+            } catch (popupError) {
+              console.warn("No se pudo redirigir popup de WhatsApp:", popupError);
+              whatsappPopup.document.body.innerHTML =
+                `<div style="font-family: Arial, sans-serif; padding: 24px; color: #111827;">
+                  <p style="margin: 0 0 12px;">No pudimos redirigirte automáticamente a WhatsApp.</p>
+                  <a href="${whatsappHref}" style="color: #16a34a; font-weight: 700;">Abrir WhatsApp ahora</a>
+                </div>`;
+            }
+          } else if (whatsappHref) {
+            window.open(whatsappHref, "_blank", "noopener,noreferrer");
+          }
 
           // Pasamos el total ya convertido para la UI de éxito
           setFinalTotal(totalConverted);
@@ -478,6 +505,9 @@ export default function CheckoutPage() {
           clearCart();
           setIsWaiting(true);
         } catch (err) {
+          if (whatsappPopup && !whatsappPopup.closed) {
+            whatsappPopup.close();
+          }
           console.error("Error inesperado en checkout:", err);
           Swal.fire({
             title: "Error al procesar",
@@ -488,6 +518,8 @@ export default function CheckoutPage() {
             color: "#1A1A1A",
           });
         }
+      } else if (result.dismiss) {
+        // No dejamos pestañas vacías si el usuario cancela antes de procesar.
       }
     });
   };

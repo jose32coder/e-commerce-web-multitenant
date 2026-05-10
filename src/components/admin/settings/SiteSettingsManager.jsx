@@ -57,6 +57,8 @@ export default function SiteSettingsManager() {
     refresh,
     patchConfig,
   } = useSiteConfig();
+
+  console.log("[SiteSettingsManager] current tenantId:", tenantId);
   const supabase = createClient();
 
   const [siteName, setSiteName] = useState(currentName || "");
@@ -645,6 +647,7 @@ export default function SiteSettingsManager() {
         };
       case "home":
         return {
+          site_name: siteName,
           hero_slides: slides,
           home_intro: homeIntro,
           products_intro: productsIntro,
@@ -652,6 +655,7 @@ export default function SiteSettingsManager() {
         };
       case "footer":
         return {
+          site_name: siteName,
           footer_settings: footerSettings,
           commerce_settings: commerceSettings,
         };

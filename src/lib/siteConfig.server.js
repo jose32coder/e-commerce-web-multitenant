@@ -10,21 +10,17 @@ import {
   normalizeHeroSlides,
   normalizeHomeIntro,
   normalizePromoDivider,
+  resolveLegacyCommerceSettings,
+  resolveLegacyFooterSettings,
   returnDefaults,
 } from "./siteConfig";
 import { getPublicSupabaseClient } from "./supabase/public";
 
-const resolveLegacyFooterSettings = (row = {}) => {
-  const legacy = row?.footer_commerce;
-  if (!legacy || typeof legacy !== "object") return null;
-  return legacy.footer_settings || legacy.footer || legacy;
-};
-
-const resolveLegacyCommerceSettings = (row = {}) => {
-  const legacy = row?.footer_commerce;
-  if (!legacy || typeof legacy !== "object") return null;
-  return legacy.commerce_settings || legacy.commerce || legacy;
-};
+const hasObjectValues = (value) =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  Object.keys(value).length > 0;
 
 export const getTenantIdBySlugCached = unstable_cache(
   async (tenantSlug) => {
@@ -113,14 +109,14 @@ export async function getSiteConfigServerCached({ tenantId, tenantSlug } = {}) {
     header_menu: normalizeHeaderMenu(data.header_menu),
     promo_divider: normalizePromoDivider(data.promo_divider),
     footer_settings: normalizeFooterSettings(
-      data.footer_settings ||
-        resolveLegacyFooterSettings(data) ||
-        DEFAULT_FOOTER_SETTINGS,
+      (hasObjectValues(data.footer_settings)
+        ? data.footer_settings
+        : resolveLegacyFooterSettings(data)) || DEFAULT_FOOTER_SETTINGS,
     ),
     commerce_settings: normalizeCommerceSettings(
-      data.commerce_settings ||
-        resolveLegacyCommerceSettings(data) ||
-        DEFAULT_COMMERCE_SETTINGS,
+      (hasObjectValues(data.commerce_settings)
+        ? data.commerce_settings
+        : resolveLegacyCommerceSettings(data)) || DEFAULT_COMMERCE_SETTINGS,
     ),
   };
 }

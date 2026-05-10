@@ -21,24 +21,14 @@ import {
   normalizeHeroSlides,
   normalizeHomeIntro,
   normalizePromoDivider,
+  resolveLegacyCommerceSettings,
+  resolveLegacyFooterSettings,
 } from "@/lib/siteConfig";
 import { createClient } from "@/lib/supabase/client";
 
 import { getExchangeRates } from "@/services/exchangeRates";
 
 const SiteConfigContext = createContext(null);
-
-const resolveLegacyFooterSettings = (row = {}) => {
-  const legacy = row?.footer_commerce;
-  if (!legacy || typeof legacy !== "object") return null;
-  return legacy.footer_settings || legacy.footer || legacy;
-};
-
-const resolveLegacyCommerceSettings = (row = {}) => {
-  const legacy = row?.footer_commerce;
-  if (!legacy || typeof legacy !== "object") return null;
-  return legacy.commerce_settings || legacy.commerce || legacy;
-};
 
 export const SiteConfigProvider = ({
   children,
@@ -138,7 +128,7 @@ export const SiteConfigProvider = ({
       console.error("Context fetch error:", error);
       setConfig((prev) => ({ ...prev, loading: false }));
     }
-  }, [tenantId, tenantSlug, initialData?.tenant_id]);
+  }, [tenantId, tenantSlug, initialData, userCountry]);
 
   const patchConfig = useCallback((partial = {}) => {
     if (!partial || typeof partial !== "object") return;

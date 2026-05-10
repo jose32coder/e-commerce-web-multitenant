@@ -312,9 +312,44 @@ export const normalizePromoDivider = (promoDivider) => {
   };
 };
 
+const isPlainObject = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const hasObjectValues = (value) =>
+  isPlainObject(value) && Object.keys(value).length > 0;
+
+const pickKnownFields = (source, defaults) => {
+  if (!isPlainObject(source)) return {};
+
+  return Object.fromEntries(
+    Object.keys(defaults)
+      .filter((key) => Object.prototype.hasOwnProperty.call(source, key))
+      .map((key) => [key, source[key]]),
+  );
+};
+
+export const pickFooterSettingsFields = (source) => {
+  const picked = pickKnownFields(source, DEFAULT_FOOTER_SETTINGS);
+
+  if (source?.instagram && !picked.instagram_url) {
+    picked.instagram_url = source.instagram;
+  }
+  if (source?.facebook && !picked.facebook_url) {
+    picked.facebook_url = source.facebook;
+  }
+  if (source?.twitter && !picked.twitter_url) {
+    picked.twitter_url = source.twitter;
+  }
+
+  return picked;
+};
+
+export const pickCommerceSettingsFields = (source) =>
+  pickKnownFields(source, DEFAULT_COMMERCE_SETTINGS);
+
 export const normalizeFooterSettings = (footerSettings) => ({
   ...DEFAULT_FOOTER_SETTINGS,
-  ...(footerSettings || {}),
+  ...pickFooterSettingsFields(footerSettings),
 });
 
 export const normalizeHeroSlides = (heroSlides) => {
@@ -330,7 +365,7 @@ export const normalizeHeroSlides = (heroSlides) => {
 export const normalizeCommerceSettings = (commerceSettings) => {
   const normalized = {
     ...DEFAULT_COMMERCE_SETTINGS,
-    ...(commerceSettings || {}),
+    ...pickCommerceSettingsFields(commerceSettings),
   };
 
   return {
@@ -354,7 +389,7 @@ export const normalizeCommerceSettings = (commerceSettings) => {
     payment_method_configs: (() => {
       const defaults = DEFAULT_COMMERCE_SETTINGS.payment_method_configs;
       const fromPayload = normalized.payment_method_configs || {};
-      const legacyDetails = normalized.payment_method_details || {};
+      const legacyDetails = commerceSettings?.payment_method_details || {};
 
       return Object.fromEntries(
         Object.entries(defaults).map(([method, defaultConfig]) => {
@@ -391,16 +426,38 @@ export const normalizeCommerceSettings = (commerceSettings) => {
   };
 };
 
-const resolveLegacyFooterSettings = (row = {}) => {
-  const legacy = row?.footer_commerce;
-  if (!legacy || typeof legacy !== "object") return null;
-  return legacy.footer_settings || legacy.footer || legacy;
-};
-
 export const resolveLegacyCommerceSettings = (row = {}) => {
   const legacy = row?.footer_commerce;
-  if (!legacy || typeof legacy !== "object") return null;
-  return legacy.commerce_settings || legacy.commerce || legacy;
+  if (!isPlainObject(legacy)) return null;
+  // Root legacy values win because older rows can have stale nested defaults.
+  const nested = isPlainObject(legacy.commerce_settings)
+    ? legacy.commerce_settings
+    : isPlainObject(legacy.commerce)
+      ? legacy.commerce
+      : {};
+  const merged = {
+    ...pickCommerceSettingsFields(nested),
+    ...pickCommerceSettingsFields(legacy),
+  };
+
+  return Object.keys(merged).length ? merged : null;
+};
+
+export const resolveLegacyFooterSettings = (row = {}) => {
+  const legacy = row?.footer_commerce;
+  if (!isPlainObject(legacy)) return null;
+
+  const nested = isPlainObject(legacy.footer_settings)
+    ? legacy.footer_settings
+    : isPlainObject(legacy.footer)
+      ? legacy.footer
+      : {};
+  const merged = {
+    ...pickFooterSettingsFields(nested),
+    ...pickFooterSettingsFields(legacy),
+  };
+
+  return Object.keys(merged).length ? merged : null;
 };
 
 const getClientCacheKey = ({ tenantId, tenantSlug } = {}) =>
@@ -531,10 +588,14 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
     header_menu: normalizeHeaderMenu(data.header_menu),
     promo_divider: normalizePromoDivider(data.promo_divider),
     footer_settings: normalizeFooterSettings(
-      data.footer_settings || resolveLegacyFooterSettings(data),
+      hasObjectValues(data.footer_settings)
+        ? data.footer_settings
+        : resolveLegacyFooterSettings(data),
     ),
     commerce_settings: normalizeCommerceSettings(
-      data.commerce_settings || resolveLegacyCommerceSettings(data),
+      hasObjectValues(data.commerce_settings)
+        ? data.commerce_settings
+        : resolveLegacyCommerceSettings(data),
     ),
   };
 
@@ -567,59 +628,67 @@ export const updateSiteConfig = async (payload, { tenantId } = {}) => {
   const supabase = createClient();
 
   let finalTenantId = tenantId || payload?.tenant_id;
-
-  if (!finalTenantId) {
-    // Intentamos obtener un tenant activo de la tabla para admin/configuración general
-    const { data: firstTenant, error: tenantError } = await supabase
-      .from("tenants")
-      .select("tenant_id")
-      .eq("status", "Active")
-      .limit(1)
-      .maybeSingle();
-
-    if (tenantError) {
-      console.error(
-        "No se pudo resolver tenantId en updateSiteConfig:",
-        tenantError.message,
-      );
-      throw tenantError;
-    }
-
-    finalTenantId = firstTenant?.tenant_id;
+  if (finalTenantId && !isNaN(finalTenantId)) {
+    finalTenantId = Number(finalTenantId);
   }
 
+  // LOG PARA DEBUG:
+  console.log("[updateSiteConfig] finalTenantId:", finalTenantId, "type:", typeof finalTenantId);
+
   if (!finalTenantId) {
-    throw new Error(
-      "No se proporcionó un tenantId válido para actualizar la configuración.",
-    );
+    throw new Error("No se pudo identificar el Tenant ID para guardar la configuración.");
   }
 
   const { loading, refresh, tenant_slug, tenant_id, ...cleanPayload } = payload;
 
-  // Invalidamos la caché local para forzar que el próximo getSiteConfig sea fresco
+  // Invalidamos la caché local
   const cacheKey = getClientCacheKey({ tenantId: finalTenantId });
   clearClientCachedSiteConfig(cacheKey);
   clearClientCachedSiteConfig("default");
 
-  // Incluimos tenantId para asegurar consistencia de la fila en un solo campo
+  // Incluimos tenantId para asegurar consistencia
   const rowPayload = {
     ...cleanPayload,
     tenant_id: finalTenantId,
     updated_at: new Date(),
   };
 
-  // Compatibilidad con esquemas legacy que usan una sola columna jsonb `footer_commerce`
-  // para guardar footer + comercio.
-  if (cleanPayload.footer_settings || cleanPayload.commerce_settings) {
+  const hasPayloadKey = (key) =>
+    Object.prototype.hasOwnProperty.call(cleanPayload, key);
+  const hasFooterSettingsPayload = hasPayloadKey("footer_settings");
+  const hasCommerceSettingsPayload = hasPayloadKey("commerce_settings");
+
+  // 1. Obtener datos actuales para evitar pisar footer_commerce si solo actualizamos una parte
+  if (hasFooterSettingsPayload || hasCommerceSettingsPayload) {
+    const { data: current } = await supabase
+      .from("site_settings")
+      .select("footer_commerce")
+      .eq("tenant_id", finalTenantId)
+      .maybeSingle();
+
+    const existingLegacy = isPlainObject(current?.footer_commerce)
+      ? current.footer_commerce
+      : {};
+    const nextFooterSettings = hasFooterSettingsPayload
+      ? normalizeFooterSettings(cleanPayload.footer_settings)
+      : resolveLegacyFooterSettings({ footer_commerce: existingLegacy });
+    const nextCommerceSettings = hasCommerceSettingsPayload
+      ? normalizeCommerceSettings(cleanPayload.commerce_settings)
+      : resolveLegacyCommerceSettings({ footer_commerce: existingLegacy });
+    const legacyFooterFields = pickFooterSettingsFields(nextFooterSettings);
+    const legacyCommerceFields =
+      pickCommerceSettingsFields(nextCommerceSettings);
+
     rowPayload.footer_commerce = {
-      ...(cleanPayload.footer_settings
-        ? { footer_settings: cleanPayload.footer_settings }
+      ...existingLegacy,
+      ...legacyFooterFields,
+      ...legacyCommerceFields,
+      ...(hasFooterSettingsPayload
+        ? { footer_settings: legacyFooterFields }
         : {}),
-      ...(cleanPayload.commerce_settings
-        ? { commerce_settings: cleanPayload.commerce_settings }
+      ...(hasCommerceSettingsPayload
+        ? { commerce_settings: legacyCommerceFields }
         : {}),
-      ...(cleanPayload.footer_settings || {}),
-      ...(cleanPayload.commerce_settings || {}),
     };
   }
 
