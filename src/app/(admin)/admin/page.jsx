@@ -225,15 +225,15 @@ export default function AdminDashboard() {
 
       {/* MODAL STOCK BAJO */}
       {showLowStockModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 isolate">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center isolate">
           {/* Overlay con mayor opacidad para dar contraste */}
           <div
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
             onClick={() => setShowLowStockModal(false)}
           />
 
           {/* Contenedor del Modal */}
-          <div className="relative z-[110] bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+          <div className="relative z-[110] bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20 m-4">
             <header className="p-8 pb-4 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
