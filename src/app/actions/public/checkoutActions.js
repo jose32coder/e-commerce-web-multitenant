@@ -427,8 +427,9 @@ export async function processCheckoutOrder(formData, items = [], total) {
         price: i.price,
         variant: i.variant || null,
       })),
-      notas: validatedData.notes,
+      notas: `[ENTREGA: ${validatedData.shippingMethod || ''}|${validatedData.shippingProvider || ''}] ${validatedData.notes || ''}`.trim(),
       idempotency_key: validatedData.idempotencyKey, // Crítico para evitar duplicados
+      // We still include these in case the columns are added later, createOrderWithFallback will strip them if missing
       shipping_method: validatedData.shippingMethod,
       shipping_provider: validatedData.shippingProvider,
       ...(clienteId ? { customer_id: clienteId } : {}),

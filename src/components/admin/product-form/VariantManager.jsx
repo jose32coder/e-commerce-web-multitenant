@@ -118,6 +118,8 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
     setFormData({ ...formData, variants: newVariants });
   };
 
+  const handleFocus = (e) => e.target.select();
+
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
       {/* CABECERA DE SECCIÓN */}
@@ -343,6 +345,7 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                                     e.target.value,
                                   )
                                 }
+                                onFocus={handleFocus}
                                 disabled={readOnly}
                               />
                             </div>
@@ -364,6 +367,7 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                                     e.target.value,
                                   )
                                 }
+                                onFocus={handleFocus}
                                 disabled={readOnly}
                               />
                             </div>
@@ -440,6 +444,7 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                                 e.target.value,
                               )
                             }
+                            onFocus={handleFocus}
                             disabled={readOnly}
                           />
                         </div>
@@ -478,6 +483,7 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                                   e.target.value,
                                 )
                               }
+                              onFocus={handleFocus}
                               disabled={readOnly}
                             />
                           </div>

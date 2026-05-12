@@ -102,7 +102,7 @@ const ProductForm = ({
           manage_stock: editingProduct.manage_stock ?? (editingProduct.stock < 900000), // Si es muy alto, asumimos que no maneja stock
           base_currency: editingProduct.base_currency || commerce_settings?.currency_code || "USD",
           use_variant_only_pricing:
-            editingProduct.use_variant_only_pricing === true || 
+            editingProduct.use_variant_only_pricing ??
             (Number(editingProduct.price) === 0 && initialVariants.length > 0),
         });
       } else {

@@ -28,8 +28,19 @@ const PricingStock = ({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Si es un campo numérico y empieza por 0 seguido de otro número (no punto), quitamos el 0
+    let processedValue = value;
+    if (["price", "discount_price", "stock"].includes(name)) {
+      if (value.length > 1 && value.startsWith("0") && value[1] !== ".") {
+        processedValue = value.replace(/^0+/, "");
+      }
+    }
+    
+    setFormData((prev) => ({ ...prev, [name]: processedValue }));
   };
+
+  const handleFocus = (e) => e.target.select();
 
   const applyConversion = (targetField = "price") => {
     if (!exchangeRates || !calcValue) return;
@@ -54,9 +65,7 @@ const PricingStock = ({
 
   const hasDiscount =
     formData.discount_price && parseFloat(formData.discount_price) > 0;
-  const variantOnlyPricing = 
-    formData.use_variant_only_pricing === true || 
-    (Number(formData.price) === 0 && formData.variants?.length > 0);
+  const variantOnlyPricing = formData.use_variant_only_pricing === true;
 
   // Estilo base para los contenedores de las cards (p-4 en móvil, p-5 en desktop)
   const cardBaseStyle =
@@ -142,6 +151,7 @@ const PricingStock = ({
             className="h-10 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 dark:text-white rounded-md font-bold text-lg px-3 focus-visible:ring-1 focus-visible:ring-slate-400 transition-all no-spin"
             value={formData.price}
             onChange={handleChange}
+            onFocus={handleFocus}
             disabled={readOnly || variantOnlyPricing}
           />
           {variantOnlyPricing && (
@@ -241,6 +251,7 @@ const PricingStock = ({
               }`}
               value={formData.discount_price}
               onChange={handleChange}
+              onFocus={handleFocus}
               disabled={readOnly}
             />
           </div>
@@ -294,6 +305,7 @@ const PricingStock = ({
                 }`}
                 value={autoCalculated ? effectiveStock : formData.stock}
                 onChange={handleChange}
+                onFocus={handleFocus}
                 disabled={readOnly || autoCalculated}
               />
               {autoCalculated && (

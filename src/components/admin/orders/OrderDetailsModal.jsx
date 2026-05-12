@@ -52,6 +52,25 @@ export default function OrderDetailsModal({
     }
   };
 
+  const extractDeliveryFromNotes = (notes) => {
+    if (!notes) return { method: null, provider: null, text: "" };
+    const match = notes.match(/^\[ENTREGA:\s*(.*?)\|(.*?)\]\s*(.*)$/s);
+    if (match) {
+      return {
+        method: match[1].trim() || null,
+        provider: match[2].trim() || null,
+        text: match[3].trim() || ""
+      };
+    }
+    return { method: null, provider: null, text: notes };
+  };
+
+  const deliveryInfo = extractDeliveryFromNotes(order.notas);
+  const actualShippingMethod = order.shipping_method || order.shippingMethod || deliveryInfo.method;
+  const actualShippingProvider = order.shipping_provider || deliveryInfo.provider;
+  const actualNotes = deliveryInfo.text;
+
+
   return (
     <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-6 sm:p-8 relative">
@@ -98,6 +117,9 @@ export default function OrderDetailsModal({
                       phone: customerPhone,
                       paymentMethod: order.metodo_pago || "Transferencia",
                       reference: order.referencia_pago || "N/A",
+                      shippingMethod: actualShippingMethod,
+                      shippingProvider: actualShippingProvider,
+                      notes: actualNotes,
                     }}
                     finalTotal={Number(order.total)}
                     purchasedItems={order.items || []}
@@ -176,6 +198,24 @@ export default function OrderDetailsModal({
               </p>
               <p>
                 <span className="font-bold text-slate-900 dark:text-slate-300">
+                  Método:
+                </span>{" "}
+                {order.metodo_pago || "No especificado"}
+              </p>
+              <p>
+                <span className="font-bold text-slate-900 dark:text-slate-300">
+                  Entrega:
+                </span>{" "}
+                <span className="uppercase font-black text-blue-600 dark:text-blue-400">
+                  {actualShippingMethod === 'pickup' ? 'Retiro' : 
+                   actualShippingMethod === 'local' ? 'Delivery' : 
+                   actualShippingMethod === 'national' ? 'Envío' : 
+                   actualShippingMethod || 'No especificado'}
+                   {actualShippingProvider ? ` (${actualShippingProvider.toUpperCase()})` : ''}
+                </span>
+              </p>
+              <p>
+                <span className="font-bold text-slate-900 dark:text-slate-300">
                   Total:
                 </span>{" "}
                 {getCurrencySymbol(selectedCurrency)}
@@ -214,6 +254,51 @@ export default function OrderDetailsModal({
             </div>
           </div>
         </div>
+
+        {/* Entrega y Notas */}
+        {(actualShippingMethod || actualNotes) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 animate-in fade-in slide-in-from-top-2 duration-500">
+            {actualShippingMethod && (
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  Método de Entrega
+                </h3>
+                <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                  <p>
+                    <span className="font-bold text-slate-900 dark:text-slate-300">
+                      Tipo:
+                    </span>{" "}
+                    <span className="uppercase">{actualShippingMethod === 'pickup' ? 'Retiro en Tienda' : actualShippingMethod === 'local' ? 'Delivery Local' : actualShippingMethod === 'national' ? 'Envío Nacional' : actualShippingMethod}</span>
+                  </p>
+                  {actualShippingProvider && (
+                    <p>
+                      <span className="font-bold text-slate-900 dark:text-slate-300">
+                        Empresa:
+                      </span>{" "}
+                      <span className="uppercase font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                        {actualShippingProvider}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {actualNotes && (
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  Notas del Cliente
+                </h3>
+                <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 p-4 rounded-2xl">
+                  <p className="text-xs text-amber-900 dark:text-amber-200 italic leading-relaxed">
+                    "{actualNotes}"
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
 
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">

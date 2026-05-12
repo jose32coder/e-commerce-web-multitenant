@@ -221,14 +221,29 @@ export const InvoicePDF = ({
             <Text style={styles.value}><Text style={styles.valueLabel}>Nombre: </Text>{formData.name || "No registrado"}</Text>
             <Text style={styles.value}><Text style={styles.valueLabel}>CI/RIF: </Text>{formData.idNumber || "No registrado"}</Text>
             <Text style={styles.value}><Text style={styles.valueLabel}>Tlf: </Text>{formData.phone || "No registrado"}</Text>
+            {formData.notes && (
+              <View style={{ marginTop: 6, padding: 6, backgroundColor: "#fefce8", borderRadius: 4, borderLeftWidth: 2, borderLeftColor: "#f59e0b" }}>
+                <Text style={{ fontSize: 7, color: "#92400e", fontStyle: "italic" }}>
+                  Nota: {formData.notes}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={[styles.col, { textAlign: "right" }]}>
-            <Text style={styles.sectionTitle}>Detalles del Pago</Text>
-            <Text style={styles.value}><Text style={styles.valueLabel}>Método: </Text>{formData.paymentMethod}</Text>
+            <Text style={styles.sectionTitle}>Detalles del Pago y Entrega</Text>
+            <Text style={styles.value}><Text style={styles.valueLabel}>Método Pago: </Text>{formData.paymentMethod}</Text>
             <Text style={styles.value}><Text style={styles.valueLabel}>Referencia: </Text>{formData.reference}</Text>
+            {formData.shippingMethod && (
+              <Text style={styles.value}>
+                <Text style={styles.valueLabel}>Entrega: </Text>
+                {formData.shippingMethod === 'pickup' ? 'Retiro en Tienda' : 'Envío'}
+                {formData.shippingProvider ? ` — ${formData.shippingProvider.toUpperCase()}` : ''}
+              </Text>
+            )}
             <Text style={styles.value}><Text style={styles.valueLabel}>Fecha: </Text>{issueDate}</Text>
           </View>
         </View>
+
 
         {/* Tabla */}
         <View style={styles.table}>

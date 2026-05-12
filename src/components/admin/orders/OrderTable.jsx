@@ -42,6 +42,19 @@ export default function OrderTable({
 
     if (!(choice.isConfirmed || choice.isDenied)) return;
 
+    let parsedShippingMethod = order.shipping_method;
+    let parsedShippingProvider = order.shipping_provider;
+    let parsedNotes = order.notas;
+
+    if (!parsedShippingMethod && parsedNotes) {
+      const match = parsedNotes.match(/^\[ENTREGA:\s*(.*?)\|(.*?)\]\s*(.*)$/s);
+      if (match) {
+        parsedShippingMethod = match[1].trim() || null;
+        parsedShippingProvider = match[2].trim() || null;
+        parsedNotes = match[3].trim() || "";
+      }
+    }
+
     const { pdf } = await import("@react-pdf/renderer");
     const doc = (
       <InvoicePDF
@@ -51,6 +64,9 @@ export default function OrderTable({
           phone: customerPhone,
           paymentMethod: order.metodo_pago || "Transferencia",
           reference: order.referencia_pago || "N/A",
+          shippingMethod: parsedShippingMethod,
+          shippingProvider: parsedShippingProvider,
+          notes: parsedNotes,
         }}
         finalTotal={Number(order.total)}
         purchasedItems={order.items || []}

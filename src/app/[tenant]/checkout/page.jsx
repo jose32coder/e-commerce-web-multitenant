@@ -446,7 +446,7 @@ export default function CheckoutPage() {
           const deliveryMethod =
             !deliveryEnabled || formData.shippingMethod === "pickup"
               ? "Retiro en Tienda"
-              : "Delivery";
+              : formData.shippingMethod === "national" ? "Envío Nacional" : formData.shippingMethod === "local" ? "Delivery Local" : "Delivery";
           const shippingMethodLabel =
             !deliveryEnabled || formData.shippingMethod === "pickup"
               ? "RETIRO EN TIENDA 🛍️"

@@ -224,3 +224,60 @@ export async function PUT(request, { params }) {
     );
   }
 }
+
+// DELETE /api/products/[id]
+export async function DELETE(request, { params }) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const { tenantId } = await resolveTenantContext(supabase);
+
+    // 1. Eliminar movimientos de stock (Historial)
+    const { error: stockMovError } = await supabase
+      .from("stock_movements")
+      .delete()
+      .eq("product_id", id);
+    if (stockMovError) console.warn("Error eliminando movimientos:", stockMovError);
+
+    // 2. Eliminar stock actual
+    const { error: stockError } = await supabase
+      .from("product_stock")
+      .delete()
+      .eq("product_id", id);
+    if (stockError) console.warn("Error eliminando stock:", stockError);
+
+    // 3. Eliminar categorías vinculadas
+    const { error: catError } = await supabase
+      .from("product_categories")
+      .delete()
+      .eq("product_id", id);
+    if (catError) console.warn("Error eliminando categorías:", catError);
+
+    // 4. Eliminar variantes
+    const { error: varError } = await supabase
+      .from("product_variants")
+      .delete()
+      .eq("product_id", id);
+    if (varError) console.warn("Error eliminando variantes:", varError);
+
+    // 5. Eliminar el producto principal
+    let query = supabase.from("products").delete().eq("id", id);
+    if (tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { error } = await query;
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  }
+}
+
+
