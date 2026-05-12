@@ -103,9 +103,9 @@ export default function CheckoutPage() {
     idNumber: "",
     phone: "",
     email: "",
-    shippingMethod: "delivery", // 'delivery' o 'pickup'
+    shippingMethod: "local", // 'local', 'national' o 'pickup'
     shippingProvider: "", // Ej: 'mrw', 'zoom'
-    shippingPaymentType: "cod", // 'paid' (pagado aquí) o 'cod' (cobro en destino)
+    shippingPaymentType: "paid", // 'paid' (pagado aquí) o 'cod' (cobro en destino)
     paymentMethod: "",
     reference: "",
     notes: "",
@@ -277,16 +277,16 @@ export default function CheckoutPage() {
   const isFreeShipping = 
     deliveryEnabled && 
     formData.shippingMethod === "local" && 
-    subtotal >= threshold && 
+    subtotal >= convertPrice(threshold, commerce?.currency_code || "USD", "USD", exchange_rates) && 
     threshold > 0;
 
   // Calculamos qué monto de envío aplicar
   let appliedDelivery = 0;
   
   if (formData.shippingMethod === "local" && !isFreeShipping) {
-    appliedDelivery = deliveryFee;
+    appliedDelivery = convertPrice(deliveryFee, commerce?.currency_code || "USD", "USD", exchange_rates);
   } else if (formData.shippingMethod === "national" && formData.shippingPaymentType === "paid") {
-    appliedDelivery = nationalFee;
+    appliedDelivery = convertPrice(nationalFee, commerce?.currency_code || "USD", "USD", exchange_rates);
   }
 
   const total = subtotal + appliedDelivery;
@@ -298,9 +298,19 @@ export default function CheckoutPage() {
     targetCurrency,
     exchange_rates,
   );
+
+  // El delivery fee y el threshold vienen en la moneda base de la tienda (targetCurrency)
+  // por lo que no requieren conversión si ya estamos en la moneda de la tienda,
+  // pero para la lógica interna de 'total' (que está en USD), necesitamos convertirlos a USD primero
+  // si el usuario los ingresó en moneda local.
+  
+  // O mejor: mantenemos la consistencia. Si el usuario ingresa en VES, 
+  // y la tienda es VES, deliveryFee es VES.
+  const shippingBaseCurrency = commerce?.currency_code || "USD";
+
   const deliveryFeeConverted = convertPrice(
     deliveryFee,
-    "USD",
+    shippingBaseCurrency,
     targetCurrency,
     exchange_rates,
   );
@@ -569,6 +579,8 @@ export default function CheckoutPage() {
                       formData={formData}
                       setFormData={setFormData}
                       deliveryFee={deliveryFee}
+                      subtotal={subtotal}
+                      threshold={threshold}
                     />
                   </div>
 

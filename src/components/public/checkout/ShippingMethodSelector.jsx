@@ -10,7 +10,7 @@ import {
   normalizeCommerceSettings,
 } from "@/lib/siteConfig";
 
-export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
+export function ShippingMethodSelector({ formData, setFormData, deliveryFee, subtotal = 0, threshold = 0 }) {
   const { commerce_settings, exchange_rates } = useSiteConfig();
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
@@ -19,9 +19,11 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
   const currencySymbol = commerce.currency_symbol || "$";
   const targetCurrency = commerce.currency_code || "USD";
 
+  const shippingBaseCurrency = commerce?.currency_code || "USD";
+
   const deliveryFeeConverted = convertPrice(
     Number(deliveryFee) || 0,
-    "USD",
+    shippingBaseCurrency,
     targetCurrency,
     exchange_rates,
   );
@@ -29,15 +31,17 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
   const localEnabled = commerce.shipping_local_enabled !== false;
   const nationalEnabled = commerce.shipping_national_enabled !== false;
   const pickupEnabled = commerce.shipping_pickup_enabled !== false;
-
   const nationalType = commerce.shipping_national_type || "cod";
   const nationalFee = Number(commerce.shipping_national_fee || 0);
+
   const nationalFeeConverted = convertPrice(
     nationalFee,
-    "USD",
+    shippingBaseCurrency,
     targetCurrency,
     exchange_rates,
   );
+
+  const isFreeLocal = subtotal >= threshold && threshold > 0;
 
   const methods = [
     ...(localEnabled
@@ -45,7 +49,9 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
           {
             id: "local",
             label: "Delivery Local",
-            description: `Entrega rápida en la zona por ${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)}`,
+            description: isFreeLocal 
+              ? "¡Gratis por el monto de tu compra! ✨" 
+              : `Entrega rápida en la zona por ${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)}`,
             icon: <Truck className="w-5 h-5" />,
             paymentType: "paid",
           },

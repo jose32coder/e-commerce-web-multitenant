@@ -31,7 +31,11 @@ export function OrderSummary({
   const currencySymbol = commerce_settings?.currency_symbol || "$";
   const targetCurrency = commerce_settings?.currency_code || "USD";
 
-  const isFree = shippingMethod === "pickup" || (subtotal >= threshold && threshold > 0);
+  const isLocal = shippingMethod === "local" || shippingMethod === "delivery";
+  const isNational = shippingMethod === "national";
+  const isPickup = shippingMethod === "pickup";
+
+  const isFree = isLocal && subtotal >= threshold && threshold > 0;
 
   // Conversiones para mostrar
   const subtotalValue = mounted ? subtotal : 0;
@@ -109,20 +113,27 @@ export function OrderSummary({
           </span>
         </div>
 
-        <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-400">
-          <span>Envío</span>
-          <span className={cn(isFree ? "text-emerald-500" : "text-amber-500")}>
-            {shippingMethod === "pickup"
-              ? "Gratis (Retiro)"
-              : isFree
+        {!isPickup && (
+          <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-400">
+            <span>{isLocal ? "Delivery" : "Envío"}</span>
+            <span className={cn(isFree ? "text-emerald-500" : "text-amber-500")}>
+              {isFree
                 ? "Gratis"
                 : shippingPaymentType === "cod"
                   ? "Cobro en destino"
-                  : deliveryFee > 0
+                  : deliveryValue > 0
                     ? `${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)}`
-                    : "Cobro en destino"}
-          </span>
-        </div>
+                    : "Gratis"}
+            </span>
+          </div>
+        )}
+
+        {isPickup && (
+          <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-400">
+            <span>Entrega</span>
+            <span className="text-emerald-500">Retiro en tienda</span>
+          </div>
+        )}
 
         <div className="pt-4 flex justify-between items-center text-ink">
           <span className="text-sm font-black uppercase tracking-[0.2em]">

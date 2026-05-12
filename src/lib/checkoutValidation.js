@@ -30,20 +30,39 @@ export const getValidationError = (name, value, idType = "V") => {
       }
       break;
 
-    case "idNumber":
-      if (!NUMERIC_PATTERN.test(trimmed)) {
-        return "Debe ingresar solo números";
-      }
-      if (idType === "V" || idType === "E") {
-        if (trimmed.length < 7 || trimmed.length > 8) {
-          return "Debe tener entre 7 y 8 dígitos";
+    case "idNumber": {
+      const type = String(idType || "V").trim().toUpperCase();
+
+      if (type === "P") {
+        // Pasaporte: Alfanumérico, 6 a 12 caracteres
+        if (!/^[a-zA-Z0-9]+$/.test(trimmed)) {
+          return "El pasaporte debe ser alfanumérico";
         }
-      } else if (idType === "J" || idType === "G" || idType === "P") {
-        if (trimmed.length < 8 || trimmed.length > 10) {
-          return "Debe tener entre 8 y 10 dígitos";
+        if (trimmed.length < 6 || trimmed.length > 12) {
+          return "Debe tener entre 6 y 12 caracteres";
+        }
+      } else {
+        // V, E, J, G: Solo números
+        if (!NUMERIC_PATTERN.test(trimmed)) {
+          return "Debe ingresar solo números";
+        }
+
+        if (type === "V") {
+          if (trimmed.length < 6 || trimmed.length > 8) {
+            return "Cédula V: Debe tener entre 6 y 8 dígitos";
+          }
+        } else if (type === "E") {
+          if (trimmed.length < 6 || trimmed.length > 9) {
+            return "Cédula E: Debe tener entre 6 y 9 dígitos";
+          }
+        } else if (type === "J" || type === "G") {
+          if (trimmed.length !== 9) {
+            return `RIF ${type}: Debe tener exactamente 9 dígitos`;
+          }
         }
       }
       break;
+    }
 
     case "email":
       if (trimmed && !EMAIL_PATTERN.test(trimmed)) {
