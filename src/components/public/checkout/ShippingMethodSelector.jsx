@@ -10,7 +10,13 @@ import {
   normalizeCommerceSettings,
 } from "@/lib/siteConfig";
 
-export function ShippingMethodSelector({ formData, setFormData, deliveryFee, subtotal = 0, threshold = 0 }) {
+export function ShippingMethodSelector({
+  formData,
+  setFormData,
+  deliveryFee,
+  subtotal = 0,
+  threshold = 0,
+}) {
   const { commerce_settings, exchange_rates } = useSiteConfig();
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
@@ -49,8 +55,8 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee, sub
           {
             id: "local",
             label: "Delivery Local",
-            description: isFreeLocal 
-              ? "¡Gratis por el monto de tu compra! ✨" 
+            description: isFreeLocal
+              ? "¡Gratis por el monto de tu compra! ✨"
               : `Entrega rápida en la zona por ${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)}`,
             icon: <Truck className="w-5 h-5" />,
             paymentType: "paid",
@@ -86,12 +92,13 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee, sub
       : []),
   ];
 
-  const gridClass =
-    methods.length > 2
-      ? "grid grid-cols-1 md:grid-cols-3 gap-4"
-      : methods.length > 1
-        ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-        : "grid grid-cols-1 gap-4";
+  const gridClass = `grid gap-2 sm:gap-4 ${
+    methods.length === 3
+      ? "grid-cols-3"
+      : methods.length === 2
+        ? "grid-cols-2"
+        : "grid-cols-1"
+  }`;
 
   const enabledProviders = (commerce.shipping_providers || []).filter(
     (p) => p.enabled,
@@ -111,26 +118,28 @@ export function ShippingMethodSelector({ formData, setFormData, deliveryFee, sub
                 shippingPaymentType: method.paymentType,
               })
             }
-            className={`flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all text-center gap-3 ${
+            className={`flex flex-col items-center justify-start h-full p-2.5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all text-center gap-2 sm:gap-3 ${
               formData.shippingMethod === method.id
-                ? "border-ink bg-zinc-50 ring-4 ring-zinc-100"
+                ? "border-ink bg-zinc-50 ring-2 sm:ring-4 ring-zinc-100"
                 : "border-zinc-100 hover:border-zinc-200"
             }`}
           >
             <div
-              className={`p-3 rounded-xl ${
+              className={`p-2 sm:p-3 rounded-lg sm:rounded-xl shrink-0 ${
                 formData.shippingMethod === method.id
                   ? "bg-ink text-white"
                   : "bg-zinc-100 text-zinc-500"
               }`}
             >
-              {method.icon}
+              {React.cloneElement(method.icon, { 
+                className: "w-4 h-4 sm:w-5 h-5" 
+              })}
             </div>
-            <div>
-              <p className="font-black text-[10px] uppercase tracking-widest text-ink mb-1">
+            <div className="min-w-0 w-full flex flex-col gap-1">
+              <p className="font-black text-[8px] sm:text-[10px] uppercase tracking-tight sm:tracking-widest text-ink leading-tight">
                 {method.label}
               </p>
-              <p className="text-[9px] text-zinc-500 font-bold leading-tight">
+              <p className="text-[7px] sm:text-[9px] text-zinc-500 font-bold leading-[1.1] sm:leading-tight line-clamp-2 sm:line-clamp-none">
                 {method.id === "local" && Number(deliveryFee) === 0
                   ? "Gratuito"
                   : method.description}

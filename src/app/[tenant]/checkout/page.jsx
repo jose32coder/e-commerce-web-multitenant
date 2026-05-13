@@ -19,6 +19,7 @@ const CheckoutFormSchema = z.object({
 // Store e iconos
 import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { validateCartStock } from "@/app/actions/public/stockActions";
 
@@ -85,6 +86,7 @@ export default function CheckoutPage() {
     tenant_id,
     exchange_rates,
   } = useSiteConfig();
+  const tenantId = tenant_id;
   const { items, getTotalPrice, clearCart } = useTenantCart(tenant_slug);
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -133,7 +135,7 @@ export default function CheckoutPage() {
       if (items.length > 0) {
         const problems = await validateCartStock(items);
         setStockProblems(problems);
-        
+
         if (problems.length > 0) {
           Swal.fire({
             title: "Cambio en disponibilidad",
@@ -146,24 +148,25 @@ export default function CheckoutPage() {
         }
       }
     };
-    
+
     checkStock();
 
     // --- PRESENCE TRACKING (FOMO) ---
+    if (!tenantId) return;
+
     const supabase = createClient();
     const presenceChannel = supabase.channel(`presence:checkout:${tenantId}`, {
       config: { presence: { key: "checkout" } },
     });
 
-    presenceChannel
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await presenceChannel.track({
-            items: items.map((i) => i.id),
-            timestamp: new Date().toISOString(),
-          });
-        }
-      });
+    presenceChannel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await presenceChannel.track({
+          items: items.map((i) => i.id),
+          timestamp: new Date().toISOString(),
+        });
+      }
+    });
 
     return () => {
       presenceChannel.unsubscribe();
@@ -318,20 +321,39 @@ export default function CheckoutPage() {
   const deliveryFee = Number(commerce.delivery_fee || 0);
   const nationalFee = Number(commerce.shipping_national_fee || 0);
   const threshold = Number(commerce.free_shipping_threshold || 50);
-  
-  const isFreeShipping = 
-    deliveryEnabled && 
-    formData.shippingMethod === "local" && 
-    subtotal >= convertPrice(threshold, commerce?.currency_code || "USD", "USD", exchange_rates) && 
+
+  const isFreeShipping =
+    deliveryEnabled &&
+    formData.shippingMethod === "local" &&
+    subtotal >=
+      convertPrice(
+        threshold,
+        commerce?.currency_code || "USD",
+        "USD",
+        exchange_rates,
+      ) &&
     threshold > 0;
 
   // Calculamos qué monto de envío aplicar
   let appliedDelivery = 0;
-  
+
   if (formData.shippingMethod === "local" && !isFreeShipping) {
-    appliedDelivery = convertPrice(deliveryFee, commerce?.currency_code || "USD", "USD", exchange_rates);
-  } else if (formData.shippingMethod === "national" && formData.shippingPaymentType === "paid") {
-    appliedDelivery = convertPrice(nationalFee, commerce?.currency_code || "USD", "USD", exchange_rates);
+    appliedDelivery = convertPrice(
+      deliveryFee,
+      commerce?.currency_code || "USD",
+      "USD",
+      exchange_rates,
+    );
+  } else if (
+    formData.shippingMethod === "national" &&
+    formData.shippingPaymentType === "paid"
+  ) {
+    appliedDelivery = convertPrice(
+      nationalFee,
+      commerce?.currency_code || "USD",
+      "USD",
+      exchange_rates,
+    );
   }
 
   const total = subtotal + appliedDelivery;
@@ -344,13 +366,6 @@ export default function CheckoutPage() {
     exchange_rates,
   );
 
-  // El delivery fee y el threshold vienen en la moneda base de la tienda (targetCurrency)
-  // por lo que no requieren conversión si ya estamos en la moneda de la tienda,
-  // pero para la lógica interna de 'total' (que está en USD), necesitamos convertirlos a USD primero
-  // si el usuario los ingresó en moneda local.
-  
-  // O mejor: mantenemos la consistencia. Si el usuario ingresa en VES, 
-  // y la tienda es VES, deliveryFee es VES.
   const shippingBaseCurrency = commerce?.currency_code || "USD";
 
   const deliveryFeeConverted = convertPrice(
@@ -458,7 +473,11 @@ export default function CheckoutPage() {
             idempotencyKey, // Enviamos la llave de seguridad
           };
           // Nota: Guardamos 'total' (en USD) en la base de datos para mantener consistencia financiera
-          const response = await processCheckoutOrder(payload, currentItems, total);
+          const response = await processCheckoutOrder(
+            payload,
+            currentItems,
+            total,
+          );
 
           if (!response || !response.success) {
             if (whatsappPopup && !whatsappPopup.closed) {
@@ -501,7 +520,11 @@ export default function CheckoutPage() {
           const deliveryMethod =
             !deliveryEnabled || formData.shippingMethod === "pickup"
               ? "Retiro en Tienda"
-              : formData.shippingMethod === "national" ? "Envío Nacional" : formData.shippingMethod === "local" ? "Delivery Local" : "Delivery";
+              : formData.shippingMethod === "national"
+                ? "Envío Nacional"
+                : formData.shippingMethod === "local"
+                  ? "Delivery Local"
+                  : "Delivery";
           const shippingMethodLabel =
             !deliveryEnabled || formData.shippingMethod === "pickup"
               ? "RETIRO EN TIENDA 🛍️"
@@ -541,9 +564,11 @@ export default function CheckoutPage() {
               whatsappPopup.location.replace(whatsappHref);
               whatsappPopup.focus();
             } catch (popupError) {
-              console.warn("No se pudo redirigir popup de WhatsApp:", popupError);
-              whatsappPopup.document.body.innerHTML =
-                `<div style="font-family: Arial, sans-serif; padding: 24px; color: #111827;">
+              console.warn(
+                "No se pudo redirigir popup de WhatsApp:",
+                popupError,
+              );
+              whatsappPopup.document.body.innerHTML = `<div style="font-family: Arial, sans-serif; padding: 24px; color: #111827;">
                   <p style="margin: 0 0 12px;">No pudimos redirigirte automáticamente a WhatsApp.</p>
                   <a href="${whatsappHref}" style="color: #16a34a; font-weight: 700;">Abrir WhatsApp ahora</a>
                 </div>`;
@@ -566,7 +591,9 @@ export default function CheckoutPage() {
           console.error("Error inesperado en checkout:", err);
           Swal.fire({
             title: "Error al procesar",
-            text: err?.message || "Ocurrió un error inesperado. Por favor intenta de nuevo.",
+            text:
+              err?.message ||
+              "Ocurrió un error inesperado. Por favor intenta de nuevo.",
             icon: "error",
             confirmButtonColor: "#1A1A1A",
             background: "#FBF9F6",
@@ -610,9 +637,9 @@ export default function CheckoutPage() {
               }}
             />
           ) : !isSuccess ? (
-            <div className="flex flex-col lg:flex-row gap-12">
+            <div className="flex flex-col lg:flex-row gap-12 min-h-screen">
               {/* Columna Izquierda: Formularios */}
-              <div className="w-full lg:w-[62%] space-y-10">
+              <div className="w-full lg:w-[62%] lg:overflow-y-auto space-y-10">
                 <HeaderTitle />
 
                 <div className="space-y-12">
@@ -666,8 +693,8 @@ export default function CheckoutPage() {
               </div>
 
               {/* Columna Derecha: Resumen y Acción */}
-              <aside className="w-full lg:w-[38%]">
-                <div className="lg:sticky lg:top-24 space-y-6">
+              <aside className="w-full lg:w-[38%] lg:h-full">
+                <div className="space-y-6 h-fit lg:sticky lg:top-8">
                   <OrderSummary
                     items={items}
                     subtotal={subtotal}
