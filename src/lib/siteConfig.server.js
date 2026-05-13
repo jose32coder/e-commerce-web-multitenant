@@ -44,7 +44,7 @@ export const getTenantIdBySlugCached = unstable_cache(
     return fallback?.tenant_id || null;
   },
   ["tenant-id-by-slug"],
-  { revalidate: 900 },
+  { revalidate: 900, tags: ["tenants"] },
 );
 
 const getFirstActiveTenantIdCached = unstable_cache(
@@ -59,7 +59,7 @@ const getFirstActiveTenantIdCached = unstable_cache(
     return data?.tenant_id || null;
   },
   ["first-active-tenant-id"],
-  { revalidate: 900 },
+  { revalidate: 900, tags: ["tenants"] },
 );
 
 const getSiteSettingsByTenantIdCached = unstable_cache(
@@ -74,7 +74,7 @@ const getSiteSettingsByTenantIdCached = unstable_cache(
     return data || null;
   },
   ["site-settings-by-tenant-id"],
-  { revalidate: 900 },
+  { revalidate: 900, tags: ["site-settings"] },
 );
 
 export async function getSiteConfigServerCached({ tenantId, tenantSlug } = {}) {

@@ -4,6 +4,7 @@ import ScrollToTop from "@/components/ScrollStop";
 import SiteConfigGate from "@/components/SiteConfigGate";
 import { TenantHeroMetricsProvider } from "@/context/TenantHeroMetricsContext";
 import TenantBrandingLayout from "@/components/tenant/TenantBrandingLayout";
+import { SiteConfigProvider } from "@/context/SiteConfigContext";
 import { OrderTrackingProvider } from "@/components/public/checkout/OrderTrackingProvider";
 import StoreOnboarding from "@/components/public/onboarding/StoreOnboarding";
 import {
@@ -42,7 +43,7 @@ export default async function TenantLayout({ children, params }) {
 
   return (
     <TenantBrandingLayout tenant={tenant}>
-      <SiteConfigGate>
+        <SiteConfigGate>
         <OrderTrackingProvider>
           <TenantHeroMetricsProvider>
             <StoreOnboarding />

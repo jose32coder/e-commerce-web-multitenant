@@ -41,7 +41,7 @@ export const SiteConfigProvider = ({
     const base = {
       tenant_id: tenantId,
       tenant_slug: tenantSlug,
-      site_name: DEFAULT_SITE_NAME,
+      site_name: initialData?.site_name || "",
       hero_slides: [],
       home_intro: DEFAULT_HOME_INTRO,
       products_intro: DEFAULT_PRODUCTS_INTRO,
@@ -182,14 +182,28 @@ export const SiteConfigProvider = ({
   }, []);
 
   useEffect(() => {
+    // Limpieza inmediata al cambiar de tenant para evitar parpadeos de datos viejos
+    setConfig((prev) => ({
+      ...prev,
+      loading: true,
+      site_name: "",
+      tenant_id: tenantId || null,
+      tenant_slug: tenantSlug || null,
+    }));
+    
+    fetchConfig();
+  }, [tenantId, tenantSlug, fetchConfig]);
+
+    const activeTenantIdForEffect = config.tenant_id;
+    useEffect(() => {
     const loadConfig = async () => {
       await fetchConfig();
     };
-    loadConfig();
+    // loadConfig(); // Esto ya se maneja en el otro useEffect arriba
 
     // Real-time updates
     const supabase = createClient();
-    const activeTenantId = tenantId ?? config?.tenant_id ?? null;
+    const activeTenantId = tenantId ?? activeTenantIdForEffect ?? null;
     if (!activeTenantId) return;
 
     const channel = supabase
@@ -254,11 +268,19 @@ export const SiteConfigProvider = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tenantId, config?.tenant_id, fetchConfig]);
+  }, [tenantId, activeTenantIdForEffect, fetchConfig]);
+
+  // ESCUDO DE TRANSICIÓN: Si el tenantId de las props no coincide con el del estado,
+  // estamos en medio de un cambio y debemos forzar el estado de carga y limpiar datos.
+  const isTransitioning = tenantId && config.tenant_id && tenantId !== config.tenant_id;
+  
+  const effectiveConfig = isTransitioning 
+    ? { ...config, loading: true, site_name: "", tenant_id: tenantId } 
+    : config;
 
   return (
     <SiteConfigContext.Provider
-      value={{ ...config, refresh: fetchConfig, patchConfig }}
+      value={{ ...effectiveConfig, refresh: fetchConfig, patchConfig }}
     >
       {children}
     </SiteConfigContext.Provider>

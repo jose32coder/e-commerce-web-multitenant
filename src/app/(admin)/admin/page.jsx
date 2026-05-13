@@ -27,11 +27,15 @@ export default function AdminDashboard() {
   const [dashboardCurrency, setDashboardCurrency] = useState("USD");
   const [showLowStockModal, setShowLowStockModal] = useState(false);
   const [lowStockProducts, setLowStockProducts] = useState([]);
-  const { tenant_id: tenantId, exchange_rates } = useSiteConfig();
+  const { tenant_id: tenantId, exchange_rates, loading: configLoading } = useSiteConfig();
 
   useEffect(() => {
     async function fetchDashboardData() {
-      if (!tenantId) return;
+      if (!tenantId || configLoading) return;
+
+      setLoading(true);
+      setMetrics({ ventasHoy: 0, ordenesTotales: 0, stockBajo: 0 });
+      setLowStockProducts([]);
 
       const supabase = createClient();
       const buildCustomerFromOrder = (order) => {
@@ -137,8 +141,10 @@ export default function AdminDashboard() {
       setLoading(false);
     }
 
-    fetchDashboardData();
-  }, [tenantId]);
+    if (tenantId && !configLoading) {
+      fetchDashboardData();
+    }
+  }, [tenantId, configLoading]);
 
   return (
     <div className="space-y-8 md:space-y-12 pb-10 transition-all duration-500">
