@@ -31,6 +31,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function fetchDashboardData() {
+      if (!tenantId) return;
+
       const supabase = createClient();
       const buildCustomerFromOrder = (order) => {
         const embedded = order?.customer || order?.cliente || {};
@@ -55,13 +57,12 @@ export default function AdminDashboard() {
         let customerMap = new Map();
 
         for (const tableName of tables) {
-          let query = supabase
+          const { data, error } = await supabase
             .from(tableName)
             .select("id, full_name")
-            .in("id", ids);
-          if (tenantId) query = query.eq("tenant_id", tenantId);
+            .in("id", ids)
+            .eq("tenant_id", tenantId);
 
-          const { data, error } = await query;
           if (!error) {
             customerMap = new Map((data || []).map((row) => [row.id, row]));
             break;
@@ -79,27 +80,24 @@ export default function AdminDashboard() {
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
 
-      let todayQuery = supabase
+      const { data: hoyOrders } = await supabase
         .from("orders")
         .select("total")
         .eq("estado", "paid")
+        .eq("tenant_id", tenantId)
         .gte("created_at", startOfToday.toISOString());
-      if (tenantId) todayQuery = todayQuery.eq("tenant_id", tenantId);
-      const { data: hoyOrders } = await todayQuery;
 
       const ventasHoy =
         hoyOrders?.reduce((acc, o) => acc + Number(o.total || 0), 0) || 0;
 
       // 2. Órdenes Totales
-      let totalOrdersQuery = supabase
+      const { count: ordenesTotales } = await supabase
         .from("orders")
-        .select("*", { count: "exact", head: true });
-      if (tenantId)
-        totalOrdersQuery = totalOrdersQuery.eq("tenant_id", tenantId);
-      const { count: ordenesTotales } = await totalOrdersQuery;
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenantId);
 
       // 3. Stock Bajo (detalles)
-      let lowStockQuery = supabase
+      const { data: lowStockData } = await supabase
         .from("product_stock")
         .select(
           `
@@ -110,9 +108,8 @@ export default function AdminDashboard() {
           )
         `,
         )
+        .eq("tenant_id", tenantId)
         .lte("quantity", 5);
-      if (tenantId) lowStockQuery = lowStockQuery.eq("tenant_id", tenantId);
-      const { data: lowStockData } = await lowStockQuery;
 
       const lowStockItems = (lowStockData || []).map((item) => ({
         id: item.products?.id,
@@ -122,15 +119,14 @@ export default function AdminDashboard() {
       setLowStockProducts(lowStockItems);
 
       // 4. Últimas Órdenes
-      let recentQuery = supabase
+      const { data: recientes } = await supabase
         .from("orders")
         .select(
           "id, total, estado, created_at, customer_id, customer_name, customer_id_number, customer_phone, order_number",
         )
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .limit(5);
-      if (tenantId) recentQuery = recentQuery.eq("tenant_id", tenantId);
-      const { data: recientes } = await recentQuery;
 
       setMetrics({
         ventasHoy,

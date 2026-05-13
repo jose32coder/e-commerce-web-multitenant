@@ -103,12 +103,13 @@ export async function PUT(request, { params }) {
     let pError = null;
 
     while (true) {
-      let productUpdate = supabase.from("products").update(updatePayload).eq("id", id);
-      if (tenantId) {
-        productUpdate = productUpdate.eq("tenant_id", tenantId);
-      }
-
-      const result = await productUpdate.select().single();
+      const result = await supabase
+        .from("products")
+        .update(updatePayload)
+        .eq("id", id)
+        .eq("tenant_id", tenantId)
+        .select()
+        .single();
 
       if (!result.error) {
         product = result.data;
@@ -133,6 +134,7 @@ export async function PUT(request, { params }) {
       .from("product_stock")
       .select("quantity")
       .eq("product_id", id)
+      .eq("tenant_id", tenantId)
       .single();
 
     const currentStockQuant = currentStockObj
@@ -155,13 +157,18 @@ export async function PUT(request, { params }) {
       await supabase
         .from("product_stock")
         .update({ quantity: parsedStock })
-        .eq("product_id", id);
+        .eq("product_id", id)
+        .eq("tenant_id", tenantId);
     }
 
     // 3. CORRECCIÓN DE CATEGORÍAS: Sincronización multi-categoría
     if (normalizedCategoryIds.length > 0) {
       // Limpiamos relaciones anteriores en la tabla intermedia
-      await supabase.from("product_categories").delete().eq("product_id", id);
+      await supabase
+        .from("product_categories")
+        .delete()
+        .eq("product_id", id)
+        .eq("tenant_id", tenantId);
 
       const categoryRelations = normalizedCategoryIds.map((catId) => ({
         product_id: id,
@@ -179,15 +186,11 @@ export async function PUT(request, { params }) {
 
     // 4. Gestión de variantes con Soft Delete (tu lógica actual)
     if (variants) {
-      let deactivateVariants = supabase
+      const { error: softDeleteError } = await supabase
         .from("product_variants")
         .update({ is_active: false })
-        .eq("product_id", id);
-
-      if (tenantId)
-        deactivateVariants = deactivateVariants.eq("tenant_id", tenantId);
-
-      const { error: softDeleteError } = await deactivateVariants;
+        .eq("product_id", id)
+        .eq("tenant_id", tenantId);
       if (softDeleteError)
         throw new Error(
           `Error al desactivar variantes: ${softDeleteError.message}`,
@@ -233,40 +236,39 @@ export async function DELETE(request, { params }) {
     const { tenantId } = await resolveTenantContext(supabase);
 
     // 1. Eliminar movimientos de stock (Historial)
-    const { error: stockMovError } = await supabase
+    await supabase
       .from("stock_movements")
       .delete()
-      .eq("product_id", id);
-    if (stockMovError) console.warn("Error eliminando movimientos:", stockMovError);
+      .eq("product_id", id)
+      .eq("tenant_id", tenantId);
 
     // 2. Eliminar stock actual
-    const { error: stockError } = await supabase
+    await supabase
       .from("product_stock")
       .delete()
-      .eq("product_id", id);
-    if (stockError) console.warn("Error eliminando stock:", stockError);
+      .eq("product_id", id)
+      .eq("tenant_id", tenantId);
 
     // 3. Eliminar categorías vinculadas
-    const { error: catError } = await supabase
+    await supabase
       .from("product_categories")
       .delete()
-      .eq("product_id", id);
-    if (catError) console.warn("Error eliminando categorías:", catError);
+      .eq("product_id", id)
+      .eq("tenant_id", tenantId);
 
     // 4. Eliminar variantes
-    const { error: varError } = await supabase
+    await supabase
       .from("product_variants")
       .delete()
-      .eq("product_id", id);
-    if (varError) console.warn("Error eliminando variantes:", varError);
+      .eq("product_id", id)
+      .eq("tenant_id", tenantId);
 
     // 5. Eliminar el producto principal
-    let query = supabase.from("products").delete().eq("id", id);
-    if (tenantId) {
-      query = query.eq("tenant_id", tenantId);
-    }
-
-    const { error } = await query;
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id)
+      .eq("tenant_id", tenantId);
 
     if (error) throw error;
 
