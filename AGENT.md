@@ -31,6 +31,25 @@ Este archivo sirve como memoria técnica para los agentes de IA y desarrolladore
 - `orders`: Almacena `items` (JSONB), `total`, `estado`, `metodo_pago`, `referencia_pago`, `shipping_method`, `shipping_provider`.
 - `staff_profiles`: Relación entre usuarios de Supabase Auth y tenants/roles.
 
+### 📦 Gestión de Inventario Inteligente (Smart Stock)
+- **Visualización Proactiva**: 
+  - `Stock = 0`: Badge "Agotado", imagen en escala de grises y bloqueo de botones de compra.
+  - `Stock < 5`: Badge pulsante "Pocas unidades" que muestra el stock restante en tiempo real.
+- **Consultas de Disponibilidad**: Integración de botones de WhatsApp para productos agotados (`whatsapp_stock_check`) y enlaces de "Confirmar disponibilidad" para compras preventivas.
+- **Validación en Checkout**: El sistema valida el inventario inmediatamente antes de procesar pagos manuales, evitando la sobreventa.
+
+### ⚡ Experiencia en Tiempo Real (Realtime & Social Proof)
+- **Sincronización Live**: Suscripción a cambios en `product_stock` y `product_variants` vía Supabase Realtime para actualizar la UI sin recargas.
+- **Estrategia FOMO (Presencia)**: 
+  - Uso de Supabase Presence para detectar cuántos usuarios están en el checkout de un producto específico.
+  - Notificaciones dinámicas ("🔥 X personas están por comprar esto") para generar urgencia y transparencia.
+- **Base de Datos**: Lógica adaptada para funcionar correctamente sin la columna `manage_stock`, basándose en la existencia de registros de inventario.
+
+### 🛠️ Configuración de Servidor
+- **Supabase Realtime**: Requiere que las tablas `product_stock` y `product_variants` tengan activa la publicación de cambios (Replication).
+- **Checkout Action**: `processCheckoutOrder` realiza una validación final atómica antes de generar el movimiento de stock negativo.
+- **Seguridad Multitenant**: Siempre asegurar que las consultas filtren por `tenant_id`.
+
 ## 5. Historial de Cambios Relevantes (Resumen)
 - **2026-05-09**: Implementación de lógica multimoneda en Dashboard y Tabla de Productos. Corrección de persistencia de `base_currency` en la API.
 - **2026-05-10**: Refactorización de `PricingStock` para inferir estado de variantes si el precio es 0.

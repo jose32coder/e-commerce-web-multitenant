@@ -19,6 +19,8 @@ export function OrderSummary({
   shippingPaymentType = "cod",
   showStockInquiry = false,
   onStockInquiry = () => {},
+  stockProblems = [],
+  disabled = false,
 }) {
   const safeItems = Array.isArray(items) ? items : [];
   const { commerce_settings, exchange_rates } = useSiteConfig();
@@ -105,6 +107,21 @@ export function OrderSummary({
         })}
       </div>
 
+      {stockProblems.length > 0 && (
+        <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-lg space-y-2">
+          <p className="text-[10px] font-black text-red-600 uppercase tracking-wider">
+            ⚠️ Error de disponibilidad
+          </p>
+          <ul className="text-[11px] text-red-700 space-y-1 font-medium">
+            {stockProblems.map((p, i) => (
+              <li key={i}>
+                • {p.name} {p.variant ? `(${p.variant})` : ""}: Solo quedan {p.available} unidades.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="mt-8 pt-8 border-t border-zinc-100 space-y-4">
         <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-400">
           <span>Subtotal</span>
@@ -159,13 +176,21 @@ export function OrderSummary({
 
         <Button
           onClick={onVerify}
-          className="w-full h-16 bg-ink text-paper hover:bg-ink/90 shadow-2xl shadow-ink/20 font-black uppercase text-[11px] tracking-[0.2em] rounded-md transition-all hover:scale-[1.02] active:scale-[0.98] group cursor-pointer"
+          disabled={disabled}
+          className={cn(
+            "w-full h-16 text-paper shadow-2xl font-black uppercase text-[11px] tracking-[0.2em] rounded-md transition-all group cursor-pointer",
+            disabled 
+              ? "bg-zinc-200 text-zinc-400 shadow-none cursor-not-allowed" 
+              : "bg-ink hover:bg-ink/90 shadow-ink/20 hover:scale-[1.02] active:scale-[0.98]"
+          )}
         >
-          Verificar Pago
-          <ArrowRight
-            size={16}
-            className="ml-2 group-hover:translate-x-1 transition-transform"
-          />
+          {disabled ? "Carrito no disponible" : "Verificar Pago"}
+          {!disabled && (
+            <ArrowRight
+              size={16}
+              className="ml-2 group-hover:translate-x-1 transition-transform"
+            />
+          )}
         </Button>
 
         <div className="flex items-center justify-center gap-2 text-zinc-400">

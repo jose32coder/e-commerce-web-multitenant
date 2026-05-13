@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import QuickAddSheet from "@/components/public/products/QuickAddSheet";
@@ -10,6 +10,7 @@ import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ProductCard({
   product,
@@ -17,7 +18,8 @@ export default function ProductCard({
   activeCategoryId = "all",
   allCategories = [],
 }) {
-  const { site_name, tenant_slug, commerce_settings, exchange_rates } = useSiteConfig();
+  const { site_name, tenant_slug, commerce_settings, exchange_rates } =
+    useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
   const currencySymbol = commerce_settings?.currency_symbol || "$";
@@ -36,7 +38,37 @@ export default function ProductCard({
     base_currency = "USD",
     use_variant_only_pricing,
     product_variants,
+    stock,
   } = product;
+
+  const [currentStock, setCurrentStock] = useState(Number(stock) || 0);
+
+  // --- REALTIME STOCK SUBSCRIPTION ---
+  useEffect(() => {
+    const supabase = createClient();
+    const stockChannel = supabase
+      .channel(`card-stock-${product.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "product_stock",
+          filter: `product_id=eq.${product.id}`,
+        },
+        (payload) => {
+          setCurrentStock(Number(payload.new.quantity) || 0);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(stockChannel);
+    };
+  }, [product.id]);
+
+  const isOutOfStock = currentStock <= 0;
+  const isLowStock = currentStock > 0 && currentStock < 5;
 
   // Lógica para determinar qué etiquetas de categoría mostrar
   const getDisplayCategories = () => {
@@ -143,16 +175,35 @@ export default function ProductCard({
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
             priority={isPriority}
-            className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            className={`object-cover transition-transform duration-700 ease-out group-hover:scale-110 ${isOutOfStock ? "grayscale opacity-60" : ""}`}
           />
+
+          {isOutOfStock && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <span className="bg-black/80 text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl border border-white/20">
+                Agotado
+              </span>
+            </div>
+          )}
+
+          {isLowStock && !isOutOfStock && (
+            <div className="absolute top-3 right-3 z-10">
+              <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg animate-pulse">
+                Pocas unidades
+              </span>
+            </div>
+          )}
 
           <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
           <Button
             onClick={handleQuickAdd}
+            disabled={isOutOfStock}
             size="icon"
-            className="absolute bottom-3 right-3 z-20 bg-white text-ink hover:bg-ink hover:text-white shadow-lg transition-all duration-300 scale-90 group-hover:scale-100 cursor-pointer opacity-90 group-hover:opacity-100"
-            aria-label={`Añadir ${name} al carrito`}
+            className={`absolute bottom-3 right-3 z-20 bg-white text-ink hover:bg-ink hover:text-white shadow-lg transition-all duration-300 scale-90 group-hover:scale-100 opacity-90 group-hover:opacity-100 ${isOutOfStock ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+            aria-label={
+              isOutOfStock ? "Producto agotado" : `Añadir ${name} al carrito`
+            }
           >
             <Plus size={18} />
           </Button>
@@ -163,7 +214,9 @@ export default function ProductCard({
             <span className="block text-[9px] font-bold uppercase tracking-[0.3em] text-honey-dark leading-none">
               {displayCategories[0]}
               {displayCategories.length > 1 && (
-                <span className="ml-1 text-slate-400">+{displayCategories.length - 1}</span>
+                <span className="ml-1 text-slate-400">
+                  +{displayCategories.length - 1}
+                </span>
               )}
             </span>
           )}

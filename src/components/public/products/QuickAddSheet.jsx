@@ -13,7 +13,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { ShoppingBag, ArrowRight } from "lucide-react";
+import { ShoppingBag, ArrowRight, MessageCircle } from "lucide-react";
 import Swal from "sweetalert2";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
@@ -42,7 +42,13 @@ export default function QuickAddSheet({ product, open, onClose }) {
     product_variants,
     slug,
     base_currency = "USD",
+    stock,
   } = product;
+
+  const inquiryMsg = encodeURIComponent(`Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata.`);
+  const inquiryUrl = `https://wa.me/${commerce_settings?.whatsapp_number}?text=${inquiryMsg}`;
+
+  const isOutOfStock = Number(stock) <= 0;
 
   const attributeGroups = useMemo(() => {
     const groups = {};
@@ -312,6 +318,19 @@ export default function QuickAddSheet({ product, open, onClose }) {
                 Comprar Ya
               </Button>
             </div>
+
+            {commerce_settings?.whatsapp_number && !isOutOfStock && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 border-emerald-500/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-500 font-bold uppercase text-[9px] tracking-[0.2em] flex items-center justify-center gap-2 group"
+              >
+                <a href={inquiryUrl} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle size={14} className="group-hover:scale-110 transition-transform" />
+                  ¿Confirmar disponibilidad?
+                </a>
+              </Button>
+            )}
 
             <Button
               asChild

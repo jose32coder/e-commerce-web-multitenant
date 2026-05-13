@@ -20,6 +20,7 @@ const CheckoutFormSchema = z.object({
 import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
 import { Button } from "@/components/ui/button";
+import { validateCartStock } from "@/app/actions/public/stockActions";
 
 // Componentes Modulares
 import { CustomerForm } from "@/components/public/checkout/CustomerForm";
@@ -123,7 +124,51 @@ export default function CheckoutPage() {
 
   const [idType, setIdType] = useState("V");
   const [errors, setErrors] = useState({});
+  const [stockProblems, setStockProblems] = useState([]);
   const activeTrackingPromptRef = useRef(null);
+
+  // Validación de Stock en tiempo real al entrar o cambiar el carrito
+  useEffect(() => {
+    const checkStock = async () => {
+      if (items.length > 0) {
+        const problems = await validateCartStock(items);
+        setStockProblems(problems);
+        
+        if (problems.length > 0) {
+          Swal.fire({
+            title: "Cambio en disponibilidad",
+            text: "Algunos productos en tu carrito ya no tienen stock suficiente. Por favor, revísalos antes de pagar.",
+            icon: "warning",
+            confirmButtonColor: "#1A1A1A",
+            background: "#FBF9F6",
+            color: "#1A1A1A",
+          });
+        }
+      }
+    };
+    
+    checkStock();
+
+    // --- PRESENCE TRACKING (FOMO) ---
+    const supabase = createClient();
+    const presenceChannel = supabase.channel(`presence:checkout:${tenantId}`, {
+      config: { presence: { key: "checkout" } },
+    });
+
+    presenceChannel
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await presenceChannel.track({
+            items: items.map((i) => i.id),
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      presenceChannel.unsubscribe();
+    };
+  }, [items, tenantId]);
 
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
@@ -635,6 +680,8 @@ export default function CheckoutPage() {
                     shippingPaymentType={formData.shippingPaymentType}
                     showStockInquiry={!!commerce.whatsapp_stock_check}
                     onStockInquiry={handleStockInquiry}
+                    stockProblems={stockProblems}
+                    disabled={stockProblems.length > 0}
                   />
                 </div>
               </aside>
