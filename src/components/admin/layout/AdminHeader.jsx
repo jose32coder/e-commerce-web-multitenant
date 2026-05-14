@@ -51,7 +51,11 @@ export default function AdminHeader({
         {/* Título Desktop e Icono */}
         <div className="hidden lg:flex items-center gap-3">
           {logoUrl && (
-            <img src={logoUrl} alt={site_name} className="h-8 w-auto object-contain" />
+            <img
+              src={logoUrl}
+              alt={site_name}
+              className="h-8 w-auto object-contain"
+            />
           )}
           <h1 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-slate-500">
             Dashboard /{" "}
@@ -98,7 +102,7 @@ export default function AdminHeader({
               {userRole?.replace("_", " ")}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center text-xs font-black shadow-lg shadow-slate-100 dark:shadow-none group-hover:scale-105 transition-all overflow-hidden border border-slate-50 dark:border-slate-600">
+          <div className="w-10 h-10 rounded-xl text-white flex items-center justify-center text-xs font-black shadow-lg shadow-slate-100 dark:shadow-none group-hover:scale-105 transition-all overflow-hidden">
             {userProfile?.avatar_url ? (
               <img
                 src={userProfile.avatar_url}
