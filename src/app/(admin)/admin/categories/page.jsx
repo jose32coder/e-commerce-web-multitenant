@@ -58,6 +58,12 @@ const STORE_TYPES = [
     icon: <Computer size={20} />,
     color: "bg-blue-500",
   },
+  {
+    id: "beauty_supply",
+    name: "Belleza y Cuidado Personal",
+    icon: <Heart size={20} />,
+    color: "bg-pink-500",
+  },
 ];
 
 export default function CategoriesPage() {
