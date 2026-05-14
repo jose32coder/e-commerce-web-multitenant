@@ -552,9 +552,14 @@ const RolesManager = () => {
                         size={16}
                       />
                       <select
-                        className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-transparent dark:border-slate-700/50 rounded-xl focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white outline-none text-sm font-bold appearance-none transition-all cursor-pointer uppercase tracking-tighter"
+                        className={`w-full pl-10 pr-10 py-3 border border-transparent dark:border-slate-700/50 rounded-xl focus:ring-2 focus:ring-slate-900 dark:focus:ring-white focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white outline-none text-sm font-bold appearance-none transition-all uppercase tracking-tighter ${
+                          editingId && formData.role !== "custom"
+                            ? "bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-70"
+                            : "bg-slate-50 dark:bg-slate-800 cursor-pointer"
+                        }`}
                         value={formData.role}
                         onChange={(e) => handleRoleChange(e.target.value)}
+                        disabled={editingId && formData.role !== "custom"}
                       >
                         <option value="editor">Editor</option>
                         <option value="super_admin">Super Admin</option>
@@ -584,7 +589,11 @@ const RolesManager = () => {
                     {AVAILABLE_MODULES.map((mod) => (
                       <label
                         key={mod}
-                        className={`flex items-center justify-center p-3 rounded-xl border transition-all cursor-pointer text-center ${
+                        className={`flex items-center justify-center p-3 rounded-xl border transition-all text-center ${
+                          formData.role !== "custom"
+                            ? "cursor-not-allowed opacity-80"
+                            : "cursor-pointer"
+                        } ${
                           formData.permissions.includes(mod)
                             ? "bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 shadow-md shadow-slate-200 dark:shadow-none"
                             : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-600"
@@ -595,6 +604,7 @@ const RolesManager = () => {
                           className="hidden"
                           checked={formData.permissions.includes(mod)}
                           onChange={() => togglePermission(mod)}
+                          disabled={formData.role !== "custom"}
                         />
                         <span className="text-[10px] font-black uppercase tracking-tighter truncate">
                           {mod}

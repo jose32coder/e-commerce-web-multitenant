@@ -5,24 +5,28 @@ const ADMIN_STORAGE_KEY = "sb-admin-auth";
 const PLATFORM_STORAGE_KEY = "sb-platform-auth";
 
 const isInvalidRefreshTokenError = (error) => {
-  const message = error?.message || "";
-  return /Invalid Refresh Token|Refresh Token Not Found/i.test(message);
+  const message = error?.message || error?.description || "";
+  return /Invalid Refresh Token|Refresh Token Not Found|session_not_found/i.test(message);
 };
 
 const ensureValidSession = (client) => {
   if (typeof window === "undefined") return;
-  client.auth
-    .getSession()
-    .then(async ({ error }) => {
-      if (isInvalidRefreshTokenError(error)) {
-        await client.auth.signOut({ scope: "local" });
-      }
-    })
-    .catch(async (error) => {
-      if (isInvalidRefreshTokenError(error)) {
-        await client.auth.signOut({ scope: "local" });
-      }
-    });
+  
+  // Timeout para evitar colisiones durante la hidratación rápida de Turbopack
+  setTimeout(() => {
+    client.auth
+      .getSession()
+      .then(async ({ error }) => {
+        if (error && isInvalidRefreshTokenError(error)) {
+          await client.auth.signOut({ scope: "local" });
+        }
+      })
+      .catch(async (error) => {
+        if (isInvalidRefreshTokenError(error)) {
+          await client.auth.signOut({ scope: "local" });
+        }
+      });
+  }, 100);
 };
 
 export function createAdminClient() {

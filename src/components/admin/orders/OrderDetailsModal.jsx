@@ -208,7 +208,7 @@ export default function OrderDetailsModal({
                 </span>{" "}
                 <span className="uppercase font-black text-blue-600 dark:text-blue-400">
                   {actualShippingMethod === 'pickup' ? 'Retiro' : 
-                   actualShippingMethod === 'local' ? 'Delivery' : 
+                   (actualShippingMethod === 'local' || actualShippingMethod === 'delivery') ? 'Delivery' : 
                    actualShippingMethod === 'national' ? 'Envío' : 
                    actualShippingMethod || 'No especificado'}
                    {actualShippingProvider ? ` (${actualShippingProvider.toUpperCase()})` : ''}
@@ -268,7 +268,7 @@ export default function OrderDetailsModal({
                     <span className="font-bold text-slate-900 dark:text-slate-300">
                       Tipo:
                     </span>{" "}
-                    <span className="uppercase">{actualShippingMethod === 'pickup' ? 'Retiro en Tienda' : actualShippingMethod === 'local' ? 'Delivery Local' : actualShippingMethod === 'national' ? 'Envío Nacional' : actualShippingMethod}</span>
+                    <span className="uppercase">{actualShippingMethod === 'pickup' ? 'Retiro en Tienda' : (actualShippingMethod === 'local' || actualShippingMethod === 'delivery') ? 'Delivery Local' : actualShippingMethod === 'national' ? 'Envío Nacional' : actualShippingMethod}</span>
                   </p>
                   {actualShippingProvider && (
                     <p>

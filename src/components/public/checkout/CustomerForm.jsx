@@ -20,6 +20,7 @@ export function CustomerForm({
   const [isSearching, setIsSearching] = useState(false);
   const [lookupMessage, setLookupMessage] = useState("");
   const [customerLocked, setCustomerLocked] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const lookupCacheRef = useRef(new Map());
 
   // Búsqueda manual inteligente
@@ -57,13 +58,16 @@ export function CustomerForm({
         lookupCacheRef.current.set(lookupKey, data);
         onCustomerFound(data);
         setCustomerLocked(true);
+        setHasSearched(true);
         setLookupMessage("✓ Cliente encontrado y datos autocompletados.");
       } else {
         setCustomerLocked(false);
-        setLookupMessage("Nuevo cliente detectado.");
+        setHasSearched(true);
+        setLookupMessage("Nuevo cliente detectado. Por favor completa tus datos.");
       }
     } catch (error) {
       setCustomerLocked(false);
+      setHasSearched(false);
       setLookupMessage("Error en la búsqueda. Intenta de nuevo.");
     } finally {
       setIsSearching(false);
@@ -74,6 +78,7 @@ export function CustomerForm({
     // Si cambia la identidad, reseteamos el bloqueo y el mensaje
     if (field === "idNumber") {
       setCustomerLocked(false);
+      setHasSearched(false);
       setLookupMessage("");
     }
 
@@ -90,13 +95,18 @@ export function CustomerForm({
   const handleIdTypeChange = (newType) => {
     setIdType(newType);
     setCustomerLocked(false);
+    setHasSearched(false);
     setLookupMessage("");
     const error = getValidationError("idNumber", formData.idNumber, newType);
-    setErrors((prev) => ({ ...prev, idNumber: error }));
+    setErrors((prev) => ({ 
+      ...prev, 
+      idNumber: error 
+    }));
   };
 
   const handleEnableManualEdit = () => {
     setCustomerLocked(false);
+    setHasSearched(true);
     setLookupMessage("Edición manual activada.");
   };
 
@@ -149,7 +159,7 @@ export function CustomerForm({
                 }
                 className="h-9 px-4 rounded-md text-[9px] font-black uppercase tracking-widest bg-ink text-paper disabled:opacity-30 transition-all cursor-pointer hover:bg-ink/90"
               >
-                {isSearching ? "Buscando..." : "Buscar"}
+                {isSearching ? "Buscando..." : "Buscar Cliente"}
               </button>
               {customerLocked ? (
                 <button
@@ -176,9 +186,9 @@ export function CustomerForm({
             type="text"
             value={formData.name}
             onChange={(e) => handleInputChange("name", e.target.value)}
-            disabled={customerLocked}
-            className={`rounded-md border-none bg-[#F3F4F6] focus-visible:ring-ink/10 h-14 text-sm placeholder:text-zinc-400 ${errors.name ? "ring-2 ring-rose-500/50" : ""}`}
-            placeholder="Ej: Juan Pérez"
+            disabled={!hasSearched || customerLocked}
+            className={`rounded-md border-none bg-[#F3F4F6] focus-visible:ring-ink/10 h-14 text-sm placeholder:text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed ${errors.name ? "ring-2 ring-rose-500/50" : ""}`}
+            placeholder={!hasSearched ? "Busca tu cédula primero..." : "Ej: Juan Pérez"}
           />
           {errors.name && (
             <p className="text-[10px] font-bold text-rose-500 px-1">
@@ -197,9 +207,9 @@ export function CustomerForm({
             type="tel"
             value={formData.phone}
             onChange={(e) => handleInputChange("phone", e.target.value)}
-            disabled={customerLocked}
-            className={`rounded-md border-none bg-[#F3F4F6] focus-visible:ring-ink/10 h-14 text-sm placeholder:text-zinc-400 ${errors.phone ? "ring-2 ring-rose-500/50" : ""}`}
-            placeholder="Ej: 04121234567"
+            disabled={!hasSearched || customerLocked}
+            className={`rounded-md border-none bg-[#F3F4F6] focus-visible:ring-ink/10 h-14 text-sm placeholder:text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed ${errors.phone ? "ring-2 ring-rose-500/50" : ""}`}
+            placeholder={!hasSearched ? "Busca tu cédula primero..." : "Ej: 04121234567"}
           />
           {errors.phone && (
             <p className="text-[10px] font-bold text-rose-500 px-1">
@@ -215,9 +225,9 @@ export function CustomerForm({
             type="email"
             value={formData.email}
             onChange={(e) => handleInputChange("email", e.target.value)}
-            disabled={customerLocked}
-            className={`rounded-md border-none bg-[#F3F4F6] focus-visible:ring-ink/10 h-14 text-sm placeholder:text-zinc-400 ${errors.email ? "ring-2 ring-rose-500/50" : ""}`}
-            placeholder="Ej: correo@ejemplo.com"
+            disabled={!hasSearched || customerLocked}
+            className={`rounded-md border-none bg-[#F3F4F6] focus-visible:ring-ink/10 h-14 text-sm placeholder:text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed ${errors.email ? "ring-2 ring-rose-500/50" : ""}`}
+            placeholder={!hasSearched ? "Busca tu cédula primero..." : "Ej: correo@ejemplo.com"}
           />
           {errors.email && (
             <p className="text-[10px] font-bold text-rose-500 px-1">

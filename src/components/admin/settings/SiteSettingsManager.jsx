@@ -20,6 +20,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { CLOUDINARY_CONFIG } from "../product-form/config";
 import { buildTenantCloudinaryFolder } from "@/lib/cloudinaryFolders";
+import { revalidateSiteConfig } from "@/app/actions/revalidate";
 import EditorialContentSettings from "./EditorialContentSettings";
 import HeroSliderSettings from "./HeroSliderSettings";
 import SiteIdentitySettings from "./SiteIdentitySettings";
@@ -541,6 +542,7 @@ export default function SiteSettingsManager() {
         }
 
         await updateSiteConfig(payload, { tenantId });
+        await revalidateSiteConfig(tenantId, nameChanged ? newTenantSlug : tenantSlug);
 
         await logAudit(supabase, {
           tipo: "ajuste",
@@ -588,6 +590,7 @@ export default function SiteSettingsManager() {
 
     try {
       await updateSiteConfig(payload, { tenantId });
+      await revalidateSiteConfig(tenantId, tenantSlug);
       await logAudit(supabase, {
         tipo: "ajuste",
         accion: "editar",

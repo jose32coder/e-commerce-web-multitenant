@@ -9,6 +9,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import Swal from "sweetalert2";
@@ -22,9 +23,11 @@ import {
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ProductView({ product }) {
-  const { site_name, commerce_settings, tenant_slug, exchange_rates } = useSiteConfig();
+  const { site_name, commerce_settings, tenant_slug, exchange_rates } =
+    useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
   const commerce = normalizeCommerceSettings(
@@ -46,7 +49,138 @@ export default function ProductView({ product }) {
     product_variants,
     base_currency = "USD",
     use_variant_only_pricing,
+    stock,
   } = product;
+
+  const [currentStock, setCurrentStock] = useState(Number(stock) || 0);
+  const [localVariants, setLocalVariants] = useState(product_variants || []);
+  const [selectedAttrs, setSelectedAttrs] = useState({});
+  const [activeCheckouts, setActiveCheckouts] = useState(0);
+
+  // --- REALTIME STOCK SUBSCRIPTION ---
+  useEffect(() => {
+    const supabase = createClient();
+
+    // 1. Suscripción a stock global
+    const stockChannel = supabase
+      .channel(`stock-update-${product.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "product_stock",
+          filter: `product_id=eq.${product.id}`,
+        },
+        (payload) => {
+          setCurrentStock(Number(payload.new.quantity) || 0);
+        }
+      )
+      .subscribe();
+
+    // 2. Suscripción a variantes
+    const variantsChannel = supabase
+      .channel(`variants-update-${product.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "product_variants",
+          filter: `product_id=eq.${product.id}`,
+        },
+        (payload) => {
+          setLocalVariants((prev) =>
+            prev.map((v) =>
+              v.id === payload.new.id ? { ...v, ...payload.new } : v,
+            ),
+          );
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(stockChannel);
+      supabase.removeChannel(variantsChannel);
+    };
+  }, [product.id]);
+
+  // --- PRESENCE SUBSCRIPTION (FOMO) ---
+  useEffect(() => {
+    const supabase = createClient();
+    const presenceChannel = supabase.channel(`presence:checkout:${commerce.tenant_id}`);
+
+    presenceChannel
+      .on("presence", { event: "sync" }, () => {
+        const state = presenceChannel.presenceState();
+        let count = 0;
+        
+        // Contamos cuántas sesiones de checkout tienen este producto
+        Object.values(state).forEach((presences) => {
+          presences.forEach((p) => {
+            if (p.items?.includes(product.id)) {
+              count++;
+            }
+          });
+        });
+        
+        setActiveCheckouts(count);
+      })
+      .subscribe();
+
+    return () => {
+      presenceChannel.unsubscribe();
+    };
+  }, [product.id, commerce.tenant_id]);
+
+  // --- Lógica de Variantes Reactiva ---
+  const attributeGroups = {};
+  (localVariants || []).forEach((v) => {
+    if (!v.attributes) return;
+    Object.entries(v.attributes).forEach(([key, val]) => {
+      if (!attributeGroups[key]) attributeGroups[key] = new Set();
+      attributeGroups[key].add(String(val));
+    });
+  });
+  const attributeKeys = Object.keys(attributeGroups);
+  const hasVariants = attributeKeys.length > 0;
+
+  const selectedVariant = hasVariants
+    ? (localVariants || []).find((v) => {
+        if (!v.attributes) return false;
+        return attributeKeys.every(
+          (key) => String(v.attributes[key]) === String(selectedAttrs[key]),
+        );
+      }) || null
+    : null;
+
+  const isOptionAvailable = (key, val) =>
+    (localVariants || []).some((v) => {
+      if (!v.attributes || String(v.attributes[key]) !== String(val))
+        return false;
+      return attributeKeys
+        .filter((k) => k !== key && selectedAttrs[k])
+        .every((k) => String(v.attributes[k]) === String(selectedAttrs[k]));
+    });
+
+  // --- Estados de Stock Calculados ---
+  const selectedVariantStock = selectedVariant ? Number(selectedVariant.stock_quantity) : null;
+
+  const isOutOfStock = selectedVariantStock !== null
+    ? selectedVariantStock <= 0
+    : currentStock <= 0;
+
+  const isLowStock = selectedVariantStock !== null
+    ? selectedVariantStock > 0 && selectedVariantStock < 5
+    : currentStock > 0 && currentStock < 5;
+
+  const canInquiry = commerce.whatsapp_stock_check && commerce.whatsapp_number;
+  const whatsappMessage = encodeURIComponent(
+    `Hola, me interesa el producto *${name}* pero veo que no hay stock disponible. ¿Tienen disponibilidad o saben cuándo les llega?`,
+  );
+  const whatsappUrl = `https://wa.me/${commerce.whatsapp_number}?text=${whatsappMessage}`;
+
+  const inquiryMsg = encodeURIComponent(`Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata antes de comprar.`);
+  const inquiryUrl = `https://wa.me/${commerce.whatsapp_number}?text=${inquiryMsg}`;
 
   const [selectedImage, setSelectedImage] = useState(0);
   const { addItem } = useTenantCart(tenant_slug);
@@ -57,42 +191,6 @@ export default function ProductView({ product }) {
   // Ej de variante: { id, attributes: { Color: "Verde", Talla: "S" },
   //                   price_override: 5, stock_quantity: 3, sku: "..." }
   // ----------------------------------------------------------------
-
-  // Agrupa los valores únicos por atributo:
-  // { "Color": Set(["Verde","Blanco","Negro"]), "Talla": Set(["S","M","L"]) }
-  const attributeGroups = {};
-  (product_variants || []).forEach((v) => {
-    if (!v.attributes) return;
-    Object.entries(v.attributes).forEach(([key, val]) => {
-      if (!attributeGroups[key]) attributeGroups[key] = new Set();
-      attributeGroups[key].add(String(val));
-    });
-  });
-  const attributeKeys = Object.keys(attributeGroups);
-  const hasVariants = attributeKeys.length > 0;
-
-  // Selección actual: { Color: "Verde", Talla: "S" }
-  const [selectedAttrs, setSelectedAttrs] = useState({});
-
-  // Variante que coincide exactamente con lo seleccionado
-  const selectedVariant = hasVariants
-    ? (product_variants || []).find((v) => {
-        if (!v.attributes) return false;
-        return attributeKeys.every(
-          (key) => String(v.attributes[key]) === String(selectedAttrs[key]),
-        );
-      }) || null
-    : null;
-
-  // ¿Está disponible un valor dado el resto de atributos ya seleccionados?
-  const isOptionAvailable = (key, val) =>
-    (product_variants || []).some((v) => {
-      if (!v.attributes || String(v.attributes[key]) !== String(val))
-        return false;
-      return attributeKeys
-        .filter((k) => k !== key && selectedAttrs[k])
-        .every((k) => String(v.attributes[k]) === String(selectedAttrs[k]));
-    });
 
   const handleSelectAttr = (key, val) => {
     setSelectedAttrs((prev) => ({ ...prev, [key]: val }));
@@ -129,9 +227,24 @@ export default function ProductView({ product }) {
       : minVariantAbsolutePrice
     : rawBasePrice + rawPriceOverride;
 
-  const finalPrice = convertPrice(rawDisplayedPrice, base_currency, targetCurrency, exchange_rates);
-  const finalRegularPrice = convertPrice(rawRegularPrice + rawPriceOverride, base_currency, targetCurrency, exchange_rates);
-  const displayOverride = convertPrice(rawPriceOverride, base_currency, targetCurrency, exchange_rates);
+  const finalPrice = convertPrice(
+    rawDisplayedPrice,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
+  const finalRegularPrice = convertPrice(
+    rawRegularPrice + rawPriceOverride,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
+  const displayOverride = convertPrice(
+    rawPriceOverride,
+    base_currency,
+    targetCurrency,
+    exchange_rates,
+  );
   const displayFromPrice = convertPrice(
     minVariantAbsolutePrice,
     base_currency,
@@ -218,12 +331,14 @@ export default function ProductView({ product }) {
             <div className="mt-2 flex items-end gap-3">
               {hasActiveOffer && !isVariantOnlyPricing && (
                 <p className="text-sm font-semibold text-red-500 line-through">
-                  {currencySymbol}{formatPrice(finalRegularPrice, targetCurrency)}
+                  {currencySymbol}
+                  {formatPrice(finalRegularPrice, targetCurrency)}
                 </p>
               )}
               <p className="text-3xl font-bold text-black">
                 {isVariantOnlyPricing && !selectedVariant ? "Desde " : ""}
-                {currencySymbol}{formatPrice(finalPrice, targetCurrency)}
+                {currencySymbol}
+                {formatPrice(finalPrice, targetCurrency)}
               </p>
             </div>
             {rawPriceOverride > 0 && !isVariantOnlyPricing && (
@@ -242,6 +357,35 @@ export default function ProductView({ product }) {
               <p className="mt-1 text-xs font-semibold text-red-500 uppercase tracking-wide">
                 Oferta activa
               </p>
+            )}
+
+            {isLowStock && !isOutOfStock && (
+              <div className="mt-4 inline-flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
+                  ¡Últimas {currentStock} unidades disponibles!
+                </span>
+              </div>
+            )}
+
+            {activeCheckouts > 0 && !isOutOfStock && (
+              <div className="mt-2 flex items-center gap-2 animate-pulse">
+                <span className="flex h-2 w-2 rounded-full bg-red-500"></span>
+                <span className="text-[10px] font-bold text-red-600 uppercase tracking-widest">
+                  🔥 {activeCheckouts} {activeCheckouts === 1 ? 'persona está' : 'personas están'} por comprar esto ahora mismo
+                </span>
+              </div>
+            )}
+
+            {isOutOfStock && (
+              <div className="mt-4 bg-slate-100 border border-slate-200 px-4 py-2 rounded-lg">
+                <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                  Producto Agotado
+                </span>
+              </div>
             )}
           </section>
 
@@ -305,22 +449,62 @@ export default function ProductView({ product }) {
 
           {/* ---- BOTONES ---- */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-4">
-            <Button
-              size="lg"
-              onClick={handleAddToCart}
-              className="w-full h-14 font-bold cursor-pointer tracking-widest transition-all border-slate active:scale-95 hover:bg-black hover:text-white duration-300"
-            >
-              Agregar al carrito
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={handleBuyNow}
-              className="w-full h-14 font-bold cursor-pointer tracking-widest border border-black transition-all active:scale-95 hover:bg-black hover:text-white duration-300"
-            >
-              Comprar ahora
-            </Button>
+            {isOutOfStock ? (
+              canInquiry ? (
+                <Button
+                  size="lg"
+                  asChild
+                  className="col-span-full h-14 font-bold cursor-pointer tracking-widest bg-[#25D366] hover:bg-[#128C7E] text-white transition-all duration-300"
+                >
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Consultar disponibilidad
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  disabled
+                  className="col-span-full h-14 font-bold tracking-widest bg-slate-200 text-slate-400"
+                >
+                  Agotado
+                </Button>
+              )
+            ) : (
+              <>
+                <Button
+                  size="lg"
+                  onClick={handleAddToCart}
+                  className="w-full h-14 font-bold cursor-pointer tracking-widest transition-all border-slate active:scale-95 hover:bg-black hover:text-white duration-300"
+                >
+                  Agregar al carrito
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={handleBuyNow}
+                  className="w-full h-14 font-bold cursor-pointer tracking-widest border border-black transition-all active:scale-95 hover:bg-black hover:text-white duration-300"
+                >
+                  Comprar ahora
+                </Button>
+              </>
+            )}
           </div>
+
+          {commerce.whatsapp_number && !isOutOfStock && (
+            <a
+              href={inquiryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 py-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-widest group"
+            >
+              <MessageCircle size={16} className="group-hover:scale-110 transition-transform" />
+              ¿Confirmar disponibilidad por WhatsApp?
+            </a>
+          )}
 
           <Accordion
             type="single"

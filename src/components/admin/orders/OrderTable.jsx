@@ -64,7 +64,7 @@ export default function OrderTable({
           phone: customerPhone,
           paymentMethod: order.metodo_pago || "Transferencia",
           reference: order.referencia_pago || "N/A",
-          shippingMethod: parsedShippingMethod,
+          shippingMethod: parsedShippingMethod || (parsedNotes?.includes('ENTREGA') ? null : 'N/A'),
           shippingProvider: parsedShippingProvider,
           notes: parsedNotes,
         }}

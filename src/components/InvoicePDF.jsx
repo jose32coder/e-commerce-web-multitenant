@@ -236,7 +236,10 @@ export const InvoicePDF = ({
             {formData.shippingMethod && (
               <Text style={styles.value}>
                 <Text style={styles.valueLabel}>Entrega: </Text>
-                {formData.shippingMethod === 'pickup' ? 'Retiro en Tienda' : 'Envío'}
+                {formData.shippingMethod === 'pickup' ? 'Retiro en Tienda' : 
+                 formData.shippingMethod === 'local' ? 'Delivery Local' :
+                 formData.shippingMethod === 'national' ? 'Envío Nacional' : 
+                 formData.shippingMethod}
                 {formData.shippingProvider ? ` — ${formData.shippingProvider.toUpperCase()}` : ''}
               </Text>
             )}

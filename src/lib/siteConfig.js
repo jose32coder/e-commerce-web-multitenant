@@ -168,8 +168,7 @@ export const DEFAULT_PROMO_DIVIDER = {
 };
 
 export const DEFAULT_FOOTER_SETTINGS = {
-  description:
-    "Curamos piezas esenciales para el guardarropa contemporaneo. Estetica minimalista con un enfoque en la durabilidad y el diseno.",
+  description: "",
   instagram_url: "",
   facebook_url: "",
   twitter_url: "",
@@ -219,10 +218,7 @@ export const DEFAULT_COMMERCE_SETTINGS = {
       instructions: "",
     },
   },
-  product_notices: [
-    "Los envios se realizan de lunes a viernes por MRW y/o Zoom, con un tiempo estimado de entrega de 1 a 3 dias habiles dependiendo de tu ubicacion.",
-    "No se hacen devoluciones ni cambios, asegurate de elegir la talla correcta. Si tienes dudas, contactanos antes de comprar.",
-  ],
+  product_notices: ["", ""],
   privacy_title: "Politica de Privacidad",
   privacy_content:
     "Aqui puedes explicar como recolectas, usas y proteges los datos de tus clientes. Incluye contacto para dudas y el periodo de retencion de informacion.",
@@ -245,7 +241,7 @@ export const DEFAULT_COMMERCE_SETTINGS = {
   shipping_providers: [
     { id: "mrw", name: "MRW", enabled: true },
     { id: "zoom", name: "Zoom", enabled: true },
-    { id: "tealca", name: "Tealca", enabled: true },
+    // { id: "tealca", name: "Tealca", enabled: true },
   ],
 };
 
@@ -633,10 +629,17 @@ export const updateSiteConfig = async (payload, { tenantId } = {}) => {
   }
 
   // LOG PARA DEBUG:
-  console.log("[updateSiteConfig] finalTenantId:", finalTenantId, "type:", typeof finalTenantId);
+  console.log(
+    "[updateSiteConfig] finalTenantId:",
+    finalTenantId,
+    "type:",
+    typeof finalTenantId,
+  );
 
   if (!finalTenantId) {
-    throw new Error("No se pudo identificar el Tenant ID para guardar la configuración.");
+    throw new Error(
+      "No se pudo identificar el Tenant ID para guardar la configuración.",
+    );
   }
 
   const { loading, refresh, tenant_slug, tenant_id, ...cleanPayload } = payload;

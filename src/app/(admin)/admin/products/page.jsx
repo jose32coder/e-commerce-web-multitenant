@@ -36,10 +36,13 @@ export default function ProductsPage() {
   const supabase = createClient();
 
   const loadProducts = async () => {
+    if (!tenantId) return;
     try {
       setLoading(true);
 
-      let query = supabase.from("products").select(`
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
           *,
           product_variants(*),
           product_stock(quantity),
@@ -47,13 +50,8 @@ export default function ProductsPage() {
             category_id,
             categories(name)
           )
-        `);
-
-      if (tenantId) {
-        query = query.eq("tenant_id", tenantId);
-      }
-
-      const { data, error } = await query;
+        `)
+        .eq("tenant_id", tenantId);
       if (error) throw error;
 
       const normalized = (data || []).map((product) => {
@@ -152,20 +150,21 @@ export default function ProductsPage() {
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "¿Eliminar producto?",
+      title: "¿ELIMINAR PRODUCTO?", // En mayúsculas para seguir tu estilo de branding
       text: "Esta acción no se puede deshacer.",
       icon: "warning",
+      iconColor: "#ef4444", // Rojo de Tailwind (destructive) para el icono
       showCancelButton: true,
-      confirmButtonColor: "#0f172a",
-      cancelButtonColor: "#f1f5f9",
       confirmButtonText: "SÍ, ELIMINAR",
       cancelButtonText: "CANCELAR",
       customClass: {
-        popup: "rounded-[2rem]",
+        popup: "rounded-3xl border border-zinc-100 shadow-2xl",
         confirmButton:
-          "rounded-xl uppercase text-xs tracking-widest px-8 py-4 px-8",
+          "bg-ink text-paper rounded-md uppercase text-[10px] font-black tracking-[0.2em] px-8 py-4 hover:bg-ink/90 transition-all mx-2",
         cancelButton:
-          "rounded-xl uppercase text-xs tracking-widest px-8 py-4 px-8 ml-2 text-slate-500",
+          "bg-zinc-100 text-zinc-500 rounded-md uppercase text-[10px] font-black tracking-[0.2em] px-8 py-4 hover:bg-zinc-200 transition-all mx-2",
+        title: "text-sm font-black tracking-[0.2em] text-ink",
+        htmlContainer: "text-xs font-medium text-zinc-400",
       },
       buttonsStyling: false,
     });
@@ -220,7 +219,8 @@ export default function ProductsPage() {
       const { error } = await supabase
         .from("products")
         .update(payload)
-        .in("id", selectedIds);
+        .in("id", selectedIds)
+        .eq("tenant_id", tenantId);
       if (error) throw error;
 
       await Swal.fire({
@@ -290,10 +290,15 @@ export default function ProductsPage() {
         const storeName = config?.site_name || "Mi Tienda";
         const logoUrl = config?.commerce_settings?.logo_url || "";
         const totalProducts = filteredProducts.length;
-        const publishedCount = filteredProducts.filter((p) => p.status === "published").length;
+        const publishedCount = filteredProducts.filter(
+          (p) => p.status === "published",
+        ).length;
         const draftCount = totalProducts - publishedCount;
-        const lowStockCount = filteredProducts.filter((p) => Number(p.stock) <= 5 && Number(p.stock) < 999999).length;
-        const currencySymbol = config?.commerce_settings?.currency_symbol || "$";
+        const lowStockCount = filteredProducts.filter(
+          (p) => Number(p.stock) <= 5 && Number(p.stock) < 999999,
+        ).length;
+        const currencySymbol =
+          config?.commerce_settings?.currency_symbol || "$";
 
         let iframe = document.getElementById("print-iframe");
         if (!iframe) {
@@ -446,14 +451,19 @@ export default function ProductsPage() {
                 </thead>
                 <tbody>
                   ${filteredProducts
-                    .map(
-                      (p, i) => {
-                        const statusClass = p.status === "published" ? "badge-published" : "badge-draft";
-                        const statusLabel = p.status === "published" ? "Publicado" : "Borrador";
-                        const stockDisplay = p.stock >= 999999 ? "∞" : p.stock;
-                        const isLow = Number(p.stock) <= 5 && Number(p.stock) < 999999;
-                        const categoryText = (p.category_names || []).join(", ") || "—";
-                        return `
+                    .map((p, i) => {
+                      const statusClass =
+                        p.status === "published"
+                          ? "badge-published"
+                          : "badge-draft";
+                      const statusLabel =
+                        p.status === "published" ? "Publicado" : "Borrador";
+                      const stockDisplay = p.stock >= 999999 ? "∞" : p.stock;
+                      const isLow =
+                        Number(p.stock) <= 5 && Number(p.stock) < 999999;
+                      const categoryText =
+                        (p.category_names || []).join(", ") || "—";
+                      return `
                     <tr>
                       <td style="color:#94a3b8; font-size:8px; text-align:center">${i + 1}</td>
                       <td class="name-cell">${p.name}</td>
@@ -462,8 +472,7 @@ export default function ProductsPage() {
                       <td class="stock-cell">${stockDisplay}${isLow ? ' <span class="badge badge-low">Bajo</span>' : ""}</td>
                       <td><span class="badge ${statusClass}">${statusLabel}</span></td>
                     </tr>`;
-                      },
-                    )
+                    })
                     .join("")}
                 </tbody>
               </table>
@@ -488,7 +497,9 @@ export default function ProductsPage() {
       }
 
       const storeName = encodeURIComponent(config?.site_name || "");
-      const logoUrl = encodeURIComponent(config?.commerce_settings?.logo_url || "");
+      const logoUrl = encodeURIComponent(
+        config?.commerce_settings?.logo_url || "",
+      );
       const response = await fetch(
         `/api/admin/export/products?format=${format}&tenant_id=${tenantId}&store_name=${storeName}&logo_url=${logoUrl}`,
       );
@@ -536,7 +547,9 @@ export default function ProductsPage() {
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
           <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700/50 shadow-sm mr-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Ver en:</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+              Ver en:
+            </span>
             <select
               value={tableCurrency}
               onChange={(e) => setTableCurrency(e.target.value)}

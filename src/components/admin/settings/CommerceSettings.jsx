@@ -235,38 +235,50 @@ export default function CommerceSettings({ value, onChange }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                   <div>
                     <label className={labelClassName}>
-                      Costo del Delivery ($)
+                      Costo del Delivery ({value.currency_code || "USD"})
                     </label>
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       value={value.delivery_fee ?? ""}
-                      onChange={(e) =>
-                        handleFieldChange(
-                          "delivery_fee",
-                          parseFloat(e.target.value) || 0,
-                        )
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          handleFieldChange("delivery_fee", null);
+                        } else {
+                          const num = parseFloat(val);
+                          if (num >= 0) handleFieldChange("delivery_fee", num);
+                        }
+                      }}
+                      onWheel={(e) => e.target.blur()}
                       className={inputClassName}
-                      placeholder="Ej: 3.00"
+                      placeholder="0.00"
                     />
                   </div>
                   <div>
                     <label className={labelClassName}>
-                      Mínimo para Delivery Gratis ($)
+                      Mínimo para Delivery Gratis (
+                      {value.currency_code || "USD"})
                     </label>
                     <input
                       type="number"
                       step="1"
+                      min="0"
                       value={value.free_shipping_threshold ?? ""}
-                      onChange={(e) =>
-                        handleFieldChange(
-                          "free_shipping_threshold",
-                          parseFloat(e.target.value) || 0,
-                        )
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          handleFieldChange("free_shipping_threshold", null);
+                        } else {
+                          const num = parseFloat(val);
+                          if (num >= 0)
+                            handleFieldChange("free_shipping_threshold", num);
+                        }
+                      }}
+                      onWheel={(e) => e.target.blur()}
                       className={inputClassName}
-                      placeholder="Ej: 50.00"
+                      placeholder="0.00"
                     />
                   </div>
                 </div>
@@ -281,7 +293,7 @@ export default function CommerceSettings({ value, onChange }) {
                     Envíos Nacionales (Agencias)
                   </p>
                   <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">
-                    Envíos por MRW, Zoom, Tealca, etc.
+                    Envíos por MRW, Zoom, etc.
                   </p>
                 </div>
                 <label className="relative inline-flex h-6 w-11 shrink-0 items-center cursor-pointer">
@@ -328,20 +340,26 @@ export default function CommerceSettings({ value, onChange }) {
                     {value.shipping_national_type === "fixed" && (
                       <div>
                         <label className={labelClassName}>
-                          Monto del Envío ($)
+                          Monto del Envío ({value.currency_code || "USD"})
                         </label>
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
                           value={value.shipping_national_fee ?? ""}
-                          onChange={(e) =>
-                            handleFieldChange(
-                              "shipping_national_fee",
-                              parseFloat(e.target.value) || 0,
-                            )
-                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                              handleFieldChange("shipping_national_fee", null);
+                            } else {
+                              const num = parseFloat(val);
+                              if (num >= 0)
+                                handleFieldChange("shipping_national_fee", num);
+                            }
+                          }}
+                          onWheel={(e) => e.target.blur()}
                           className={inputClassName}
-                          placeholder="Ej: 7.00"
+                          placeholder="0.00"
                         />
                       </div>
                     )}
