@@ -13,11 +13,12 @@ export async function getTenantConfig() {
   if (!user) return { success: false, error: "No hay sesión activa" };
 
   // 2. Buscar el tenant_id en staff_profiles usando el ID del usuario
-  const { data: profile, error: profileError } = await supabase
+  const { data: profiles, error: profileError } = await supabase
     .from("staff_profiles")
     .select("tenant_id")
-    .eq("id", user.id) // En tu esquema, 'id' es la PK que viene de auth.users
-    .single();
+    .eq("id", user.id);
+
+  const profile = profiles?.[0];
 
   if (profileError || !profile) {
     console.error("Error al buscar perfil staff:", profileError);
@@ -25,11 +26,12 @@ export async function getTenantConfig() {
   }
 
   // 3. Ahora sí, buscar los datos de ESE tenant específico
-  const { data, error } = await supabase
+  const { data: tenants, error } = await supabase
     .from("tenants")
     .select("tenant_id, store_type")
-    .eq("tenant_id", profile.tenant_id)
-    .single();
+    .eq("tenant_id", profile.tenant_id);
+  
+  const data = tenants?.[0] || null;
 
   if (error) return { success: false, error: error.message };
 
@@ -46,12 +48,13 @@ export async function updateTenantStoreType(typeId, tenantId) {
   if (!user) throw new Error("No autorizado");
 
   // Actualizamos el tenant_id que nos pasó el componente
-  const { data, error } = await supabase
+    const { data: updatedTenants, error } = await supabase
     .from("tenants")
     .update({ store_type: typeId })
     .eq("tenant_id", tenantId)
-    .select()
-    .single();
+    .select();
+  
+  const data = updatedTenants?.[0] || null;
 
   if (error) {
     console.error("Error en DB:", error.message);

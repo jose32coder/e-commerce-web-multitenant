@@ -35,12 +35,6 @@ const STORE_TYPES = [
     color: "bg-slate-500",
   },
   {
-    id: "hardware_store",
-    name: "Tecnologia",
-    icon: <Wrench size={20} />,
-    color: "bg-orange-500",
-  },
-  {
     id: "restaurant",
     name: "Restaurante / Comida",
     icon: <Utensils size={20} />,
@@ -365,122 +359,122 @@ export default function CategoriesPage() {
       <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left">
-          <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
-            <tr>
-              <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Categoría / Estructura
-              </th>
-              <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 text-right">
-                Estado del Sistema
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-            {loading ? (
+            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
               <tr>
-                <td colSpan={2} className="px-6 py-20 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <Loader2
-                      className="animate-spin text-slate-400"
-                      size={32}
-                    />
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      Sincronizando Catálogo...
-                    </span>
-                  </div>
-                </td>
+                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                  Categoría / Estructura
+                </th>
+                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 text-right">
+                  Estado del Sistema
+                </th>
               </tr>
-            ) : filteredCategories.length > 0 ? (
-              paginatedCategories.map((category) => (
-                <React.Fragment key={category.id}>
-                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        <button
-                          onClick={() => toggleExpand(category.id)}
-                          className="p-1 text-slate-400 hover:text-slate-900"
-                          disabled={!category.subcategories?.length}
-                          style={{
-                            opacity: category.subcategories?.length ? 1 : 0.2,
-                          }}
-                        >
-                          {expandedCategories[category.id] ? (
-                            <ChevronDown size={18} />
-                          ) : (
-                            <ChevronRight size={18} />
-                          )}
-                        </button>
-                        <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center font-black text-slate-900 dark:text-white">
-                          {category.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-slate-200 text-sm">
-                            {category.name}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-medium">
-                            /{category.slug}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {category.tenant_id ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-slate-600 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-100 dark:border-indigo-500/20">
-                          <Tags size={10} /> Custom
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-500/20">
-                          <Tags size={10} /> Oficial
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-
-                  {/* Subcategorías */}
-                  {expandedCategories[category.id] &&
-                    category.subcategories?.map((sub) => (
-                      <tr
-                        key={sub.id}
-                        className="bg-slate-50/30 dark:bg-slate-800/20"
-                      >
-                        <td className="px-6 py-3 pl-20" colSpan={2}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700" />
-                            <div>
-                              <p className="font-bold text-slate-600 dark:text-slate-400 text-xs">
-                                {sub.name}
-                              </p>
-                              <p className="text-[9px] text-slate-400">
-                                /{sub.slug}
-                              </p>
-                            </div>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+              {loading ? (
+                <tr>
+                  <td colSpan={2} className="px-6 py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2
+                        className="animate-spin text-slate-400"
+                        size={32}
+                      />
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        Sincronizando Catálogo...
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredCategories.length > 0 ? (
+                paginatedCategories.map((category) => (
+                  <React.Fragment key={category.id}>
+                    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => toggleExpand(category.id)}
+                            className="p-1 text-slate-400 hover:text-slate-900"
+                            disabled={!category.subcategories?.length}
+                            style={{
+                              opacity: category.subcategories?.length ? 1 : 0.2,
+                            }}
+                          >
+                            {expandedCategories[category.id] ? (
+                              <ChevronDown size={18} />
+                            ) : (
+                              <ChevronRight size={18} />
+                            )}
+                          </button>
+                          <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center font-black text-slate-900 dark:text-white">
+                            {category.name.charAt(0)}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                </React.Fragment>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={2}
-                  className="px-6 py-12 text-center text-slate-400 font-medium"
-                >
-                  <div className="flex items-center justify-center gap-3">
-                    <Tags
-                      size={20}
-                      className="text-slate-300 dark:text-slate-600"
-                    />
-                    <span>
-                      {selectedType
-                        ? "No hay categorías en este nicho."
-                        : "Haz clic en 'Elegir Nicho' para ver el catálogo."}
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-slate-200 text-sm">
+                              {category.name}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-medium">
+                              /{category.slug}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {category.tenant_id ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-slate-600 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-100 dark:border-indigo-500/20">
+                            <Tags size={10} /> Custom
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-500/20">
+                            <Tags size={10} /> Oficial
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Subcategorías */}
+                    {expandedCategories[category.id] &&
+                      category.subcategories?.map((sub) => (
+                        <tr
+                          key={sub.id}
+                          className="bg-slate-50/30 dark:bg-slate-800/20"
+                        >
+                          <td className="px-6 py-3 pl-20" colSpan={2}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700" />
+                              <div>
+                                <p className="font-bold text-slate-600 dark:text-slate-400 text-xs">
+                                  {sub.name}
+                                </p>
+                                <p className="text-[9px] text-slate-400">
+                                  /{sub.slug}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </React.Fragment>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="px-6 py-12 text-center text-slate-400 font-medium"
+                  >
+                    <div className="flex items-center justify-center gap-3">
+                      <Tags
+                        size={20}
+                        className="text-slate-300 dark:text-slate-600"
+                      />
+                      <span>
+                        {selectedType
+                          ? "No hay categorías en este nicho."
+                          : "Haz clic en 'Elegir Nicho' para ver el catálogo."}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
           </table>
         </div>
       </div>

@@ -23,11 +23,12 @@ export async function GET(request) {
 
   // Si no pasaron store_type explícito, lo buscamos del tenant
   if (!effectiveStoreType && tenantId) {
-    const { data: tenantData } = await supabase
+    const { data: tenants } = await supabase
       .from("tenants")
       .select("store_type")
-      .eq("tenant_id", tenantId)
-      .single();
+      .eq("tenant_id", tenantId);
+    
+    const tenantData = tenants?.[0];
     if (tenantData?.store_type) {
       effectiveStoreType = tenantData.store_type;
     }
@@ -139,15 +140,16 @@ export async function POST(request) {
 
     let storeTypeToPersist = storeTypeFromPayload || null;
     if (!storeTypeToPersist) {
-      const { data: tenantData } = await supabase
+      const { data: tenants } = await supabase
         .from("tenants")
         .select("store_type")
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
+        .eq("tenant_id", tenantId);
+      
+      const tenantData = tenants?.[0];
       storeTypeToPersist = tenantData?.store_type || null;
     }
 
-    const { data, error } = await supabase
+    const { data: inserted, error } = await supabase
       .from("categories")
       .insert([
         {
@@ -158,8 +160,9 @@ export async function POST(request) {
           store_type: storeTypeToPersist,
         },
       ])
-      .select()
-      .single();
+      .select();
+    
+    const data = inserted?.[0];
 
     if (error) {
       console.error("Supabase insert error:", error);
