@@ -130,14 +130,21 @@ export default function QuickAddSheet({ product, open, onClose }) {
 
   const isOutOfStock = Number(stock) <= 0;
 
+  const getVariantStock = (variant) =>
+    Number(variant?.stock_quantity ?? variant?.stock_adjustment ?? 0);
+
   const isOptionAvailable = (key, val) =>
     (product_variants || []).some((v) => {
       if (!v.attributes || String(v.attributes[key]) !== String(val))
         return false;
+      if (getVariantStock(v) <= 0) return false;
       return attributeKeys
         .filter((k) => k !== key && selectedAttrs[k])
         .every((k) => String(v.attributes[k]) === String(selectedAttrs[k]));
     });
+
+  const selectedVariantOutOfStock =
+    hasVariants && selectedVariant ? getVariantStock(selectedVariant) <= 0 : false;
 
   const handleSelectAttr = (key, val) => {
     setSelectedAttrs((prev) => ({ ...prev, [key]: val }));
@@ -181,6 +188,17 @@ export default function QuickAddSheet({ product, open, onClose }) {
       Swal.fire({
         title: "¡Atención!",
         text: "Selecciona todas las opciones para poder continuar.",
+        icon: "warning",
+        confirmButtonColor: "#1A1A1A",
+        background: "#FBF9F6",
+        color: "#1A1A1A",
+      });
+      return false;
+    }
+    if (selectedVariantOutOfStock) {
+      Swal.fire({
+        title: "Sin stock",
+        text: "La combinación seleccionada no tiene disponibilidad.",
         icon: "warning",
         confirmButtonColor: "#1A1A1A",
         background: "#FBF9F6",
@@ -376,7 +394,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
             <div className="grid grid-cols-2 gap-2">
               <Button
                 onClick={handleAddToCart}
-                disabled={hasVariants && !allAttrsSelected}
+                disabled={(hasVariants && !allAttrsSelected) || selectedVariantOutOfStock}
                 className="h-13 bg-ink cursor-pointer text-paper hover:bg-ink/90 font-bold uppercase text-[10px] tracking-[0.16em] shadow-lg"
               >
                 <ShoppingBag size={16} className="mr-2" />
@@ -385,7 +403,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
 
               <Button
                 onClick={handleBuyNow}
-                disabled={hasVariants && !allAttrsSelected}
+                disabled={(hasVariants && !allAttrsSelected) || selectedVariantOutOfStock}
                 variant="outline"
                 className="h-13 cursor-pointer border-ink text-ink hover:bg-ink hover:text-paper font-bold uppercase text-[10px] tracking-[0.16em]"
               >
