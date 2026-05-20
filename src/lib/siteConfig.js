@@ -519,32 +519,47 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
   const supabase = createClient();
 
   let activeTenantId = tenantId;
+  let activeTenantSlug = tenantSlug || null;
 
   // 1. Si no tenemos ID pero tenemos SLUG, lo buscamos
   if (!activeTenantId && tenantSlug) {
     const { data: tenantRow } = await supabase
       .from("tenants")
-      .select("tenant_id")
+      .select("tenant_id, slug")
       .eq("slug", tenantSlug)
       .eq("status", "Active")
       .maybeSingle();
     activeTenantId = tenantRow?.tenant_id;
+    activeTenantSlug = tenantRow?.slug || tenantSlug || null;
   }
 
   // 1.1. Si seguimos sin ID, tomamos el primer tenant activo para admin
   if (!activeTenantId) {
     const { data: firstTenant } = await supabase
       .from("tenants")
-      .select("tenant_id")
+      .select("tenant_id, slug")
       .eq("status", "Active")
       .limit(1)
       .maybeSingle();
     activeTenantId = firstTenant?.tenant_id;
+    activeTenantSlug = firstTenant?.slug || null;
+  }
+
+  if (activeTenantId && !activeTenantSlug) {
+    const { data: tenantRow } = await supabase
+      .from("tenants")
+      .select("slug")
+      .eq("tenant_id", activeTenantId)
+      .maybeSingle();
+    activeTenantSlug = tenantRow?.slug || null;
   }
 
   // 2. Si finalmente no hay ID, devolvemos los defaults
   if (!activeTenantId) {
-    const defaults = returnDefaults(tenantId);
+    const defaults = {
+      ...returnDefaults(tenantId),
+      tenant_slug: activeTenantSlug,
+    };
     writeClientCachedSiteConfig(cacheKey, defaults);
     return defaults;
   }
@@ -559,14 +574,20 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
   // 3. Si hay un error real de conexión o la tabla no existe
   if (error) {
     console.error("Error crítico de base de datos:", error.message);
-    const defaults = returnDefaults();
+    const defaults = {
+      ...returnDefaults(),
+      tenant_slug: activeTenantSlug,
+    };
     writeClientCachedSiteConfig(cacheKey, defaults);
     return defaults;
   }
 
   // 4. Si la consulta fue exitosa pero no hay datos (tabla vacía)
   if (!data) {
-    const defaults = returnDefaults(activeTenantId);
+    const defaults = {
+      ...returnDefaults(activeTenantId),
+      tenant_slug: activeTenantSlug,
+    };
     writeClientCachedSiteConfig(cacheKey, defaults);
     return defaults;
   }
@@ -575,6 +596,7 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
   const normalized = {
     tenant_id: activeTenantId,
     ...data,
+    tenant_slug: activeTenantSlug,
     hero_slides: normalizeHeroSlides(data.hero_slides),
     home_intro: normalizeHomeIntro(data.home_intro),
     products_intro: {

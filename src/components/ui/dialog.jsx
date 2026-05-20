@@ -59,7 +59,7 @@ const DialogHeader = ({ className, ...props }) => (
 );
 DialogHeader.displayName = "DialogHeader";
 
-const DialogFooter = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => {
+const DialogFooter = ({ className = "", ...props }) => {
   const childrenArray = React.Children.toArray(props.children);
   const primary = childrenArray.slice(0, 2);
   const extra = childrenArray.slice(2);

@@ -23,6 +23,7 @@ import {
   normalizePlanType,
   updateTenant,
 } from "@/services/tenants";
+import { EditTenantModal } from "@/components/admin/tenants/EditTenantModal";
 import Swal from "sweetalert2";
 import { buildClientUrl } from "@/lib/url";
 
@@ -231,6 +232,7 @@ export function TenantTable({
                   >
                     <Mail className="h-4 w-4" />
                   </button>
+                  <EditTenantModal tenant={tenant} onTenantUpdated={onTenantUpdated} />
                   <button
                     onClick={() => toggleStatus(tenant)}
                     disabled={statusLoading === tenant.tenant_id}

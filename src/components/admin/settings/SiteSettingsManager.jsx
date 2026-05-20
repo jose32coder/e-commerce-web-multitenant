@@ -21,6 +21,8 @@ import { createClient } from "@/lib/supabase/client";
 import { CLOUDINARY_CONFIG } from "../product-form/config";
 import { buildTenantCloudinaryFolder } from "@/lib/cloudinaryFolders";
 import { revalidateSiteConfig } from "@/app/actions/revalidate";
+import { updateTenantIdentityAction } from "@/app/actions/public/tenantActions";
+import { slugify } from "@/lib/slug";
 import EditorialContentSettings from "./EditorialContentSettings";
 import HeroSliderSettings from "./HeroSliderSettings";
 import SiteIdentitySettings from "./SiteIdentitySettings";
@@ -105,6 +107,7 @@ export default function SiteSettingsManager() {
     currentPromoDivider,
     currentFooterSettings,
     currentCommerceSettings,
+    tenantSlug,
   ]);
 
   useEffect(() => {
@@ -186,12 +189,7 @@ export default function SiteSettingsManager() {
 
   const handleNameChange = (val) => {
     setSiteName(val);
-    const autoSlug = val
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-    setNewTenantSlug(autoSlug);
+    setNewTenantSlug(slugify(val));
   };
 
   const handleTenantCardConfigChange = (nextTenantCard) => {
@@ -510,26 +508,21 @@ export default function SiteSettingsManager() {
 
       setLoading(true);
       try {
+        let updatedTenant = null;
+
         if (nameChanged) {
-          const tenantUpdate = {
+          const result = await updateTenantIdentityAction(tenantId, {
             name: siteName,
             slug: newTenantSlug,
-            slug_updated_at: new Date().toISOString(),
-            name_change_history: [
-              ...nameChangeHistory,
-              new Date().toISOString(),
-            ],
-          };
+          });
 
-          const { error: tErr } = await supabase
-            .from("tenants")
-            .update(tenantUpdate)
-            .eq("tenant_id", tenantId);
-
-          if (tErr) {
-            console.error("Error actualizando tabla tenants:", tErr);
-            throw new Error(`Error en tabla tenants: ${tErr.message}`);
+          if (!result.success) {
+            throw new Error(result.error || "Error actualizando la tienda.");
           }
+
+          updatedTenant = result.data;
+          setNewTenantSlug(updatedTenant.slug);
+          setNameChangeHistory(updatedTenant.name_change_history || []);
         }
 
         // Sync logo_url to tenants table for platform-wide access
@@ -542,7 +535,9 @@ export default function SiteSettingsManager() {
         }
 
         await updateSiteConfig(payload, { tenantId });
-        await revalidateSiteConfig(tenantId, nameChanged ? newTenantSlug : tenantSlug);
+        const savedTenantSlug = updatedTenant?.slug || newTenantSlug || tenantSlug;
+
+        await revalidateSiteConfig(tenantId, savedTenantSlug);
 
         await logAudit(supabase, {
           tipo: "ajuste",
@@ -550,14 +545,14 @@ export default function SiteSettingsManager() {
           descripcion: "Identidad de tienda actualizada (Nombre/Slug)",
           usuario_id: currentUser?.id ?? null,
           usuario_nombre: actorName,
-          meta: { section, siteName, newTenantSlug },
+          meta: { section, siteName, newTenantSlug: savedTenantSlug },
         });
 
         patchConfig({
           site_name: siteName,
           header_menu: headerMenu,
           commerce_settings: payload.commerce_settings,
-          tenant_slug: nameChanged ? newTenantSlug : tenantSlug,
+          tenant_slug: savedTenantSlug,
         });
 
         Swal.fire({

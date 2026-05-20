@@ -163,12 +163,14 @@ export default function TenantsPage() {
     });
   };
 
-  const handleTenantUpdated = (updatedTenant) => {
+  const handleTenantUpdated = async (updatedTenant) => {
     setTenants((prev) =>
       prev.map((t) =>
         t.tenant_id === updatedTenant.tenant_id ? updatedTenant : t,
       ),
     );
+    // Refetch to ensure all fields (including slug) are up‑to‑date
+    await fetchTenants();
   };
 
   const filteredTenants = tenants.filter((t) => {

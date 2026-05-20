@@ -62,6 +62,21 @@ const getFirstActiveTenantIdCached = unstable_cache(
   { revalidate: 900, tags: ["tenants"] },
 );
 
+const getTenantSlugByIdCached = unstable_cache(
+  async (tenantId) => {
+    if (!tenantId) return null;
+    const supabase = getPublicSupabaseClient();
+    const { data } = await supabase
+      .from("tenants")
+      .select("slug")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    return data?.slug || null;
+  },
+  ["tenant-slug-by-id"],
+  { revalidate: 900, tags: ["tenants"] },
+);
+
 const getSiteSettingsByTenantIdCached = unstable_cache(
   async (tenantId) => {
     if (!tenantId) return null;
@@ -79,27 +94,40 @@ const getSiteSettingsByTenantIdCached = unstable_cache(
 
 export async function getSiteConfigServerCached({ tenantId, tenantSlug } = {}) {
   let activeTenantId = tenantId || null;
+  let activeTenantSlug = tenantSlug || null;
 
   if (!activeTenantId && tenantSlug) {
     activeTenantId = await getTenantIdBySlugCached(tenantSlug);
+    activeTenantSlug = tenantSlug;
   }
 
   if (!activeTenantId) {
     activeTenantId = await getFirstActiveTenantIdCached();
   }
 
+  if (activeTenantId && !activeTenantSlug) {
+    activeTenantSlug = await getTenantSlugByIdCached(activeTenantId);
+  }
+
   if (!activeTenantId) {
-    return returnDefaults(tenantId || null);
+    return {
+      ...returnDefaults(tenantId || null),
+      tenant_slug: activeTenantSlug,
+    };
   }
 
   const data = await getSiteSettingsByTenantIdCached(activeTenantId);
   if (!data) {
-    return returnDefaults(activeTenantId);
+    return {
+      ...returnDefaults(activeTenantId),
+      tenant_slug: activeTenantSlug,
+    };
   }
 
   return {
     tenant_id: activeTenantId,
     ...data,
+    tenant_slug: activeTenantSlug,
     hero_slides: normalizeHeroSlides(data.hero_slides),
     home_intro: normalizeHomeIntro(data.home_intro),
     products_intro: {

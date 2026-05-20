@@ -106,7 +106,7 @@ export const SiteConfigProvider = ({
         ...prev,
         ...data,
         tenant_id: data?.tenant_id ?? prev.tenant_id ?? tenantId ?? null,
-        tenant_slug: prev.tenant_slug || tenantSlug || null,
+        tenant_slug: data?.tenant_slug ?? tenantSlug ?? prev.tenant_slug ?? null,
         hero_slides: normalizeHeroSlides(data.hero_slides),
         home_intro: normalizeHomeIntro(data.home_intro),
         products_intro: {
@@ -188,11 +188,11 @@ export const SiteConfigProvider = ({
       loading: true,
       site_name: "",
       tenant_id: tenantId || null,
-      tenant_slug: tenantSlug || null,
+      tenant_slug: tenantSlug || initialData?.tenant_slug || null,
     }));
     
     fetchConfig();
-  }, [tenantId, tenantSlug, fetchConfig]);
+  }, [tenantId, tenantSlug, initialData?.tenant_slug, fetchConfig]);
 
     const activeTenantIdForEffect = config.tenant_id;
     useEffect(() => {
