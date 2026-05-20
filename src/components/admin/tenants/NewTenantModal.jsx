@@ -154,6 +154,7 @@ export function NewTenantModal({ onTenantCreated }) {
           </div>
 
           <DialogFooter className="pt-4">
+            {/* Confirm button (left) */}
             <Button
               type="submit"
               disabled={loading}
@@ -167,6 +168,15 @@ export function NewTenantModal({ onTenantCreated }) {
               ) : (
                 "Finalizar Registro"
               )}
+            </Button>
+            {/* Cancel button (right) */}
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+              className="ml-2"
+            >
+              Cancelar
             </Button>
           </DialogFooter>
         </form>

@@ -166,7 +166,6 @@ export default function AdminLayoutClient({
       cancelButtonColor: "#f44336",
       confirmButtonText: "SÍ, SALIR",
       cancelButtonText: "CANCELAR",
-      reverseButtons: true,
       background: "#ffffff",
       customClass: {
         popup: "rounded-[30px] border border-zinc-100",

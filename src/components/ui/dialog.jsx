@@ -59,15 +59,25 @@ const DialogHeader = ({ className, ...props }) => (
 );
 DialogHeader.displayName = "DialogHeader";
 
-const DialogFooter = ({ className, ...props }) => (
-  <div
-    className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-      className,
-    )}
-    {...props}
-  />
-);
+const DialogFooter = ({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) => {
+  const childrenArray = React.Children.toArray(props.children);
+  const primary = childrenArray.slice(0, 2);
+  const extra = childrenArray.slice(2);
+
+  return (
+    <div className={cn("flex flex-col gap-2", className)} {...props}>
+      {/* Row with Confirm (left) and Cancel (right) */}
+      <div className="flex justify-between">
+        {primary[0] ?? null}
+        {primary[1] ?? null}
+      </div>
+      {/* Optional extra button row */}
+      {extra.length > 0 && (
+        <div className="flex justify-center gap-2">{extra}</div>
+      )}
+    </div>
+  );
+};
 DialogFooter.displayName = "DialogFooter";
 
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (

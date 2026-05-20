@@ -612,14 +612,6 @@ export default function CategoriesPage() {
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setIsCreateCategoryModalOpen(false)}
-                  className="h-11 px-6 rounded-md cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-100 transition-all duration-150 text-xs font-black uppercase tracking-widest w-full sm:w-auto"
-                  disabled={creatingCategory}
-                >
-                  Cancelar
-                </button>
-                <button
                   type="submit"
                   disabled={
                     creatingCategory ||
@@ -636,6 +628,14 @@ export default function CategoriesPage() {
                     <Save size={16} />
                   )}
                   Guardar categoría
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCategoryModalOpen(false)}
+                  className="h-11 px-6 rounded-md cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-100 transition-all duration-150 text-xs font-black uppercase tracking-widest w-full sm:w-auto"
+                  disabled={creatingCategory}
+                >
+                  Cancelar
                 </button>
               </div>
             </form>

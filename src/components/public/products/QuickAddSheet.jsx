@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTenantCart } from "@/lib/useCartStore";
@@ -13,12 +13,13 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { ShoppingBag, ArrowRight, MessageCircle } from "lucide-react";
+import { ShoppingBag, ArrowRight, MessageCircle, ChevronDown } from "lucide-react";
 import Swal from "sweetalert2";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function QuickAddSheet({ product, open, onClose }) {
   const { site_name, tenant_slug, commerce_settings, exchange_rates } =
@@ -31,8 +32,57 @@ export default function QuickAddSheet({ product, open, onClose }) {
   const currencySymbol = commerce_settings?.currency_symbol || "$";
   const targetCurrency = commerce_settings?.currency_code || "USD";
 
-  if (!product) return null;
+  const scrollRef = useRef(null);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
 
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const isScrollable = scrollHeight > clientHeight + 10;
+      const isAtTop = scrollTop < 15;
+      setShowScrollIndicator(isScrollable && isAtTop);
+    }
+  };
+
+  const handleScroll = () => {
+    checkScroll();
+  };
+
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(checkScroll, 350);
+      window.addEventListener("resize", checkScroll);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("resize", checkScroll);
+      };
+    } else {
+      const timer = setTimeout(() => {
+        setShowScrollIndicator(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [open, product, selectedAttrs]);
+
+  const handleScrollDown = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!open) {
+      const timer = setTimeout(() => {
+        setSelectedAttrs({});
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // Safely get properties using fallback to prevent TypeError if product is null
   const {
     name,
     price,
@@ -43,12 +93,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
     slug,
     base_currency = "USD",
     stock,
-  } = product;
-
-  const inquiryMsg = encodeURIComponent(`Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata.`);
-  const inquiryUrl = `https://wa.me/${commerce_settings?.whatsapp_number}?text=${inquiryMsg}`;
-
-  const isOutOfStock = Number(stock) <= 0;
+  } = product || {};
 
   const attributeGroups = useMemo(() => {
     const groups = {};
@@ -76,6 +121,14 @@ export default function QuickAddSheet({ product, open, onClose }) {
       }) || null
     );
   }, [hasVariants, product_variants, attributeKeys, selectedAttrs]);
+
+  // Safe early return after all React Hooks have executed
+  if (!product) return null;
+
+  const inquiryMsg = encodeURIComponent(`Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata.`);
+  const inquiryUrl = `https://wa.me/${commerce_settings?.whatsapp_number}?text=${inquiryMsg}`;
+
+  const isOutOfStock = Number(stock) <= 0;
 
   const isOptionAvailable = (key, val) =>
     (product_variants || []).some((v) => {
@@ -122,12 +175,6 @@ export default function QuickAddSheet({ product, open, onClose }) {
   );
 
   const imageUrl = images?.[0] || "/placeholder.jpg";
-
-  useEffect(() => {
-    if (!open) {
-      setSelectedAttrs({});
-    }
-  }, [open]);
 
   const ensureVariantBeforeContinue = () => {
     if (hasVariants && !allAttrsSelected) {
@@ -190,7 +237,12 @@ export default function QuickAddSheet({ product, open, onClose }) {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-4 no-scrollbar">
+      <div className="flex-1 min-h-0 relative flex flex-col">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-6 pb-4 no-scrollbar"
+        >
 
         <div
           className={`flex flex-col sm:flex-row gap-5 sm:gap-5 items-stretch sm:items-start ${hasVariants ? "mb-8" : "mb-6"}`}
@@ -296,6 +348,28 @@ export default function QuickAddSheet({ product, open, onClose }) {
           </div>
         )}
         </div>
+
+        <AnimatePresence>
+          {showScrollIndicator && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: 10, x: "-50%" }}
+              transition={{ duration: 0.3 }}
+              onClick={handleScrollDown}
+              className="absolute bottom-4 left-1/2 z-20 flex items-center gap-1.5 px-4 py-2 bg-black/85 backdrop-blur-md text-white text-[10px] font-bold tracking-widest uppercase rounded-full shadow-lg border border-white/10 cursor-pointer select-none"
+            >
+              <span>Ver variantes / Más</span>
+              <motion.div
+                animate={{ y: [0, 3, 0] }}
+                transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+              >
+                <ChevronDown size={13} className="text-honey-light" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
         <div className="p-4 sm:p-6 border-t border-gray-100 bg-white shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-10">
           <div className="flex flex-col gap-3">

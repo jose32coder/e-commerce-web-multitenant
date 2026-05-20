@@ -95,7 +95,6 @@ export default function TenantsPage() {
       cancelButtonColor: "#f44336",
       confirmButtonText: "SÍ, SALIR",
       cancelButtonText: "CANCELAR",
-      reverseButtons: true,
       background: "#ffffff",
       customClass: {
         popup: "rounded-[30px] border border-zinc-100",
@@ -624,17 +623,17 @@ export default function TenantsPage() {
 
           <div className="flex items-center justify-end gap-2 pt-4">
             <Button
+              onClick={confirmInviteModal}
+              className="rounded-md bg-slate-900 cursor-pointer text-white hover:bg-slate-800"
+            >
+              Generar
+            </Button>
+            <Button
               variant="outline"
               onClick={() => setInviteModalOpen(false)}
               className="rounded-md cursor-pointer"
             >
               Cancelar
-            </Button>
-            <Button
-              onClick={confirmInviteModal}
-              className="rounded-md bg-slate-900 cursor-pointer text-white hover:bg-slate-800"
-            >
-              Generar
             </Button>
           </div>
         </DialogContent>

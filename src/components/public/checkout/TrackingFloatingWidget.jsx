@@ -87,7 +87,6 @@ export default function TrackingFloatingWidget() {
       cancelButtonText: "Cancelar",
       background: "#FBF9F6",
       color: "#1A1A1A",
-      reverseButtons: true,
     }).then((result) => {
       if (result.isConfirmed) {
         stopTracking(tenant_slug);
