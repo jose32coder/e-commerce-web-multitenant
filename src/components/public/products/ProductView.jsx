@@ -74,7 +74,7 @@ export default function ProductView({ product }) {
         },
         (payload) => {
           setCurrentStock(Number(payload.new.quantity) || 0);
-        }
+        },
       )
       .subscribe();
 
@@ -107,13 +107,15 @@ export default function ProductView({ product }) {
   // --- PRESENCE SUBSCRIPTION (FOMO) ---
   useEffect(() => {
     const supabase = createClient();
-    const presenceChannel = supabase.channel(`presence:checkout:${commerce.tenant_id}`);
+    const presenceChannel = supabase.channel(
+      `presence:checkout:${commerce.tenant_id}`,
+    );
 
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         let count = 0;
-        
+
         // Contamos cuántas sesiones de checkout tienen este producto
         Object.values(state).forEach((presences) => {
           presences.forEach((p) => {
@@ -122,7 +124,7 @@ export default function ProductView({ product }) {
             }
           });
         });
-        
+
         setActiveCheckouts(count);
       })
       .subscribe();
@@ -153,25 +155,35 @@ export default function ProductView({ product }) {
       }) || null
     : null;
 
+  const getVariantStock = (variant) =>
+    Number(variant?.stock_quantity ?? variant?.stock_adjustment ?? 0);
+
   const isOptionAvailable = (key, val) =>
     (localVariants || []).some((v) => {
       if (!v.attributes || String(v.attributes[key]) !== String(val))
         return false;
+      if (getVariantStock(v) <= 0) return false;
       return attributeKeys
         .filter((k) => k !== key && selectedAttrs[k])
         .every((k) => String(v.attributes[k]) === String(selectedAttrs[k]));
     });
 
   // --- Estados de Stock Calculados ---
-  const selectedVariantStock = selectedVariant ? Number(selectedVariant.stock_quantity) : null;
+  const selectedVariantStock = selectedVariant
+    ? getVariantStock(selectedVariant)
+    : null;
+  const selectedVariantOutOfStock =
+    hasVariants && selectedVariant ? selectedVariantStock <= 0 : false;
 
-  const isOutOfStock = selectedVariantStock !== null
-    ? selectedVariantStock <= 0
-    : currentStock <= 0;
+  const isOutOfStock =
+    selectedVariantStock !== null
+      ? selectedVariantStock <= 0
+      : currentStock <= 0;
 
-  const isLowStock = selectedVariantStock !== null
-    ? selectedVariantStock > 0 && selectedVariantStock < 5
-    : currentStock > 0 && currentStock < 5;
+  const isLowStock =
+    selectedVariantStock !== null
+      ? selectedVariantStock > 0 && selectedVariantStock < 5
+      : currentStock > 0 && currentStock < 5;
 
   const canInquiry = commerce.whatsapp_stock_check && commerce.whatsapp_number;
   const whatsappMessage = encodeURIComponent(
@@ -179,7 +191,9 @@ export default function ProductView({ product }) {
   );
   const whatsappUrl = `https://wa.me/${commerce.whatsapp_number}?text=${whatsappMessage}`;
 
-  const inquiryMsg = encodeURIComponent(`Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata antes de comprar.`);
+  const inquiryMsg = encodeURIComponent(
+    `Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata antes de realizar el pago.`,
+  );
   const inquiryUrl = `https://wa.me/${commerce.whatsapp_number}?text=${inquiryMsg}`;
 
   const [selectedImage, setSelectedImage] = useState(0);
@@ -262,6 +276,17 @@ export default function ProductView({ product }) {
       Swal.fire({
         title: "¡Atención!",
         text: "Selecciona todas las opciones para continuar.",
+        icon: "warning",
+        confirmButtonColor: "#1A1A1A",
+        background: "#FBF9F6",
+        color: "#1A1A1A",
+      });
+      return false;
+    }
+    if (selectedVariantOutOfStock) {
+      Swal.fire({
+        title: "Sin stock",
+        text: "La variante seleccionada está agotada.",
         icon: "warning",
         confirmButtonColor: "#1A1A1A",
         background: "#FBF9F6",
@@ -375,7 +400,9 @@ export default function ProductView({ product }) {
               <div className="mt-2 flex items-center gap-2 animate-pulse">
                 <span className="flex h-2 w-2 rounded-full bg-red-500"></span>
                 <span className="text-[10px] font-bold text-red-600 uppercase tracking-widest">
-                  🔥 {activeCheckouts} {activeCheckouts === 1 ? 'persona está' : 'personas están'} por comprar esto ahora mismo
+                  🔥 {activeCheckouts}{" "}
+                  {activeCheckouts === 1 ? "persona está" : "personas están"}{" "}
+                  por comprar esto ahora mismo
                 </span>
               </div>
             )}
@@ -478,6 +505,7 @@ export default function ProductView({ product }) {
                 <Button
                   size="lg"
                   onClick={handleAddToCart}
+                  disabled={selectedVariantOutOfStock}
                   className="w-full h-14 font-bold cursor-pointer tracking-widest transition-all border-slate active:scale-95 hover:bg-black hover:text-white duration-300"
                 >
                   Agregar al carrito
@@ -486,6 +514,7 @@ export default function ProductView({ product }) {
                   size="lg"
                   variant="outline"
                   onClick={handleBuyNow}
+                  disabled={selectedVariantOutOfStock}
                   className="w-full h-14 font-bold cursor-pointer tracking-widest border border-black transition-all active:scale-95 hover:bg-black hover:text-white duration-300"
                 >
                   Comprar ahora
@@ -501,7 +530,10 @@ export default function ProductView({ product }) {
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 py-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-widest group"
             >
-              <MessageCircle size={16} className="group-hover:scale-110 transition-transform" />
+              <MessageCircle
+                size={16}
+                className="group-hover:scale-110 transition-transform"
+              />
               ¿Confirmar disponibilidad por WhatsApp?
             </a>
           )}

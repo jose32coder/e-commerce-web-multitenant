@@ -36,13 +36,23 @@ export default async function ProductsPage({ params }) {
     category: categories.find((cat) => cat.id === product.category_id) || null,
   }));
 
+  // 4. Solo exponer categorías realmente usadas por productos
+  const usedCategoryIds = new Set();
+  products.forEach((product) => {
+    (product.category_ids || []).forEach((id) => usedCategoryIds.add(id));
+    if (product.category_id) usedCategoryIds.add(product.category_id);
+    if (product.subcategory_id) usedCategoryIds.add(product.subcategory_id);
+    if (product.category?.id) usedCategoryIds.add(product.category.id);
+  });
+  const activeCategories = categories.filter((cat) => usedCategoryIds.has(cat.id));
+
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-12">
       <section className="py-24">
         <AnimatedHeaderProducts />
 
         {/* 3. Pasamos las categorías al componente cliente */}
-        <AnimatedProducts products={products} categories={categories} />
+        <AnimatedProducts products={products} categories={activeCategories} />
       </section>
     </div>
   );

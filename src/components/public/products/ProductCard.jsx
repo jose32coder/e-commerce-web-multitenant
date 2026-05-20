@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Share2 } from "lucide-react";
 import QuickAddSheet from "@/components/public/products/QuickAddSheet";
 import { getOptimizedImage } from "@/lib/getOptimizedImage";
 import { useSiteConfig } from "@/context/SiteConfigContext";
@@ -17,6 +17,7 @@ export default function ProductCard({
   index = 0,
   activeCategoryId = "all",
   allCategories = [],
+  onSheetOpenChange,
 }) {
   const { site_name, tenant_slug, commerce_settings, exchange_rates } =
     useSiteConfig();
@@ -42,12 +43,13 @@ export default function ProductCard({
   } = product;
 
   const [currentStock, setCurrentStock] = useState(Number(stock) || 0);
+  const uniqueChannelId = useRef(Math.random().toString(36).substring(7));
 
   // --- REALTIME STOCK SUBSCRIPTION ---
   useEffect(() => {
     const supabase = createClient();
     const stockChannel = supabase
-      .channel(`card-stock-${product.id}`)
+      .channel(`card-stock-${product.id}-${uniqueChannelId.current}`)
       .on(
         "postgres_changes",
         {
@@ -135,12 +137,24 @@ export default function ProductCard({
   const rawImageUrl = images?.[0] || "/placeholder.jpg";
   const imageUrl = getOptimizedImage(rawImageUrl, 400);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (onSheetOpenChange) {
+      onSheetOpenChange(sheetOpen);
+    }
+  }, [sheetOpen, onSheetOpenChange]);
+
   const isPriority = index < 4;
 
   const handleQuickAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setSheetOpen(true);
+  };
+
+  const handleSharePlaceholder = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   return (
@@ -152,18 +166,17 @@ export default function ProductCard({
       >
         <div className="relative overflow-hidden rounded-2xl bg-[#F9F9F9] aspect-3/4">
           {displayCategories.length > 0 && (
-            <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1">
-              {displayCategories.slice(0, 2).map((catName, i) => (
-                <span
-                  key={i}
-                  className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-ink shadow-sm"
-                >
-                  {catName}
-                </span>
-              ))}
-              {displayCategories.length > 2 && (
-                <span className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-[10px] font-bold text-ink shadow-sm">
-                  +{displayCategories.length - 2}
+            <div className="absolute top-3 left-3 right-14 z-10 flex flex-wrap gap-1 items-center">
+              <span
+                className="bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-[7px] md:text-[10px] font-bold uppercase tracking-[0.18em] md:tracking-widest text-ink shadow-sm inline-block max-w-27.5 md:max-w-42.5 truncate"
+                title={displayCategories[0]} // Muestra el texto completo al pasar el mouse
+              >
+                {displayCategories[0]}
+              </span>
+
+              {displayCategories.length > 1 && (
+                <span className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-[7px] md:text-[10px] font-bold text-ink shadow-sm shrink-0">
+                  +{displayCategories.length - 1}
                 </span>
               )}
             </div>
@@ -176,6 +189,7 @@ export default function ProductCard({
             sizes="(max-width: 768px) 50vw, 25vw"
             priority={isPriority}
             className={`object-cover transition-transform duration-700 ease-out group-hover:scale-110 ${isOutOfStock ? "grayscale opacity-60" : ""}`}
+            draggable={false}
           />
 
           {isOutOfStock && (
@@ -197,6 +211,15 @@ export default function ProductCard({
           <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
           <Button
+            onClick={handleSharePlaceholder}
+            size="icon"
+            className="absolute top-3 right-3 z-20 h-7 w-7 cursor-pointer bg-white/95 text-ink hover:bg-white shadow-md transition-all duration-300 opacity-85 group-hover:opacity-100"
+            aria-label={`Compartir ${name}`}
+          >
+            <Share2 size={12} />
+          </Button>
+
+          <Button
             onClick={handleQuickAdd}
             disabled={isOutOfStock}
             size="icon"
@@ -209,9 +232,9 @@ export default function ProductCard({
           </Button>
         </div>
 
-        <div className="mt-4 space-y-1.5 px-1">
+        <div className="mt-3 md:mt-4 space-y-1 px-0.5 md:px-1">
           {displayCategories.length > 0 && (
-            <span className="block text-[9px] font-bold uppercase tracking-[0.3em] text-honey-dark leading-none">
+            <span className="block text-[8px] md:text-[9px] font-bold uppercase tracking-[0.22em] md:tracking-[0.3em] text-honey-dark leading-none">
               {displayCategories[0]}
               {displayCategories.length > 1 && (
                 <span className="ml-1 text-slate-400">
@@ -222,22 +245,22 @@ export default function ProductCard({
           )}
 
           <div className="flex flex-col gap-2 md:hidden">
-            <h4 className="text-[12px] font-bold text-ink uppercase tracking-tight line-clamp-2">
+            <h4 className="text-[11px] font-bold text-ink uppercase tracking-tight line-clamp-2">
               {name}
             </h4>
             {(description || short_description) && (
-              <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2 font-light italic">
+              <p className="text-[10px] text-gray-500 leading-relaxed line-clamp-2 font-light italic">
                 {description || short_description}
               </p>
             )}
             <div className="flex flex-row flex-wrap items-baseline gap-x-2 gap-y-1">
               {hasActiveOffer && (
-                <span className="text-[10px] font-semibold text-red-500 line-through">
+                <span className="text-[9px] font-semibold text-red-500 line-through">
                   {currencySymbol}
                   {formatPrice(regularPrice, targetCurrency)}
                 </span>
               )}
-              <span className="text-[13px] font-bold text-black">
+              <span className="text-[12px] font-bold text-black">
                 {isVariantOnlyPricing ? "Desde " : ""}
                 {currencySymbol}
                 {formatPrice(displayPrice, targetCurrency)}
