@@ -23,6 +23,10 @@ export default function AdminDashboard() {
     stockBajo: 0,
   });
   const [recentOrders, setRecentOrders] = useState([]);
+  const [productSales, setProductSales] = useState({
+    bestSellers: [],
+    lowSellers: [],
+  });
   const [loading, setLoading] = useState(true);
   const [dashboardCurrency, setDashboardCurrency] = useState("USD");
   const [showLowStockModal, setShowLowStockModal] = useState(false);
@@ -36,6 +40,7 @@ export default function AdminDashboard() {
       setLoading(true);
       setMetrics({ ventasHoy: 0, ordenesTotales: 0, stockBajo: 0 });
       setLowStockProducts([]);
+      setProductSales({ bestSellers: [], lowSellers: [] });
 
       const supabase = createClient();
       const buildCustomerFromOrder = (order) => {
@@ -121,6 +126,63 @@ export default function AdminDashboard() {
         quantity: item.quantity,
       }));
       setLowStockProducts(lowStockItems);
+
+      const { data: productsData } = await supabase
+        .from("products")
+        .select("id, name")
+        .eq("tenant_id", tenantId);
+
+      const { data: paidOrdersForSales } = await supabase
+        .from("orders")
+        .select("items")
+        .eq("tenant_id", tenantId)
+        .eq("estado", "paid");
+
+      const productMap = new Map(
+        (productsData || []).map((product) => [
+          String(product.id),
+          {
+            id: product.id,
+            name: product.name || "Producto sin nombre",
+            quantity: 0,
+          },
+        ]),
+      );
+
+      (paidOrdersForSales || []).forEach((order) => {
+        const orderItems = Array.isArray(order.items) ? order.items : [];
+
+        orderItems.forEach((item) => {
+          const itemId = item.id ? String(item.id) : "";
+          if (!itemId) return;
+
+          const current =
+            productMap.get(itemId) || {
+              id: item.id,
+              name: item.name || item.title || "Producto sin nombre",
+              quantity: 0,
+            };
+
+          productMap.set(itemId, {
+            ...current,
+            quantity: current.quantity + (Number(item.quantity) || 0),
+          });
+        });
+      });
+
+      const salesRanking = Array.from(productMap.values());
+      setProductSales({
+        bestSellers: [...salesRanking]
+          .sort(
+            (a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name),
+          )
+          .slice(0, 5),
+        lowSellers: [...salesRanking]
+          .sort(
+            (a, b) => a.quantity - b.quantity || a.name.localeCompare(b.name),
+          )
+          .slice(0, 5),
+      });
 
       // 4. Últimas Órdenes
       const { data: recientes } = await supabase
@@ -223,6 +285,26 @@ export default function AdminDashboard() {
           className={
             metrics.stockBajo > 0 ? "cursor-pointer hover:scale-[1.02]" : ""
           }
+        />
+      </div>
+
+      {/* PRODUCTOS VENDIDOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <ProductSalesPanel
+          title="Productos mas vendidos"
+          subtitle="Ranking por unidades en ordenes completadas"
+          items={productSales.bestSellers}
+          loading={loading}
+          icon={TrendingUp}
+          tone="emerald"
+        />
+        <ProductSalesPanel
+          title="Productos menos vendidos"
+          subtitle="Incluye productos sin ventas registradas"
+          items={productSales.lowSellers}
+          loading={loading}
+          icon={TrendingDown}
+          tone="orange"
         />
       </div>
 
@@ -394,6 +476,78 @@ export default function AdminDashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function ProductSalesPanel({
+  title,
+  subtitle,
+  items,
+  loading,
+  icon: Icon,
+  tone,
+}) {
+  const isEmerald = tone === "emerald";
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-sm overflow-hidden">
+      <header className="p-6 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900 dark:text-white">
+            {title}
+          </h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">
+            {subtitle}
+          </p>
+        </div>
+        <div
+          className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 ${
+            isEmerald ? "bg-emerald-500" : "bg-orange-500"
+          }`}
+        >
+          <Icon size={18} strokeWidth={2.5} />
+        </div>
+      </header>
+
+      <div className="p-4">
+        {loading ? (
+          <div className="py-10 flex justify-center text-slate-300">
+            <Loader2 className="animate-spin" size={24} />
+          </div>
+        ) : items.length > 0 ? (
+          <div className="space-y-2">
+            {items.map((product, index) => (
+              <div
+                key={product.id || `${product.name}-${index}`}
+                className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-700/50"
+              >
+                <div className="min-w-0 flex items-center gap-3">
+                  <span
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0 ${
+                      isEmerald
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                        : "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
+                    }`}
+                  >
+                    #{index + 1}
+                  </span>
+                  <span className="truncate text-sm font-black text-slate-800 dark:text-slate-200">
+                    {product.name}
+                  </span>
+                </div>
+                <span className="shrink-0 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300">
+                  {product.quantity} uds
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-10 text-center text-slate-400 text-sm">
+            No hay productos registrados
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

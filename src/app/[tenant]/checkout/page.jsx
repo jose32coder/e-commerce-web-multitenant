@@ -14,6 +14,28 @@ const CheckoutFormSchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   paymentMethod: z.string().min(1, "Selecciona un método de pago"),
   reference: z.string().min(3, "La referencia es necesaria").max(50),
+  shippingMethod: z.string().optional(),
+  shippingProvider: z.string().optional(),
+  shippingCity: z.string().optional(),
+  shippingBranchCode: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.shippingMethod !== "national" || !data.shippingProvider) return;
+
+  if (!String(data.shippingCity || "").trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["shippingCity"],
+      message: "Indica la ciudad del envio",
+    });
+  }
+
+  if (!String(data.shippingBranchCode || "").trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["shippingBranchCode"],
+      message: "Indica el codigo de sede",
+    });
+  }
 });
 
 // Store e iconos
@@ -108,6 +130,8 @@ export default function CheckoutPage() {
     email: "",
     shippingMethod: "local", // 'local', 'national' o 'pickup'
     shippingProvider: "", // Ej: 'mrw', 'zoom'
+    shippingCity: "",
+    shippingBranchCode: "",
     shippingPaymentType: "paid", // 'paid' (pagado aquí) o 'cod' (cobro en destino)
     paymentMethod: "",
     reference: "",
@@ -532,6 +556,19 @@ export default function CheckoutPage() {
                 ? "GRATIS ✨"
                 : `${currencySymbol}${formatPrice(deliveryFeeConverted, targetCurrency)} 🚚`;
           const shippingLabel = `${shippingMethodLabel}${formData.shippingProvider ? ` (${formData.shippingProvider.toUpperCase()})` : ""}`;
+          const shippingAgencyDetails =
+            formData.shippingMethod === "national" && formData.shippingProvider
+              ? [
+                  formData.shippingCity
+                    ? `Ciudad: ${formData.shippingCity}`
+                    : null,
+                  formData.shippingBranchCode
+                    ? `Sede: ${formData.shippingBranchCode}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" | ")
+              : "";
           const whatsappPayload = {
             brand,
             paymentMethod: selectedPaymentMethod,
@@ -544,7 +581,10 @@ export default function CheckoutPage() {
             orderDetails,
             totalLabel: `${currencySymbol}${formatPrice(totalConverted, targetCurrency)}`,
             shippingLabel,
-            notes: formData.notes || "Ninguna",
+            notes:
+              [shippingAgencyDetails, formData.notes || ""]
+                .filter(Boolean)
+                .join("\n") || "Ninguna",
           };
 
           const message = buildCheckoutWhatsappMessage(whatsappPayload);
@@ -653,6 +693,7 @@ export default function CheckoutPage() {
                       deliveryFee={deliveryFee}
                       subtotal={subtotal}
                       threshold={threshold}
+                      errors={errors}
                     />
                   </div>
 

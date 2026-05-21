@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Search } from "lucide-react";
+import { FilterX, RefreshCw, Search } from "lucide-react";
 
 export default function OrderFilters({ 
   searchTerm, 
@@ -13,6 +13,8 @@ export default function OrderFilters({
   setShowAdvancedFilters,
   pageSize,
   setPageSize,
+  onRefresh,
+  onClearFilters,
   advancedFiltersProps
 }) {
   const {
@@ -152,6 +154,24 @@ export default function OrderFilters({
               </option>
             ))}
           </select>
+          <div className="sm:col-span-2 xl:col-span-1 flex gap-2">
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="flex-1 h-10 px-4 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <RefreshCw size={13} />
+              Actualizar
+            </button>
+            <button
+              type="button"
+              onClick={onClearFilters}
+              className="h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              title="Limpiar filtros"
+            >
+              <FilterX size={15} />
+            </button>
+          </div>
         </div>
       )}
     </div>

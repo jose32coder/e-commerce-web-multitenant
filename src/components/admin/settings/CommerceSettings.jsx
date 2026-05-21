@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Shield, Smartphone, Wallet } from "lucide-react";
+import { CalendarDays, Building2, Shield, Smartphone, Wallet } from "lucide-react";
 import SettingsSectionHeader from "./SettingsSectionHeader";
 import {
   inputClassName,
@@ -11,6 +11,16 @@ import {
   PAYMENT_METHOD_SCHEMAS,
   PAYMENT_OPTIONS,
 } from "@/lib/paymentMethodSchemas";
+
+const DEFAULT_BUSINESS_HOURS = [
+  { day: "Lun", enabled: true, open: "09:00", close: "18:00" },
+  { day: "Mar", enabled: true, open: "09:00", close: "18:00" },
+  { day: "Mie", enabled: true, open: "09:00", close: "18:00" },
+  { day: "Jue", enabled: true, open: "09:00", close: "18:00" },
+  { day: "Vie", enabled: true, open: "09:00", close: "18:00" },
+  { day: "Sab", enabled: true, open: "10:00", close: "14:00" },
+  { day: "Dom", enabled: false, open: "09:00", close: "18:00" },
+];
 
 export default function CommerceSettings({ value, onChange }) {
   const handleFieldChange = (field, nextValue) => {
@@ -57,6 +67,20 @@ export default function CommerceSettings({ value, onChange }) {
     handleFieldChange("product_notices", currentNotices);
   };
 
+  const businessHours = Array.isArray(value.business_hours)
+    ? DEFAULT_BUSINESS_HOURS.map((defaultDay, index) => ({
+        ...defaultDay,
+        ...(value.business_hours[index] || {}),
+      }))
+    : DEFAULT_BUSINESS_HOURS;
+
+  const updateBusinessHour = (index, field, nextValue) => {
+    const nextHours = businessHours.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, [field]: nextValue } : item,
+    );
+    handleFieldChange("business_hours", nextHours);
+  };
+
   const deliveryEnabled = value?.delivery_enabled !== false;
 
   return (
@@ -68,6 +92,56 @@ export default function CommerceSettings({ value, onChange }) {
       />
 
       <div className="space-y-8">
+        <div className="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 space-y-4">
+          <div>
+            <label className={labelClassName}>
+              <CalendarDays size={10} /> Horario de laburo
+            </label>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+              Horario por dia en formato 24h. Se mostrara al cliente en la tienda.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {businessHours.map((item, index) => (
+              <div
+                key={item.day}
+                className="grid grid-cols-[2.5rem_1.5rem_1fr_1fr] items-center gap-2"
+              >
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {item.day}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={item.enabled !== false}
+                  onChange={(e) =>
+                    updateBusinessHour(index, "enabled", e.target.checked)
+                  }
+                  className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+                />
+                <input
+                  type="time"
+                  value={item.open || "09:00"}
+                  onChange={(e) =>
+                    updateBusinessHour(index, "open", e.target.value)
+                  }
+                  disabled={item.enabled === false}
+                  className={`${inputClassName} h-10 px-3 disabled:opacity-40`}
+                />
+                <input
+                  type="time"
+                  value={item.close || "18:00"}
+                  onChange={(e) =>
+                    updateBusinessHour(index, "close", e.target.value)
+                  }
+                  disabled={item.enabled === false}
+                  className={`${inputClassName} h-10 px-3 disabled:opacity-40`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800">
           <div>
             <label className={labelClassName}>

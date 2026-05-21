@@ -32,6 +32,8 @@ const OVERLAY_POSITION_COLS = [
   { align: HERO_OVERLAY_ALIGN_RIGHT, label: "Der." },
 ];
 
+const HERO_SLIDE_LIMIT = 5;
+
 export default function HeroSliderSettings({
   slides,
   homeIntro,
@@ -213,7 +215,7 @@ export default function HeroSliderSettings({
                       : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
                 >
-                  Solo números (01–03)
+                  Solo números (01-05)
                 </button>
                 <button
                   type="button"
@@ -241,7 +243,7 @@ export default function HeroSliderSettings({
         action={
           <button
             onClick={onAddSlide}
-            disabled={safeSlides.length >= 3}
+            disabled={safeSlides.length >= HERO_SLIDE_LIMIT}
             className="flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 h-12 rounded-xl hover:bg-black dark:hover:bg-slate-200 transition-all font-black text-[10px] uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
           >
             <Plus size={16} /> AGREGAR SLIDE

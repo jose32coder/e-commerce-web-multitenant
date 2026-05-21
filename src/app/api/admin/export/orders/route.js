@@ -37,6 +37,14 @@ export async function GET(request) {
     const tenantFromQuery = request.nextUrl.searchParams.get("tenant_id");
     const storeNameParam = request.nextUrl.searchParams.get("store_name") || "";
     const logoUrlParam = request.nextUrl.searchParams.get("logo_url") || "";
+    const fromDate = request.nextUrl.searchParams.get("from") || "";
+    const toDate = request.nextUrl.searchParams.get("to") || "";
+    const status = request.nextUrl.searchParams.get("status") || "";
+    const payment = request.nextUrl.searchParams.get("payment") || "";
+    const shippingMethod = request.nextUrl.searchParams.get("shipping_method") || "";
+    const shippingProvider = request.nextUrl.searchParams.get("shipping_provider") || "";
+    const minTotal = request.nextUrl.searchParams.get("min_total") || "";
+    const maxTotal = request.nextUrl.searchParams.get("max_total") || "";
     const { tenantId } = await resolveTenantContext(supabase, {
       fallbackTenantId: tenantFromQuery,
     });
@@ -61,16 +69,57 @@ export async function GET(request) {
 
     const logoUrl = decodeURIComponent(logoUrlParam).trim();
 
+    const extractDeliveryFromNotes = (notes) => {
+      if (!notes) return { method: null, provider: null };
+      const match = String(notes).match(/^\[ENTREGA:\s*(.*?)\|(.*?)\]/s);
+      if (!match) return { method: null, provider: null };
+      return {
+        method: match[1]?.trim() || null,
+        provider: match[2]?.trim() || null,
+      };
+    };
+
+    const getShippingMethod = (order) =>
+      order.shipping_method || extractDeliveryFromNotes(order.notas).method || "";
+
+    const getShippingProvider = (order) =>
+      order.shipping_provider ||
+      extractDeliveryFromNotes(order.notas).provider ||
+      "";
+
     // Fetch orders
-    const { data, error } = await supabase
+    let query = supabase
       .from("orders")
       .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+      .eq("tenant_id", tenantId);
+
+    if (status) query = query.eq("estado", status);
+    if (payment) query = query.eq("metodo_pago", payment);
+    if (fromDate) query = query.gte("created_at", new Date(fromDate).toISOString());
+    if (toDate) {
+      query = query.lte(
+        "created_at",
+        new Date(`${toDate}T23:59:59`).toISOString(),
+      );
+    }
+    if (minTotal !== "") query = query.gte("total", Number(minTotal));
+    if (maxTotal !== "") query = query.lte("total", Number(maxTotal));
+
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) throw error;
 
-    const orders = data || [];
+    const orders = (data || []).filter((order) => {
+      const methodOk =
+        !shippingMethod || String(getShippingMethod(order)) === shippingMethod;
+      const providerOk =
+        !shippingProvider ||
+        String(getShippingProvider(order)) === shippingProvider;
+
+      return methodOk && providerOk;
+    });
 
     // Stats
     const totalOrders = orders.length;

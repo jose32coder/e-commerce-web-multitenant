@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Instagram, Facebook, Twitter } from "lucide-react";
+import { Clock, Instagram, Facebook, Twitter } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -32,6 +32,47 @@ const footerVariants = {
   },
 };
 
+const BUSINESS_DAY_INDEX = [6, 0, 1, 2, 3, 4, 5];
+
+const formatHour = (value) => {
+  if (!value) return "";
+  const [hour, minute] = String(value).split(":").map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+  const date = new Date();
+  date.setHours(hour, minute, 0, 0);
+  return date.toLocaleTimeString("es-VE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getBusinessHoursStatus = (hours) => {
+  if (!Array.isArray(hours) || hours.length === 0) return null;
+
+  const now = new Date();
+  const today = hours[BUSINESS_DAY_INDEX[now.getDay()]];
+  if (!today?.enabled) return { open: false, label: "Cerrado hoy" };
+
+  const [openHour, openMinute] = String(today.open || "00:00")
+    .split(":")
+    .map(Number);
+  const [closeHour, closeMinute] = String(today.close || "00:00")
+    .split(":")
+    .map(Number);
+  const openAt = new Date(now);
+  const closeAt = new Date(now);
+  openAt.setHours(openHour || 0, openMinute || 0, 0, 0);
+  closeAt.setHours(closeHour || 0, closeMinute || 0, 0, 0);
+
+  const open = now >= openAt && now <= closeAt;
+  return {
+    open,
+    label: open
+      ? `Abierto hasta ${formatHour(today.close)}`
+      : `Cerrado · ${formatHour(today.open)} - ${formatHour(today.close)}`,
+  };
+};
+
 const Footer = () => {
   const {
     site_name,
@@ -51,6 +92,10 @@ const Footer = () => {
   );
   const whatsappNumber = normalizeWhatsappNumber(commerce.whatsapp_number);
   const whatsappHref = whatsappNumber ? `https://wa.me/${whatsappNumber}` : "#";
+  const businessHours = Array.isArray(commerce.business_hours)
+    ? commerce.business_hours
+    : [];
+  const businessStatus = getBusinessHoursStatus(businessHours);
 
   const sections = [
     {
@@ -169,6 +214,45 @@ const Footer = () => {
           </div>
 
           {/* Acordeón Móvil */}
+          {businessHours.length > 0 ? (
+            <div className="hidden md:block lg:col-span-1">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-200 mb-5">
+                Horario
+              </h3>
+              {businessStatus ? (
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 mb-4 text-[9px] font-black uppercase tracking-widest ${
+                    businessStatus.open
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-400"
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      businessStatus.open ? "bg-emerald-400" : "bg-zinc-600"
+                    }`}
+                  />
+                  {businessStatus.label}
+                </div>
+              ) : null}
+              <ul className="space-y-2">
+                {businessHours.map((item) => (
+                  <li
+                    key={item.day}
+                    className="flex items-center justify-between gap-3 text-xs"
+                  >
+                    <span className="font-bold text-zinc-300">{item.day}</span>
+                    <span className="text-zinc-500">
+                      {item.enabled === false
+                        ? "Cerrado"
+                        : `${formatHour(item.open)} - ${formatHour(item.close)}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="md:hidden pt-4">
             <Accordion type="single" collapsible className="w-full">
               {sections.map((section, idx) => (
@@ -205,6 +289,44 @@ const Footer = () => {
                 </AccordionItem>
               ))}
             </Accordion>
+            {businessHours.length > 0 ? (
+              <div className="pt-6 border-t border-zinc-800">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 mb-4">
+                  <Clock size={14} /> Horario
+                </div>
+                {businessStatus ? (
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 mb-4 text-[9px] font-black uppercase tracking-widest ${
+                      businessStatus.open
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                        : "border-zinc-700 bg-zinc-900 text-zinc-400"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        businessStatus.open ? "bg-emerald-400" : "bg-zinc-600"
+                      }`}
+                    />
+                    {businessStatus.label}
+                  </div>
+                ) : null}
+                <ul className="space-y-2">
+                  {businessHours.map((item) => (
+                    <li
+                      key={item.day}
+                      className="flex items-center justify-between gap-3 text-xs"
+                    >
+                      <span className="font-bold text-zinc-300">{item.day}</span>
+                      <span className="text-zinc-500">
+                        {item.enabled === false
+                          ? "Cerrado"
+                          : `${formatHour(item.open)} - ${formatHour(item.close)}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </div>
 

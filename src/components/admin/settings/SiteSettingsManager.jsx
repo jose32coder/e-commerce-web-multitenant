@@ -44,6 +44,7 @@ const hasValueChanged = (currentValue, nextValue) =>
   JSON.stringify(currentValue) !== JSON.stringify(nextValue);
 
 const normalizeSlides = (value) => (Array.isArray(value) ? value : []);
+const HERO_SLIDE_LIMIT = 5;
 
 export default function SiteSettingsManager() {
   const {
@@ -203,7 +204,7 @@ export default function SiteSettingsManager() {
   };
 
   const handleAddSlide = () => {
-    if (slides.length >= 3) return;
+    if (slides.length >= HERO_SLIDE_LIMIT) return;
 
     const newSlide = {
       id: Date.now(),

@@ -33,7 +33,7 @@ export default function OrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [shippingMethodFilter, setShippingMethodFilter] = useState("all");
   const [shippingProviderFilter, setShippingProviderFilter] = useState("all");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
 
   const { tenant_id: tenantId, exchange_rates, site_name, commerce_settings } = useSiteConfig();
@@ -49,6 +49,57 @@ export default function OrdersPage() {
   const getErrorMessage = (error) =>
     error?.message || error?.details || "Error desconocido";
 
+  const extractDeliveryFromNotes = (notes) => {
+    if (!notes) return { method: null, provider: null };
+    const match = String(notes).match(/^\[ENTREGA:\s*(.*?)\|(.*?)\]/s);
+    if (!match) return { method: null, provider: null };
+    return {
+      method: match[1]?.trim() || null,
+      provider: match[2]?.trim() || null,
+    };
+  };
+
+  const getShippingMethod = (order) =>
+    order.shipping_method || extractDeliveryFromNotes(order.notas).method || "";
+
+  const getShippingProvider = (order) =>
+    order.shipping_provider ||
+    extractDeliveryFromNotes(order.notas).provider ||
+    "";
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("Todos los estados");
+    setFromDate("");
+    setToDate("");
+    setMinTotal("");
+    setMaxTotal("");
+    setPaymentFilter("all");
+    setShippingMethodFilter("all");
+    setShippingProviderFilter("all");
+    setPage(1);
+  };
+
+  const buildExportParams = (format) => {
+    const params = new URLSearchParams({
+      format,
+      tenant_id: String(tenantId || ""),
+      store_name: site_name || "",
+      logo_url: commerce_settings?.logo_url || "",
+    });
+
+    if (fromDate) params.set("from", fromDate);
+    if (toDate) params.set("to", toDate);
+    if (statusFilter !== "Todos los estados") params.set("status", statusFilter);
+    if (paymentFilter !== "all") params.set("payment", paymentFilter);
+    if (shippingMethodFilter !== "all") params.set("shipping_method", shippingMethodFilter);
+    if (shippingProviderFilter !== "all") params.set("shipping_provider", shippingProviderFilter);
+    if (minTotal !== "") params.set("min_total", minTotal);
+    if (maxTotal !== "") params.set("max_total", maxTotal);
+
+    return params;
+  };
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -60,6 +111,28 @@ export default function OrdersPage() {
         .from("orders")
         .select("*, order_number")
         .eq("tenant_id", tenantId);
+
+      if (statusFilter !== "Todos los estados") {
+        query = query.eq("estado", statusFilter);
+      }
+      if (fromDate) {
+        query = query.gte("created_at", new Date(fromDate).toISOString());
+      }
+      if (toDate) {
+        query = query.lte(
+          "created_at",
+          new Date(`${toDate}T23:59:59`).toISOString(),
+        );
+      }
+      if (minTotal !== "") {
+        query = query.gte("total", Number(minTotal));
+      }
+      if (maxTotal !== "") {
+        query = query.lte("total", Number(maxTotal));
+      }
+      if (paymentFilter !== "all") {
+        query = query.eq("metodo_pago", paymentFilter);
+      }
       const { data, error } = await query.order("created_at", {
         ascending: false,
       });
@@ -81,7 +154,17 @@ export default function OrdersPage() {
       if (data?.user) setCurrentUser(data.user);
     };
     loadCurrentUser();
-  }, [tenantId]);
+  }, [
+    tenantId,
+    statusFilter,
+    fromDate,
+    toDate,
+    minTotal,
+    maxTotal,
+    paymentFilter,
+    shippingMethodFilter,
+    shippingProviderFilter,
+  ]);
 
   const updateStatus = async (id, newStatus, reason = null) => {
     if (!tenantId) return;
@@ -171,6 +254,12 @@ export default function OrdersPage() {
     const maxTotalOk = maxTotal === "" || totalUsd <= Number(maxTotal);
     const paymentOk =
       paymentFilter === "all" || String(o.metodo_pago || "") === paymentFilter;
+    const shippingMethodOk =
+      shippingMethodFilter === "all" ||
+      String(getShippingMethod(o)) === shippingMethodFilter;
+    const shippingProviderOk =
+      shippingProviderFilter === "all" ||
+      String(getShippingProvider(o)) === shippingProviderFilter;
 
     return (
       matchesSearch &&
@@ -179,7 +268,9 @@ export default function OrdersPage() {
       toOk &&
       minTotalOk &&
       maxTotalOk &&
-      paymentOk
+      paymentOk &&
+      shippingMethodOk &&
+      shippingProviderOk
     );
   });
 
@@ -404,10 +495,8 @@ export default function OrdersPage() {
         return;
       }
 
-      const storeNameParam = encodeURIComponent(site_name || "");
-      const logoUrlParam = encodeURIComponent(commerce_settings?.logo_url || "");
       const response = await fetch(
-        `/api/admin/export/orders?format=${format}&tenant_id=${tenantId}&store_name=${storeNameParam}&logo_url=${logoUrlParam}`,
+        `/api/admin/export/orders?${buildExportParams(format).toString()}`,
       );
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
@@ -439,10 +528,10 @@ export default function OrdersPage() {
     new Set(orders.map((o) => o.metodo_pago).filter(Boolean)),
   );
   const shippingMethodOptions = Array.from(
-    new Set(orders.map((o) => o.shipping_method).filter(Boolean)),
+    new Set(orders.map((o) => getShippingMethod(o)).filter(Boolean)),
   );
   const shippingProviderOptions = Array.from(
-    new Set(orders.map((o) => o.shipping_provider).filter(Boolean)),
+    new Set(orders.map((o) => getShippingProvider(o)).filter(Boolean)),
   );
 
   return (
@@ -469,6 +558,8 @@ export default function OrdersPage() {
         setShowAdvancedFilters={setShowAdvancedFilters}
         pageSize={pageSize}
         setPageSize={setPageSize}
+        onRefresh={fetchOrders}
+        onClearFilters={resetFilters}
         advancedFiltersProps={{
           fromDate,
           setFromDate,

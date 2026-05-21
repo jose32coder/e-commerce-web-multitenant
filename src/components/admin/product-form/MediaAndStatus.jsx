@@ -9,6 +9,7 @@ import {
   Star,
   Search,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import { CLOUDINARY_CONFIG } from "./config";
 import Swal from "sweetalert2";
@@ -24,6 +25,7 @@ const MediaAndStatus = ({
   readOnly = false,
 }) => {
   const [categorySearch, setCategorySearch] = useState("");
+  const [showPhotoTips, setShowPhotoTips] = useState(false);
 
   const imageLimit = 999; // Unlimited
   const currentImages = formData.images?.length || 0;
@@ -147,6 +149,83 @@ const MediaAndStatus = ({
             </label>
           )}
         </div>
+
+        {!readOnly && (
+          <div className="rounded-md border border-emerald-500/25 bg-emerald-50/70 dark:bg-emerald-500/10 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowPhotoTips((prev) => !prev)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300"
+            >
+              <span>Como lograr que la foto se vea bien?</span>
+              <ChevronDown
+                size={14}
+                className={`shrink-0 transition-transform ${showPhotoTips ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {showPhotoTips && (
+              <div className="px-4 pb-4 space-y-3 text-[11px] leading-relaxed text-emerald-950 dark:text-emerald-100">
+                <div>
+                  <p className="font-black text-emerald-700 dark:text-emerald-300">
+                    Tamaño recomendado
+                  </p>
+                  <p>
+                    1080 x 1080 px, formato cuadrado. Mínimo aceptable: 600 x
+                    600 px. Las imágenes más pequeñas se ven pixeladas en
+                    pantallas grandes.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-black text-emerald-700 dark:text-emerald-300">
+                    Formato y peso
+                  </p>
+                  <p>
+                    JPG para mejor relación calidad/tamaño o WEBP. PNG solo si
+                    el producto necesita fondo transparente. Peso máximo: 3MB.
+                    Si pesa más, usa una herramienta como TinyPNG para reducir.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-black text-emerald-700 dark:text-emerald-300">
+                    Como tomar la foto
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>Luz natural, cerca de una ventana y sin flash.</li>
+                    <li>Fondo limpio: pared blanca, mesa de madera o tela lisa.</li>
+                    <li>El producto debe ocupar el 70-80% del cuadro.</li>
+                    <li>Toma cuadrada 1:1, no vertical ni horizontal.</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-black text-emerald-700 dark:text-emerald-300">
+                    Desde el celular
+                  </p>
+                  <p>
+                    Cualquier celular sirve. Activa la cuadrícula 3x3 en la
+                    cámara para encuadrar mejor. Después recorta a cuadrado
+                    antes de subirla.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-black text-red-600 dark:text-red-300">
+                    Lo que NO funciona
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>Capturas de pantalla de WhatsApp.</li>
+                    <li>Fotos con marcas de agua de otros sitios.</li>
+                    <li>Múltiples productos en una sola foto.</li>
+                    <li>Texto encima de la foto.</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Categorización */}

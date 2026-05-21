@@ -237,6 +237,15 @@ export const DEFAULT_COMMERCE_SETTINGS = {
   currency_symbol: "$",
   logo_url: "",
   whatsapp_stock_check: false,
+  business_hours: [
+    { day: "Lun", enabled: true, open: "09:00", close: "18:00" },
+    { day: "Mar", enabled: true, open: "09:00", close: "18:00" },
+    { day: "Mie", enabled: true, open: "09:00", close: "18:00" },
+    { day: "Jue", enabled: true, open: "09:00", close: "18:00" },
+    { day: "Vie", enabled: true, open: "09:00", close: "18:00" },
+    { day: "Sab", enabled: true, open: "10:00", close: "14:00" },
+    { day: "Dom", enabled: false, open: "09:00", close: "18:00" },
+  ],
   tenant_selector_card: DEFAULT_TENANT_SELECTOR_CARD,
   shipping_providers: [
     { id: "mrw", name: "MRW", enabled: true },

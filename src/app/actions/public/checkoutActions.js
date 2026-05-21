@@ -18,8 +18,28 @@ const CheckoutSchema = z.object({
   tenantSlug: z.string().nullable().optional(),
   shippingMethod: z.enum(["local", "national", "delivery", "pickup"]),
   shippingProvider: z.string().optional().nullable(),
+  shippingCity: z.string().max(100).optional().nullable(),
+  shippingBranchCode: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
   idempotencyKey: z.string().uuid().optional(),
+}).superRefine((data, ctx) => {
+  if (data.shippingMethod !== "national" || !data.shippingProvider) return;
+
+  if (!String(data.shippingCity || "").trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["shippingCity"],
+      message: "Ciudad del envio requerida",
+    });
+  }
+
+  if (!String(data.shippingBranchCode || "").trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["shippingBranchCode"],
+      message: "Codigo de sede requerido",
+    });
+  }
 });
 
 const normalizeVariantValue = (value) =>
@@ -409,6 +429,21 @@ export async function processCheckoutOrder(formData, items = [], total) {
       }
     }
 
+    const agencyDetails = [
+      validatedData.shippingCity
+        ? `Ciudad: ${validatedData.shippingCity.trim()}`
+        : null,
+      validatedData.shippingBranchCode
+        ? `Sede: ${validatedData.shippingBranchCode.trim()}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const deliveryNotes = [agencyDetails, validatedData.notes || ""]
+      .filter(Boolean)
+      .join("\n");
+
     // 3. Crear la Orden (Venta)
     const orderPayload = {
       tenant_id: tenantId,
@@ -427,11 +462,13 @@ export async function processCheckoutOrder(formData, items = [], total) {
         price: i.price,
         variant: i.variant || null,
       })),
-      notas: `[ENTREGA: ${validatedData.shippingMethod || ''}|${validatedData.shippingProvider || ''}] ${validatedData.notes || ''}`.trim(),
+      notas: `[ENTREGA: ${validatedData.shippingMethod || ''}|${validatedData.shippingProvider || ''}] ${deliveryNotes}`.trim(),
       idempotency_key: validatedData.idempotencyKey, // Crítico para evitar duplicados
       // We still include these in case the columns are added later, createOrderWithFallback will strip them if missing
       shipping_method: validatedData.shippingMethod,
       shipping_provider: validatedData.shippingProvider,
+      shipping_city: validatedData.shippingCity?.trim() || null,
+      shipping_branch_code: validatedData.shippingBranchCode?.trim() || null,
       ...(clienteId ? { customer_id: clienteId } : {}),
     };
 

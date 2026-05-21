@@ -16,6 +16,7 @@ export function ShippingMethodSelector({
   deliveryFee,
   subtotal = 0,
   threshold = 0,
+  errors = {},
 }) {
   const { commerce_settings, exchange_rates } = useSiteConfig();
   const commerce = normalizeCommerceSettings(
@@ -116,6 +117,13 @@ export function ShippingMethodSelector({
                 ...formData,
                 shippingMethod: method.id,
                 shippingPaymentType: method.paymentType,
+                ...(method.id !== "national"
+                  ? {
+                      shippingProvider: "",
+                      shippingCity: "",
+                      shippingBranchCode: "",
+                    }
+                  : {}),
               })
             }
             className={`flex flex-col items-center justify-start h-full p-2.5 sm:p-6 rounded-xl sm:rounded-2xl border-2 transition-all text-center gap-2 sm:gap-3 ${
@@ -179,6 +187,49 @@ export function ShippingMethodSelector({
               </button>
             ))}
           </div>
+          {formData.shippingProvider && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <label className="space-y-2">
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                  Ciudad del envío
+                </span>
+                <input
+                  type="text"
+                  value={formData.shippingCity || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      shippingCity: e.target.value,
+                    })
+                  }
+                  placeholder="Ej: Caracas"
+                  className="w-full rounded-xl border-2 border-zinc-100 bg-white px-4 py-3 text-xs font-bold text-ink outline-none transition-all placeholder:text-zinc-300 focus:border-ink"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                  Código de sede
+                </span>
+                <input
+                  type="text"
+                  value={formData.shippingBranchCode || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      shippingBranchCode: e.target.value,
+                    })
+                  }
+                  placeholder="Ej: 010101"
+                  className="w-full rounded-xl border-2 border-zinc-100 bg-white px-4 py-3 text-xs font-bold text-ink outline-none transition-all placeholder:text-zinc-300 focus:border-ink"
+                />
+              </label>
+            </div>
+          )}
+          {(errors.shippingCity || errors.shippingBranchCode) && (
+            <p className="text-[10px] font-bold text-red-500">
+              {errors.shippingCity || errors.shippingBranchCode}
+            </p>
+          )}
         </motion.div>
       )}
     </div>
