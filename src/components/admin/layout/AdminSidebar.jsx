@@ -9,6 +9,7 @@ import {
   History,
   Settings,
   LogOut,
+  ReceiptText,
   ChevronRight,
   ChevronLeft,
   X,
@@ -50,6 +51,12 @@ export default function AdminSidebar({
       href: "/admin/orders",
       icon: <BarChart3 size={20} />,
       label: "Ventas",
+      permission: "Ventas",
+    },
+    {
+      href: "/admin/daily-close",
+      icon: <ReceiptText size={20} />,
+      label: "Cierre Diario",
       permission: "Ventas",
     },
     {
