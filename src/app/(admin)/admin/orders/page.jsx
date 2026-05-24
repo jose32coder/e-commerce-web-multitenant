@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Swal from "sweetalert2";
 import { createClient } from "@/lib/supabase/client";
 import { useSiteConfig } from "@/context/SiteConfigContext";
@@ -16,9 +17,56 @@ const OrderDetailsModal = dynamic(() => import("@/components/admin/orders/OrderD
   ssr: false,
 });
 
+const Card = ({ label, value }) => (
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+    <p className="mt-1 text-2xl font-black text-slate-900">{value}</p>
+  </div>
+);
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Daily close summary constants
+  const COMPLETED = new Set(["paid", "pagado", "completed", "completado", "delivered", "entregado", "shipped", "enviado"]);
+  const PENDING = new Set(["pending", "pendiente", "processing", "procesando"]);
+  const CANCELLED = new Set(["cancelled", "cancelado"]);
+  const money = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+  const dailySummary = useMemo(() => {
+    let grossSales = 0;
+    let paidCount = 0;
+    let pendingCount = 0;
+    let cancelledCount = 0;
+    const paymentBreakdown = {};
+    for (const order of orders) {
+      const status = String(order.estado || "").toLowerCase();
+      const total = Number(order.total || 0);
+      if (COMPLETED.has(status)) {
+        grossSales += total;
+        paidCount += 1;
+        const key = order.metodo_pago || "No especificado";
+        paymentBreakdown[key] = (paymentBreakdown[key] || 0) + total;
+      } else if (PENDING.has(status)) {
+        pendingCount += 1;
+      } else if (CANCELLED.has(status)) {
+        cancelledCount += 1;
+      }
+    }
+    const avgTicket = paidCount > 0 ? grossSales / paidCount : 0;
+    return {
+      grossSales,
+      estimatedProfit: grossSales,
+      paidCount,
+      pendingCount,
+      cancelledCount,
+      totalMovements: orders.length,
+      avgTicket,
+      paymentBreakdown,
+    };
+  }, [orders]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -535,18 +583,27 @@ export default function OrdersPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-3">
-        <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
-          Ventas
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          Monitoreo y gestión de pedidos en tiempo real.
-        </p>
-      </header>
+    <div className="space-y-6 p-6">
+      {/* Summary Cards + Cierre del día */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 flex-1">
+          <Card label="Ventas brutas" value={money(dailySummary.grossSales)} />
+          <Card label="Órdenes completadas" value={dailySummary.paidCount} />
+          <Card label="Órdenes pendientes" value={dailySummary.pendingCount} />
+          <Card label="Ticket promedio" value={money(dailySummary.avgTicket)} />
+        </div>
+        <Link
+          href="/admin/daily-close"
+          className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest shadow-md hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0"
+        >
+          📋 Cierre del día
+        </Link>
+      </div>
 
+      {/* Export Buttons */}
       <ExportButtons onExport={handleExport} loading={exportLoading} />
 
+      {/* Filters */}
       <OrderFilters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -571,27 +628,29 @@ export default function OrdersPage() {
           setMaxTotal,
           paymentFilter,
           setPaymentFilter,
+          paymentOptions,
           shippingMethodFilter,
           setShippingMethodFilter,
+          shippingMethodOptions,
           shippingProviderFilter,
           setShippingProviderFilter,
-          paymentOptions,
-          shippingMethodOptions,
           shippingProviderOptions,
         }}
       />
 
+      {/* Orders Table */}
       <OrderTable
         orders={paginatedOrders}
         loading={loading}
-        selectedCurrency={selectedCurrency}
-        exchangeRates={exchange_rates}
-        toOrderCode={toOrderCode}
-        onViewDetails={setSelectedOrder}
+        onSelectOrder={setSelectedOrder}
         onUpdateStatus={updateStatus}
         onReject={handleReject}
+        toOrderCode={toOrderCode}
+        selectedCurrency={selectedCurrency}
+        exchangeRates={exchange_rates}
       />
 
+      {/* Pagination */}
       <ProductPagination
         loading={loading}
         filteredProducts={filteredOrders}
