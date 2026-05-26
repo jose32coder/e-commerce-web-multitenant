@@ -29,6 +29,16 @@ const normalizeInstagramUrl = (value) => {
   return normalizeExternalUrl(url);
 };
 
+const formatHour = (value) => {
+  if (!value) return "";
+  const [hour, minute] = String(value).split(":").map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return String(value);
+  return new Date(0, 0, 0, hour, minute).toLocaleTimeString("es-VE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const HERO_COPY =
   "Explora acá las mejores tiendas y compra productos de calidad.";
 
@@ -63,11 +73,11 @@ async function getTenantCards() {
 
   return tenants.map((tenant, index) => {
     const settings = settingsByTenant.get(tenant.tenant_id) || {};
-    
+
     // Resolvemos las configuraciones priorizando las columnas modernas si existen
     const legacyCommerce = resolveLegacyCommerceSettings(settings) || {};
     const currentCommerce = settings?.commerce_settings || {};
-    
+
     // Construimos la fuente de verdad para el comercio
     const commerceSource = {
       ...legacyCommerce,
@@ -77,7 +87,7 @@ async function getTenantCards() {
     // Normalizamos para aplicar defaults y asegurar estructura
     const normalizedCommerce = normalizeCommerceSettings(commerceSource);
     const tenantCardConfig = normalizedCommerce.tenant_selector_card || {};
-    
+
     const legacyFooter = resolveLegacyFooterSettings(settings) || {};
     const currentFooter = settings?.footer_settings || {};
     const footerSource = {
@@ -94,7 +104,7 @@ async function getTenantCards() {
       settings?.products_intro?.description ||
       settings?.home_intro?.description ||
       "Experiencia premium personalizada.";
-    
+
     const useCustomText = tenantCardConfig.text_mode === "custom";
     const whatsappNumber = formatWhatsappContactNumber(
       normalizedCommerce.whatsapp_number,
@@ -132,6 +142,7 @@ async function getTenantCards() {
       whatsapp_url: whatsappNumber ? `https://wa.me/${whatsappNumber}` : "",
       instagram_url: normalizeInstagramUrl(normalizedFooter.instagram_url),
       store_url: tenant.store_url || `/${tenant.slug}`,
+      business_hours: normalizedCommerce.business_hours || [],
       delay: `${index * 40}ms`,
     };
   });
@@ -140,6 +151,12 @@ async function getTenantCards() {
 export default async function TenantSelectorPage() {
   const tenantCards = await getTenantCards();
   const platformBrand = PLATFORM_BRAND_NAME;
+  const footerBusinessHours =
+    tenantCards.find(
+      (tenant) =>
+        Array.isArray(tenant.business_hours) &&
+        tenant.business_hours.length > 0,
+    )?.business_hours || [];
 
   return (
     <main className="min-h-screen bg-slate-50 text-zinc-700 overflow-x-hidden">
@@ -210,6 +227,37 @@ export default async function TenantSelectorPage() {
             Desarrollado por <span className="text-zinc-800">Deploy</span>
           </span>
         </div>
+
+        {footerBusinessHours.length > 0 ? (
+          <div className="max-w-6xl mx-auto px-5 mt-8 pt-6 border-t border-zinc-200">
+            <div className="grid gap-4 md:grid-cols-[1fr_auto] items-start">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500">
+                  Horario de atención
+                </p>
+                <p className="mt-2 text-sm text-zinc-600 max-w-2xl">
+                  Estos son los horarios configurados para el footer. Se adapta
+                  a móviles y mantiene la estructura del footer intacta.
+                </p>
+              </div>
+              <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:grid-cols-4">
+                {footerBusinessHours.map((item) => (
+                  <div
+                    key={item.day}
+                    className="rounded-3xl border border-zinc-200 bg-slate-50 p-3 text-xs text-zinc-700"
+                  >
+                    <p className="font-semibold text-zinc-900">{item.day}</p>
+                    <p className="mt-1 text-zinc-500">
+                      {item.enabled === false
+                        ? "Cerrado"
+                        : `${formatHour(item.open)} - ${formatHour(item.close)}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </footer>
     </main>
   );

@@ -3,6 +3,7 @@
 import { Type, Image as ImageIcon, Loader2 } from "lucide-react";
 import SettingsSectionHeader from "./SettingsSectionHeader";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
+import StoreQrCard from "./StoreQrCard";
 import {
   inputClassName,
   labelClassName,
@@ -23,6 +24,7 @@ export default function SiteIdentitySettings({
   nameChangeLimitReached,
   changesLeft,
   isLoading,
+  whatsappNumber,
 }) {
   const handleTenantCardChange = (field, value) => {
     onTenantCardConfigChange?.({
@@ -159,6 +161,13 @@ export default function SiteIdentitySettings({
             </p>
           </div>
         </div>
+
+        <StoreQrCard
+          siteName={siteName}
+          tenantSlug={tenantSlug}
+          logoUrl={logoUrl}
+          whatsappNumber={whatsappNumber}
+        />
 
         <div className="space-y-6 p-6 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-200 dark:border-slate-700">
           <div className="space-y-2">

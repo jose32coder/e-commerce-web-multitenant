@@ -11,6 +11,8 @@ import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import { createClient } from "@/lib/supabase/client";
+import { shareProduct } from "@/lib/shareProduct";
+import Swal from "sweetalert2";
 
 export default function ProductCard({
   product,
@@ -152,9 +154,27 @@ export default function ProductCard({
     setSheetOpen(true);
   };
 
-  const handleSharePlaceholder = (e) => {
+  const handleShare = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    const result = await shareProduct({
+      name,
+      tenantSlug: tenant_slug,
+      slug,
+    });
+
+    if (result.method === "clipboard") {
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Enlace copiado",
+        showConfirmButton: false,
+        timer: 1600,
+        timerProgressBar: true,
+      });
+    }
   };
 
   return (
@@ -201,7 +221,7 @@ export default function ProductCard({
           )}
 
           {isLowStock && !isOutOfStock && (
-            <div className="absolute top-3 right-3 z-10">
+            <div className="absolute bottom-3 left-3 z-10">
               <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg animate-pulse">
                 Pocas unidades
               </span>
@@ -211,7 +231,7 @@ export default function ProductCard({
           <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
           <Button
-            onClick={handleSharePlaceholder}
+            onClick={handleShare}
             size="icon"
             className="absolute top-3 right-3 z-20 h-7 w-7 cursor-pointer bg-white/95 text-ink hover:bg-white shadow-md transition-all duration-300 opacity-85 group-hover:opacity-100"
             aria-label={`Compartir ${name}`}
@@ -269,7 +289,7 @@ export default function ProductCard({
           </div>
 
           <div className="hidden md:block space-y-1.5">
-            <div className="flex justify-between items-start gap-2 min-h-[36px]">
+            <div className="flex justify-between items-start gap-2 min-h-9">
               <h4 className="text-[13px] font-bold text-ink uppercase tracking-tight line-clamp-2 flex-1">
                 {name}
               </h4>

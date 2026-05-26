@@ -27,48 +27,50 @@ export default function AdminSidebar({
 }) {
   const { site_name, commerce_settings } = useSiteConfig();
   const logoUrl = commerce_settings?.logo_url;
+  const lowHeightDesktopIconClass =
+    "[@media_(min-width:1024px)_and_(max-height:760px)]:h-[18px] [@media_(min-width:1024px)_and_(max-height:760px)]:w-[18px]";
 
   const navItems = [
     {
       href: "/admin",
-      icon: <LayoutDashboard size={20} />,
+      icon: <LayoutDashboard className={lowHeightDesktopIconClass} size={20} />,
       label: "Panel",
       permission: "Panel",
     },
     {
       href: "/admin/products",
-      icon: <ShoppingBag size={20} />,
+      icon: <ShoppingBag className={lowHeightDesktopIconClass} size={20} />,
       label: "Productos",
       permission: "Productos",
     },
     {
       href: "/admin/categories",
-      icon: <Tags size={20} />,
+      icon: <Tags className={lowHeightDesktopIconClass} size={20} />,
       label: "Categorías",
       permission: "Categorías",
     },
     {
       href: "/admin/orders",
-      icon: <BarChart3 size={20} />,
+      icon: <BarChart3 className={lowHeightDesktopIconClass} size={20} />,
       label: "Ventas",
       permission: "Ventas",
     },
 
     {
       href: "/admin/customers",
-      icon: <Users size={20} />,
+      icon: <Users className={lowHeightDesktopIconClass} size={20} />,
       label: "Clientes",
       permission: "Clientes",
     },
     {
       href: "/admin/history",
-      icon: <History size={20} />,
+      icon: <History className={lowHeightDesktopIconClass} size={20} />,
       label: "Bitácora",
       permission: "Bitácora",
     },
     {
       href: "/admin/settings",
-      icon: <Settings size={20} />,
+      icon: <Settings className={lowHeightDesktopIconClass} size={20} />,
       label: "Ajustes",
       permission: "Ajustes",
     },
@@ -103,9 +105,9 @@ export default function AdminSidebar({
         {/* LOGO SECTION */}
         <div
           className={`
-    flex items-center h-24 transition-all duration-300
+    flex items-center h-24 [@media_(min-width:1024px)_and_(max-height:760px)]:h-20 transition-all duration-300
     ${isCollapsed ? "lg:justify-center" : "px-6"}
-    justify-start px-6 lg:px-0
+    justify-start px-6 lg:px-0 [@media_(min-width:1024px)_and_(max-height:760px)]:px-4
   `}
         >
           <div className="flex items-center lg:px-5 gap-3 overflow-hidden">
@@ -137,7 +139,7 @@ export default function AdminSidebar({
           </div>
         </div>
         {/* NAVEGACIÓN */}
-        <nav className="flex-1 space-y-4 px-3">
+        <nav className="flex-1 space-y-4 px-3 [@media_(min-width:1024px)_and_(max-height:760px)]:space-y-2.5">
           {navItems.map(
             (item) =>
               canAccess(item.permission) && (
@@ -154,7 +156,7 @@ export default function AdminSidebar({
         </nav>
 
         {/* SALIR — contraste explícito sobre rail oscuro (icono rojo puro se pierde al colapsar) */}
-        <div className="p-4 border-t border-slate-800/50">
+        <div className="p-4 border-t border-slate-800/50 [@media_(min-width:1024px)_and_(max-height:760px)]:p-3">
           <button
             type="button"
             onClick={handleLogout}
@@ -166,8 +168,8 @@ export default function AdminSidebar({
     `}
           >
             {/* Contenedor de icono con tamaño fijo para que no se mueva */}
-            <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-lg bg-slate-800 group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors">
-              <LogOut size={20} strokeWidth={2} />
+            <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-lg bg-slate-800 group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors [@media_(min-width:1024px)_and_(max-height:760px)]:h-9 [@media_(min-width:1024px)_and_(max-height:760px)]:w-9">
+              <LogOut className={lowHeightDesktopIconClass} size={20} strokeWidth={2} />
             </div>
 
             {(!isCollapsed || isMobileOpen) && (

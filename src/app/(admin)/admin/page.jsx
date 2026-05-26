@@ -31,7 +31,11 @@ export default function AdminDashboard() {
   const [dashboardCurrency, setDashboardCurrency] = useState("USD");
   const [showLowStockModal, setShowLowStockModal] = useState(false);
   const [lowStockProducts, setLowStockProducts] = useState([]);
-  const { tenant_id: tenantId, exchange_rates, loading: configLoading } = useSiteConfig();
+  const {
+    tenant_id: tenantId,
+    exchange_rates,
+    loading: configLoading,
+  } = useSiteConfig();
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -156,12 +160,11 @@ export default function AdminDashboard() {
           const itemId = item.id ? String(item.id) : "";
           if (!itemId) return;
 
-          const current =
-            productMap.get(itemId) || {
-              id: item.id,
-              name: item.name || item.title || "Producto sin nombre",
-              quantity: 0,
-            };
+          const current = productMap.get(itemId) || {
+            id: item.id,
+            name: item.name || item.title || "Producto sin nombre",
+            quantity: 0,
+          };
 
           productMap.set(itemId, {
             ...current,
@@ -212,7 +215,7 @@ export default function AdminDashboard() {
     <div className="space-y-8 md:space-y-12 pb-10 transition-all duration-500">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
+          <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
             Resumen General
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">
@@ -310,7 +313,7 @@ export default function AdminDashboard() {
 
       {/* MODAL STOCK BAJO */}
       {showLowStockModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center isolate">
+        <div className="fixed inset-0 z-100 flex items-center justify-center isolate">
           {/* Overlay con mayor opacidad para dar contraste */}
           <div
             className="fixed inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
@@ -318,7 +321,7 @@ export default function AdminDashboard() {
           />
 
           {/* Contenedor del Modal */}
-          <div className="relative z-[110] bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20 m-4">
+          <div className="relative z-110 bg-white dark:bg-slate-900 rounded-md w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20 m-4">
             <header className="p-8 pb-4 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
@@ -331,7 +334,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={() => setShowLowStockModal(false)}
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400"
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full cursor-pointer transition-colors text-slate-400"
               >
                 <X size={20} />
               </button>
@@ -341,12 +344,12 @@ export default function AdminDashboard() {
               {lowStockProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 group hover:border-orange-200 transition-colors"
+                  className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-700/50 group hover:border-orange-200 transition-colors"
                 >
                   <span className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate pr-4">
                     {product.name}
                   </span>
-                  <span className="px-3 py-1.5 bg-orange-500 text-white text-[10px] font-black rounded-xl shrink-0 shadow-lg shadow-orange-500/20">
+                  <span className="px-3 py-1.5 bg-orange-500 text-white text-[10px] font-black rounded-md shrink-0 shadow-lg shadow-orange-500/20">
                     QUEDAN: {product.quantity}
                   </span>
                 </div>
@@ -356,7 +359,7 @@ export default function AdminDashboard() {
             <footer className="p-8 pt-4">
               <button
                 onClick={() => setShowLowStockModal(false)}
-                className="w-full py-4 bg-slate-900 dark:bg-orange-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:shadow-orange-500/10 active:scale-[0.98] transition-all"
+                className="w-full py-4 bg-slate-900 cursor-pointer dark:bg-orange-500 text-white rounded-md text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:shadow-orange-500/10 active:scale-[0.98] transition-all"
               >
                 Entendido
               </button>
@@ -387,7 +390,7 @@ export default function AdminDashboard() {
               </div>
             ) : recentOrders.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px] text-left text-sm">
+                <table className="w-full min-w-175 text-left text-sm">
                   <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
                     <tr>
                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">

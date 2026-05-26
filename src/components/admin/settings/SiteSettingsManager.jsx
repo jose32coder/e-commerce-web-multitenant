@@ -719,6 +719,7 @@ export default function SiteSettingsManager() {
                 nameChangeLimitReached={nameChangeLimitReached}
                 changesLeft={changesLeft}
                 isLoading={isLoadingIdentity}
+                whatsappNumber={commerceSettings?.whatsapp_number}
               />
             </div>
 

@@ -13,13 +13,20 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { ShoppingBag, ArrowRight, MessageCircle, ChevronDown } from "lucide-react";
+import {
+  ShoppingBag,
+  ArrowRight,
+  MessageCircle,
+  ChevronDown,
+  Share2,
+} from "lucide-react";
 import Swal from "sweetalert2";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { motion, AnimatePresence } from "framer-motion";
+import { shareProduct } from "@/lib/shareProduct";
 
 export default function QuickAddSheet({ product, open, onClose }) {
   const { site_name, tenant_slug, commerce_settings, exchange_rates } =
@@ -68,7 +75,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
-        behavior: "smooth"
+        behavior: "smooth",
       });
     }
   };
@@ -125,7 +132,9 @@ export default function QuickAddSheet({ product, open, onClose }) {
   // Safe early return after all React Hooks have executed
   if (!product) return null;
 
-  const inquiryMsg = encodeURIComponent(`Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata.`);
+  const inquiryMsg = encodeURIComponent(
+    `Hola! 👋 Me interesa el producto *${name}* y me gustaría confirmar si tienen disponibilidad inmediata.`,
+  );
   const inquiryUrl = `https://wa.me/${commerce_settings?.whatsapp_number}?text=${inquiryMsg}`;
 
   const isOutOfStock = Number(stock) <= 0;
@@ -144,7 +153,9 @@ export default function QuickAddSheet({ product, open, onClose }) {
     });
 
   const selectedVariantOutOfStock =
-    hasVariants && selectedVariant ? getVariantStock(selectedVariant) <= 0 : false;
+    hasVariants && selectedVariant
+      ? getVariantStock(selectedVariant) <= 0
+      : false;
 
   const handleSelectAttr = (key, val) => {
     setSelectedAttrs((prev) => ({ ...prev, [key]: val }));
@@ -242,6 +253,26 @@ export default function QuickAddSheet({ product, open, onClose }) {
     router.push(`${baseUrl}/checkout`);
   };
 
+  const handleShare = async () => {
+    const result = await shareProduct({
+      name,
+      tenantSlug: tenant_slug,
+      slug,
+    });
+
+    if (result.method === "clipboard") {
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Enlace copiado",
+        showConfirmButton: false,
+        timer: 1600,
+        timerProgressBar: true,
+      });
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent
@@ -255,146 +286,153 @@ export default function QuickAddSheet({ product, open, onClose }) {
           </SheetDescription>
         </SheetHeader>
 
-      <div className="flex-1 min-h-0 relative flex flex-col">
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-6 pb-4 no-scrollbar"
-        >
+        <div className="flex-1 min-h-0 relative flex flex-col">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto px-6 pb-4 no-scrollbar"
+          >
+            <div
+              className={`flex flex-col sm:flex-row gap-5 sm:gap-5 items-stretch sm:items-start ${hasVariants ? "mb-8" : "mb-6"}`}
+            >
+              <div className="relative w-full max-w-50 aspect-square mx-auto sm:mx-0 sm:w-24 sm:max-w-none sm:aspect-auto sm:h-28 shrink-0 rounded-2xl overflow-hidden bg-secondary">
+                <AdaptiveImage
+                  src={imageUrl}
+                  alt={`Imagen de ${name}`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 200px, 96px"
+                  priority
+                />
+              </div>
 
-        <div
-          className={`flex flex-col sm:flex-row gap-5 sm:gap-5 items-stretch sm:items-start ${hasVariants ? "mb-8" : "mb-6"}`}
-        >
-          <div className="relative w-full max-w-[200px] aspect-square mx-auto sm:mx-0 sm:w-24 sm:max-w-none sm:aspect-auto sm:h-28 shrink-0 rounded-2xl overflow-hidden bg-secondary">
-            <AdaptiveImage
-              src={imageUrl}
-              alt={`Imagen de ${name}`}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 200px, 96px"
-              priority
-            />
-          </div>
+              <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-1 sm:justify-center">
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
+                  {brand}
+                </p>
+                <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink wrap-break-word line-clamp-3 sm:line-clamp-2">
+                  {name || "Producto sin nombre"}
+                </h2>
 
-          <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-1 sm:justify-center">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
-              {brand}
-            </p>
-            <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink wrap-break-word line-clamp-3 sm:line-clamp-2">
-              {name || "Producto sin nombre"}
-            </h2>
-
-            {short_description && (
-              <p className="text-[11px] text-gray-500 italic line-clamp-3 sm:line-clamp-2">
-                {short_description}
-              </p>
-            )}
-
-            <div className="flex flex-col items-baseline gap-x-3 gap-y-1">
-              <div className="flex items-baseline gap-1">
-                {hasActiveOffer && (
-                  <p className="text-[11px] font-semibold text-red-500 line-through">
-                    {currencySymbol}
-                    {formatPrice(finalRegularPrice, targetCurrency)}
+                {short_description && (
+                  <p className="text-[11px] text-gray-500 italic line-clamp-3 sm:line-clamp-2">
+                    {short_description}
                   </p>
                 )}
-                {hasActiveOffer && (
-                  <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">
-                    Oferta activa
-                  </span>
+
+                <div className="flex flex-col items-baseline gap-x-3 gap-y-1">
+                  <div className="flex items-baseline gap-1">
+                    {hasActiveOffer && (
+                      <p className="text-[11px] font-semibold text-red-500 line-through">
+                        {currencySymbol}
+                        {formatPrice(finalRegularPrice, targetCurrency)}
+                      </p>
+                    )}
+                    {hasActiveOffer && (
+                      <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">
+                        Oferta activa
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-lg font-bold text-black tabular-nums">
+                    {currencySymbol}
+                    {formatPrice(finalPrice, targetCurrency)}
+                  </p>
+                </div>
+
+                {rawPriceAdjustment > 0 && (
+                  <p className="text-[10px] text-amber-700 font-semibold">
+                    +{currencySymbol}
+                    {formatPrice(displayAdjustment, targetCurrency)} de recargo
+                    por combinación.
+                  </p>
                 )}
               </div>
-              <p className="text-lg font-bold text-black tabular-nums">
-                {currencySymbol}
-                {formatPrice(finalPrice, targetCurrency)}
-              </p>
             </div>
 
-            {rawPriceAdjustment > 0 && (
-              <p className="text-[10px] text-amber-700 font-semibold">
-                +{currencySymbol}
-                {formatPrice(displayAdjustment, targetCurrency)}{" "}
-                de recargo por combinación.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {hasVariants && (
-          <div className="mb-6 space-y-4">
-            {attributeKeys.map((attrKey) => (
-              <div key={attrKey} className="space-y-2">
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
-                  SELECCIONAR {attrKey.toUpperCase()}
-                  {selectedAttrs[attrKey] && (
-                    <span className="ml-1 text-ink normal-case font-semibold">
-                      - {selectedAttrs[attrKey]}
-                    </span>
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {[...attributeGroups[attrKey]].map((val) => {
-                    const available = isOptionAvailable(attrKey, val);
-                    const isSelected = selectedAttrs[attrKey] === val;
-                    return (
-                      <button
-                        key={val}
-                        type="button"
-                        disabled={!available}
-                        onClick={() => handleSelectAttr(attrKey, val)}
-                        className={cn(
-                          "min-w-14 h-11 px-3 rounded-md uppercase transition-all duration-200 border text-xs font-bold",
-                          "cursor-pointer disabled:cursor-not-allowed select-none",
-                          isSelected
-                            ? "bg-black text-white border-black shadow-md"
-                            : "bg-transparent text-black border-gray-200 hover:border-black",
-                          !available && "opacity-25 line-through",
-                        )}
-                      >
-                        {val}
-                      </button>
-                    );
-                  })}
-                </div>
+            {hasVariants && (
+              <div className="mb-6 space-y-4">
+                {attributeKeys.map((attrKey) => (
+                  <div key={attrKey} className="space-y-2">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
+                      SELECCIONAR {attrKey.toUpperCase()}
+                      {selectedAttrs[attrKey] && (
+                        <span className="ml-1 text-ink normal-case font-semibold">
+                          - {selectedAttrs[attrKey]}
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[...attributeGroups[attrKey]].map((val) => {
+                        const available = isOptionAvailable(attrKey, val);
+                        const isSelected = selectedAttrs[attrKey] === val;
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            disabled={!available}
+                            onClick={() => handleSelectAttr(attrKey, val)}
+                            className={cn(
+                              "min-w-14 h-11 px-3 rounded-md uppercase transition-all duration-200 border text-xs font-bold",
+                              "cursor-pointer disabled:cursor-not-allowed select-none",
+                              isSelected
+                                ? "bg-black text-white border-black shadow-md"
+                                : "bg-transparent text-black border-gray-200 hover:border-black",
+                              !available && "opacity-25 line-through",
+                            )}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {!allAttrsSelected && (
+                  <p className="mt-2 text-[10px] font-semibold text-amber-700">
+                    Debes seleccionar una combinación antes de agregar al
+                    carrito.
+                  </p>
+                )}
               </div>
-            ))}
-            {!allAttrsSelected && (
-              <p className="mt-2 text-[10px] font-semibold text-amber-700">
-                Debes seleccionar una combinación antes de agregar al carrito.
-              </p>
             )}
           </div>
-        )}
-        </div>
 
-        <AnimatePresence>
-          {showScrollIndicator && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, x: "-50%" }}
-              animate={{ opacity: 1, y: 0, x: "-50%" }}
-              exit={{ opacity: 0, y: 10, x: "-50%" }}
-              transition={{ duration: 0.3 }}
-              onClick={handleScrollDown}
-              className="absolute bottom-4 left-1/2 z-20 flex items-center gap-1.5 px-4 py-2 bg-black/85 backdrop-blur-md text-white text-[10px] font-bold tracking-widest uppercase rounded-full shadow-lg border border-white/10 cursor-pointer select-none"
-            >
-              <span>Ver variantes / Más</span>
+          <AnimatePresence>
+            {showScrollIndicator && (
               <motion.div
-                animate={{ y: [0, 3, 0] }}
-                transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                initial={{ opacity: 0, y: 10, x: "-50%" }}
+                animate={{ opacity: 1, y: 0, x: "-50%" }}
+                exit={{ opacity: 0, y: 10, x: "-50%" }}
+                transition={{ duration: 0.3 }}
+                onClick={handleScrollDown}
+                className="absolute bottom-4 left-1/2 z-20 flex items-center gap-1.5 px-4 py-2 bg-black/85 backdrop-blur-md text-white text-[10px] font-bold tracking-widest uppercase rounded-full shadow-lg border border-white/10 cursor-pointer select-none"
               >
-                <ChevronDown size={13} className="text-honey-light" />
+                <span>Ver variantes / Más</span>
+                <motion.div
+                  animate={{ y: [0, 3, 0] }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 1.2,
+                    ease: "easeInOut",
+                  }}
+                >
+                  <ChevronDown size={13} className="text-honey-light" />
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <div className="p-4 sm:p-6 border-t border-gray-100 bg-white shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-10">
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2">
               <Button
                 onClick={handleAddToCart}
-                disabled={(hasVariants && !allAttrsSelected) || selectedVariantOutOfStock}
+                disabled={
+                  (hasVariants && !allAttrsSelected) ||
+                  selectedVariantOutOfStock
+                }
                 className="h-13 bg-ink cursor-pointer text-paper hover:bg-ink/90 font-bold uppercase text-[10px] tracking-[0.16em] shadow-lg"
               >
                 <ShoppingBag size={16} className="mr-2" />
@@ -403,7 +441,10 @@ export default function QuickAddSheet({ product, open, onClose }) {
 
               <Button
                 onClick={handleBuyNow}
-                disabled={(hasVariants && !allAttrsSelected) || selectedVariantOutOfStock}
+                disabled={
+                  (hasVariants && !allAttrsSelected) ||
+                  selectedVariantOutOfStock
+                }
                 variant="outline"
                 className="h-13 cursor-pointer border-ink text-ink hover:bg-ink hover:text-paper font-bold uppercase text-[10px] tracking-[0.16em]"
               >
@@ -411,14 +452,17 @@ export default function QuickAddSheet({ product, open, onClose }) {
               </Button>
             </div>
 
-            {commerce_settings?.whatsapp_number && !isOutOfStock && (
+            {commerce_settings?.whatsapp_number && (
               <Button
                 asChild
                 variant="outline"
                 className="h-11 border-emerald-500/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-500 font-bold uppercase text-[9px] tracking-[0.2em] flex items-center justify-center gap-2 group"
               >
                 <a href={inquiryUrl} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle size={14} className="group-hover:scale-110 transition-transform" />
+                  <MessageCircle
+                    size={14}
+                    className="group-hover:scale-110 transition-transform"
+                  />
                   ¿Confirmar disponibilidad?
                 </a>
               </Button>
@@ -437,6 +481,15 @@ export default function QuickAddSheet({ product, open, onClose }) {
                 Ver detalle completo
                 <ArrowRight size={12} />
               </Link>
+            </Button>
+            <Button
+              type="button"
+              onClick={handleShare}
+              variant="ghost"
+              className="w-auto h-8 text-black absolute top-3 left-3 cursor-pointer hover:bg-zinc-700 hover:text-white active:bg-zinc-700 active:text-white font-bold uppercase text-[8px] tracking-[0.2em]"
+            >
+              <Share2 size={12} />
+              Compartir producto
             </Button>
           </div>
         </div>

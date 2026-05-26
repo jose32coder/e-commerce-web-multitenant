@@ -746,7 +746,7 @@ export default function CheckoutPage() {
                     onVerify={handleVerifyPayment}
                     shippingMethod={formData.shippingMethod}
                     shippingPaymentType={formData.shippingPaymentType}
-                    showStockInquiry={!!commerce.whatsapp_stock_check}
+                    showStockInquiry={false}
                     onStockInquiry={handleStockInquiry}
                     stockProblems={stockProblems}
                     disabled={stockProblems.length > 0}

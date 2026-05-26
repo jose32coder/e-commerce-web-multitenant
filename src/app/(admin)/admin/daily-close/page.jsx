@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import ExportButtons from "@/components/admin/shared/ExportButtons";
+import SalesSectionTabs from "@/components/admin/orders/SalesSectionTabs";
 import Swal from "sweetalert2";
 
 const COMPLETED = new Set(["paid", "pagado", "completed", "completado", "delivered", "entregado", "shipped", "enviado"]);
@@ -417,6 +418,8 @@ export default function DailyClosePage() {
 
   return (
     <section className="space-y-6">
+      <SalesSectionTabs mode="route" activeTab="daily-close" />
+
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Cierre Diario</h1>

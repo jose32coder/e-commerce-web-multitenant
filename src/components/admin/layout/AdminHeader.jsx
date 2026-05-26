@@ -22,6 +22,7 @@ export default function AdminHeader({
       "/admin/products": "PRODUCTOS",
       "/admin/categories": "CATEGORÍAS",
       "/admin/orders": "ÓRDENES",
+      "/admin/daily-close": "ÓRDENES",
       "/admin/customers": "CLIENTES",
       "/admin/history": "BITÁCORA",
       "/admin/settings": "AJUSTES",

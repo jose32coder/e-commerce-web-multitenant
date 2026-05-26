@@ -41,6 +41,10 @@ Este archivo sirve como memoria técnica para los agentes de IA y desarrolladore
   - `Stock = 0`: Badge "Agotado", imagen en escala de grises y bloqueo de botones de compra.
   - `Stock < 5`: Badge pulsante "Pocas unidades" que muestra el stock restante en tiempo real.
 - **Consultas de Disponibilidad**: Integración de botones de WhatsApp para productos agotados (`whatsapp_stock_check`) y enlaces de "Confirmar disponibilidad" para compras preventivas.
+- **Consultas de Disponibilidad (Actualización)**:
+  - La consulta por WhatsApp se centraliza antes del checkout (ficha de producto y quick add).
+  - El botón de consulta desde checkout queda desactivado para evitar duplicidad de flujo.
+  - La consulta se muestra siempre que exista número de WhatsApp configurado (incluyendo agotados).
 - **Validación en Checkout**: El sistema valida el inventario inmediatamente antes de procesar pagos manuales, evitando la sobreventa.
 
 ### ⚡ Experiencia en Tiempo Real (Realtime & Social Proof)
@@ -62,6 +66,17 @@ Este archivo sirve como memoria técnica para los agentes de IA y desarrolladore
 - **2026-05-09**: Implementación de lógica multimoneda en Dashboard y Tabla de Productos. Corrección de persistencia de `base_currency` en la API.
 - **2026-05-10**: Refactorización de `PricingStock` para inferir estado de variantes si el precio es 0.
 - **2026-05-12**: (En progreso) Mejora de gestión de roles y corrección de visualización de tipo de entrega en facturas/admin.
+- **2026-05-26**:
+  - **Sidebar Admin**: Alineación consistente de items con altura fija (`h-12`) para evitar desplazamientos visuales de "Categorías" u otros items.
+  - **Página de Ventas**: Reestructurada con encabezado + tabs internos (similar a Ajustes). Tabs: "Ventas Generales" (vista principal) y "Cierre del Día" (render interno sin navegación forzada).
+  - **Horario del Footer**: Agregado campo opcional en página principal (`page.jsx`) para mostrar horarios de negocio en la zona baja del footer con diseño responsive. Uso de `useEffect` en cliente para evitar hydration mismatch con `new Date()`.
+  - **Roles y Acceso**: Caché en memoria con TTL corto para reducir peticiones repetidas al entrar/salir de la vista.
+  - **Comercio y Footer**: Autocompletado de símbolo de moneda al cambiar código (`USD -> $`, `VES -> Bs `).
+  - **Identidad y Navegación**: Nuevo bloque QR para compartir tienda (URL `host + slug`), copiar enlace y descargar PNG con logo centrado.
+  - **Cierre Diario PDF**: Corregido el flujo PDF en frontend; Excel sigue por API (`/api/admin/export/orders`).
+  - **Sidebar Admin (Ajuste Fino)**: Compactación leve aplicada solo en desktop con poca altura (umbral `max-height: 760px` y `min-width: lg`), reduciendo iconos/paddings/espaciado sin afectar mobile.
+  - **Comercio y Legal (Horario)**: El bloque "Horario de laburo" ahora usa layout adaptativo por fila: en pantallas pequeñas se divide en 2 niveles (día+switch y horas), y en desktop conserva 4 columnas.
+  - **Compartir Producto (Frontend Público)**: Implementado flujo real de compartir en `ProductCard`, `ProductView` y `QuickAddSheet` con prioridad `navigator.share`, fallback a portapapeles y fallback final a WhatsApp.
 
 ## 6. Reglas para la IA
 
@@ -87,7 +102,8 @@ Este archivo sirve como memoria técnica para los agentes de IA y desarrolladore
   - Mantener sombreado lateral suave en X para dar contexto de continuidad.
 
 - **Card pública (`ProductCard`)**:
-  - Existe botón superior derecho de compartir como placeholder visual (sin lógica de negocio por ahora).
+  - El botón superior derecho de compartir está activo y comparte `nombre + link` del producto.
+  - Flujo técnico: `navigator.share` -> copiar enlace -> fallback WhatsApp.
   - Las etiquetas de categoría deben reservar espacio para ese botón (`right-*`) y no renderizarse debajo del icono.
   - En mobile: mostrar una categoría principal y contador `+n` para reducir ruido visual.
 
@@ -105,3 +121,9 @@ Este archivo sirve como memoria técnica para los agentes de IA y desarrolladore
 - **Nota de arquitectura de stock**:
   - El stock global (`product_stock`) puede ser suma agregada y no reemplaza la validación por variante.
   - Para decisiones por combinación en frontend, la fuente de verdad es `product_variants.stock_quantity`.
+
+## 10. Admin Layout (Low Height)
+
+- La compactación del sidebar por altura aplica solo en desktop (`min-width: 1024px`) y cuando el viewport tiene `max-height: 760px`.
+- Mobile mantiene su comportamiento y tamaño visual original.
+- Ajuste aplicado: reducción leve de iconos/paddings/espaciados para evitar roturas en laptops de poca altura.

@@ -272,7 +272,7 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
@@ -282,32 +282,30 @@ export default function CategoriesPage() {
             Revisa las categorías predeterminadas o cambia el nicho principal.
           </p>
         </div>
-        <div className="w-fit sm:w-full md:w-fit">
-          <div className="flex flex-col sm:flex-row md:flex-col items-start gap-3 w-full">
-            <button
-              onClick={openCreateCategoryModal}
-              disabled={!selectedType || !tenantId || loading}
-              className="flex items-center cursor-pointer justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-3 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all font-black text-xs uppercase tracking-widest shadow-sm disabled:opacity-40 disabled:cursor-not-allowed w-full"
-              title={
-                !selectedType
-                  ? "Selecciona un nicho para poder crear categorías"
-                  : !tenantId
-                    ? "No se pudo resolver el tenant"
-                    : "Crear categoría customizada"
-              }
-            >
-              <Plus size={16} />
-              Agregar Categoría
-            </button>
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={openCreateCategoryModal}
+            disabled={!selectedType || !tenantId || loading}
+            className="flex items-center cursor-pointer justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-3 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all font-black text-xs uppercase tracking-widest shadow-sm disabled:opacity-40 disabled:cursor-not-allowed w-full whitespace-nowrap"
+            title={
+              !selectedType
+                ? "Selecciona un nicho para poder crear categorías"
+                : !tenantId
+                  ? "No se pudo resolver el tenant"
+                  : "Crear categoría customizada"
+            }
+          >
+            <Plus size={16} />
+            Agregar Categoría
+          </button>
 
-            <button
-              onClick={() => setIsStoreTypeModalOpen(true)}
-              className="flex cursor-pointer items-center justify-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-md hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none w-full"
-            >
-              <Store size={16} />
-              {selectedType ? "Cambiar Nicho" : "Elegir Nicho"}
-            </button>
-          </div>
+          <button
+            onClick={() => setIsStoreTypeModalOpen(true)}
+            className="flex cursor-pointer items-center justify-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-md hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none w-full whitespace-nowrap"
+          >
+            <Store size={16} />
+            {selectedType ? "Cambiar Nicho" : "Elegir Nicho"}
+          </button>
         </div>
       </header>
 
@@ -364,7 +362,7 @@ export default function CategoriesPage() {
       {/* Tabla de Resultados (Solo Lectura) */}
       <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left">
+          <table className="w-full min-w-190 text-left">
             <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
               <tr>
                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">

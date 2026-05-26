@@ -207,43 +207,43 @@ export default function AdminLayoutClient({
       tenantId={initialProfile?.tenant_id ?? null}
       initialData={initialSiteConfig}
     >
-        <div className="flex min-h-screen bg-[#FBFBFB] dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans transition-all duration-500">
-          <AdminHeader
-            isCollapsed={isCollapsed}
-            setIsMobileOpen={setIsMobileOpen}
-            toggleTheme={toggleTheme}
-            isDarkMode={isDarkMode}
-            userProfile={initialProfile}
-            userRole={initialRole}
-            pathname={pathname}
-          />
+      <div className="flex min-h-screen bg-[#FBFBFB] dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans transition-all duration-500">
+        <AdminHeader
+          isCollapsed={isCollapsed}
+          setIsMobileOpen={setIsMobileOpen}
+          toggleTheme={toggleTheme}
+          isDarkMode={isDarkMode}
+          userProfile={initialProfile}
+          userRole={initialRole}
+          pathname={pathname}
+        />
 
-          <AdminMobileMenu
-            isMobileOpen={isMobileOpen}
-            setIsMobileOpen={setIsMobileOpen}
-          />
+        <AdminMobileMenu
+          isMobileOpen={isMobileOpen}
+          setIsMobileOpen={setIsMobileOpen}
+        />
 
-          <AdminSidebar
-            isCollapsed={isCollapsed}
-            toggleSidebar={toggleSidebar}
-            isMobileOpen={isMobileOpen}
-            setIsMobileOpen={setIsMobileOpen}
-            canAccess={canAccess}
-            handleLogout={handleLogout}
-          />
+        <AdminSidebar
+          isCollapsed={isCollapsed}
+          toggleSidebar={toggleSidebar}
+          isMobileOpen={isMobileOpen}
+          setIsMobileOpen={setIsMobileOpen}
+          canAccess={canAccess}
+          handleLogout={handleLogout}
+        />
 
-          <main
-            className={`
-            flex-1 p-4 lg:p-6 pt-24 lg:pt-28 pb-24 lg:pb-28 transition-all duration-500
+        <main
+          className={`
+            flex-1 p-4 lg:p-6 pt-20 lg:pt-24 pb-24 lg:pb-28 transition-all duration-500
             ${isCollapsed ? "lg:ml-20" : "lg:ml-64"}
             ml-0 w-full max-w-full overflow-x-auto
           `}
-          >
-            {children}
-          </main>
+        >
+          {children}
+        </main>
 
-          <FloatingRates />
-        </div>
+        <FloatingRates />
+      </div>
     </SiteConfigProvider>
   );
 }

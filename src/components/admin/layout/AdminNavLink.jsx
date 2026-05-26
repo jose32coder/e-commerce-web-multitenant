@@ -14,7 +14,7 @@ export default function AdminNavLink({ href, icon, label, isCollapsed, onClick }
       onClick={onClick}
       className={`
         flex items-center rounded-xl transition-all duration-300 group overflow-hidden
-        ${isCollapsed ? "lg:justify-center lg:p-4 lg:w-12 lg:h-12 lg:mx-auto p-4 gap-4" : "gap-4 p-4"}
+        ${isCollapsed ? "lg:justify-center lg:p-4 lg:w-12 lg:h-12 lg:mx-auto p-4 gap-4 [@media_(min-width:1024px)_and_(max-height:760px)]:p-3" : "gap-4 p-4 [@media_(min-width:1024px)_and_(max-height:760px)]:p-3 [@media_(min-width:1024px)_and_(max-height:760px)]:gap-3"}
         ${isActive ? "bg-white text-slate-900 shadow-xl shadow-white/5 ring-4 ring-slate-900" : "hover:bg-slate-900 text-slate-400 hover:text-white"}
       `}
     >

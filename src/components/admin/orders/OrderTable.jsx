@@ -6,23 +6,26 @@ import { InvoicePDF } from "@/components/InvoicePDF";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
 
-export default function OrderTable({ 
-  orders, 
-  loading, 
-  selectedCurrency, 
-  exchangeRates, 
-  toOrderCode, 
-  onViewDetails, 
-  onUpdateStatus, 
-  onReject 
+export default function OrderTable({
+  orders,
+  loading,
+  selectedCurrency,
+  exchangeRates,
+  toOrderCode,
+  onViewDetails,
+  onUpdateStatus,
+  onReject,
 }) {
   const { site_name } = useSiteConfig();
   const getCurrencySymbol = (code) => {
     switch (code) {
-      case "VES": return "Bs ";
-      case "COP": return "COP ";
-      case "USD": return "$ ";
-      default: return `${code} `;
+      case "VES":
+        return "Bs ";
+      // case "COP": return "COP ";
+      case "USD":
+        return "$ ";
+      default:
+        return `${code} `;
     }
   };
 
@@ -60,11 +63,14 @@ export default function OrderTable({
       <InvoicePDF
         formData={{
           name: customerName,
-          idNumber: order.customer_id_number || order.clientes?.id_number || "N/A",
+          idNumber:
+            order.customer_id_number || order.clientes?.id_number || "N/A",
           phone: customerPhone,
           paymentMethod: order.metodo_pago || "Transferencia",
           reference: order.referencia_pago || "N/A",
-          shippingMethod: parsedShippingMethod || (parsedNotes?.includes('ENTREGA') ? null : 'N/A'),
+          shippingMethod:
+            parsedShippingMethod ||
+            (parsedNotes?.includes("ENTREGA") ? null : "N/A"),
           shippingProvider: parsedShippingProvider,
           notes: parsedNotes,
         }}
@@ -102,18 +108,33 @@ export default function OrderTable({
       <table className="w-full text-left">
         <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
           <tr>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500"># Orden</th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Cliente</th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden sm:table-cell">Fecha</th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Total</th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Estado</th>
-            <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Acciones</th>
+            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              # Orden
+            </th>
+            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              Cliente
+            </th>
+            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden sm:table-cell">
+              Fecha
+            </th>
+            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              Total
+            </th>
+            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              Estado
+            </th>
+            <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              Acciones
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
           {loading ? (
             <tr>
-              <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">
+              <td
+                colSpan={6}
+                className="px-6 py-12 text-center text-slate-400 italic"
+              >
                 <Loader2 className="animate-spin inline mr-2" size={20} />
                 Sincronizando ventas...
               </td>
@@ -130,7 +151,10 @@ export default function OrderTable({
                 order.clientes?.phone;
 
               return (
-                <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
+                <tr
+                  key={order.id}
+                  className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group"
+                >
                   <td className="px-6 py-4">
                     <span className="font-black text-slate-900 dark:text-white text-xs">
                       #{toOrderCode(order)}
@@ -152,7 +176,12 @@ export default function OrderTable({
                   </td>
                   <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
                     {getCurrencySymbol(selectedCurrency)}
-                    {convertPrice(Number(order.total), "USD", selectedCurrency, exchangeRates).toFixed(2)}
+                    {convertPrice(
+                      Number(order.total),
+                      "USD",
+                      selectedCurrency,
+                      exchangeRates,
+                    ).toFixed(2)}
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -164,7 +193,11 @@ export default function OrderTable({
                             : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                       }`}
                     >
-                      {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
+                      {order.estado === "pending"
+                        ? "Pendiente"
+                        : order.estado === "paid"
+                          ? "Completado"
+                          : "Cancelado"}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -181,7 +214,11 @@ export default function OrderTable({
                         <button
                           type="button"
                           onClick={() =>
-                            handleInvoiceAction(order, customerName, customerPhone)
+                            handleInvoiceAction(
+                              order,
+                              customerName,
+                              customerPhone,
+                            )
                           }
                           className="p-2 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-all cursor-pointer"
                           title="Nota de Entrega"
@@ -214,7 +251,10 @@ export default function OrderTable({
             })
           ) : (
             <tr>
-              <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
+              <td
+                colSpan={6}
+                className="px-6 py-12 text-center text-slate-400 font-medium"
+              >
                 No se encontraron ventas.
               </td>
             </tr>

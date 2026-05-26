@@ -16,6 +16,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
 
+const STAFF_CACHE_TTL_MS = 60 * 1000;
+const staffCacheByTenant = new Map();
+
 const AVAILABLE_MODULES = [
   "Panel",
   "Productos",
@@ -58,6 +61,15 @@ const RolesManager = () => {
     try {
       setLoading(true);
       const scopedTenantId = effectiveTenantId ?? tenantId ?? null;
+      const cacheKey = scopedTenantId || "__all__";
+      const cached = staffCacheByTenant.get(cacheKey);
+      const now = Date.now();
+
+      if (cached && now - cached.ts < STAFF_CACHE_TTL_MS) {
+        setStaff(cached.data);
+        setLoading(false);
+        return;
+      }
 
       let staffQuery = supabase
         .from("staff_profiles")
@@ -68,7 +80,9 @@ const RolesManager = () => {
 
       const { data, error } = await staffQuery;
 
-      setStaff(data || []);
+      const nextData = data || [];
+      setStaff(nextData);
+      staffCacheByTenant.set(cacheKey, { data: nextData, ts: now });
     } catch (error) {
       console.error("Error cargando staff:", error.message);
     } finally {
@@ -203,6 +217,9 @@ const RolesManager = () => {
       }
 
       setShowModal(false);
+      const scopedTenantId = effectiveTenantId ?? tenantId ?? null;
+      const cacheKey = scopedTenantId || "__all__";
+      staffCacheByTenant.delete(cacheKey);
       fetchStaff();
     } catch (error) {
       Swal.fire("Error", error.message, "error");
@@ -288,6 +305,9 @@ const RolesManager = () => {
         if (!response.ok) throw new Error(resJson.error);
 
         Swal.fire("Eliminado", "El usuario ya no tiene acceso.", "success");
+        const scopedTenantId = effectiveTenantId ?? tenantId ?? null;
+        const cacheKey = scopedTenantId || "__all__";
+        staffCacheByTenant.delete(cacheKey);
         fetchStaff();
       } catch (error) {
         Swal.fire("Error", error.message, "error");

@@ -9,7 +9,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import Swal from "sweetalert2";
@@ -24,6 +24,7 @@ import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import { createClient } from "@/lib/supabase/client";
+import { shareProduct } from "@/lib/shareProduct";
 
 export default function ProductView({ product }) {
   const { site_name, commerce_settings, tenant_slug, exchange_rates } =
@@ -185,7 +186,7 @@ export default function ProductView({ product }) {
       ? selectedVariantStock > 0 && selectedVariantStock < 5
       : currentStock > 0 && currentStock < 5;
 
-  const canInquiry = commerce.whatsapp_stock_check && commerce.whatsapp_number;
+  const canInquiry = Boolean(commerce.whatsapp_number);
   const whatsappMessage = encodeURIComponent(
     `Hola, me interesa el producto *${name}* pero veo que no hay stock disponible. ¿Tienen disponibilidad o saben cuándo les llega?`,
   );
@@ -307,6 +308,26 @@ export default function ProductView({ product }) {
     if (added) router.push(`${baseUrl}/checkout`);
   };
 
+  const handleShare = async () => {
+    const result = await shareProduct({
+      name,
+      tenantSlug: tenant_slug,
+      slug: product?.slug,
+    });
+
+    if (result.method === "clipboard") {
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Enlace copiado",
+        showConfirmButton: false,
+        timer: 1600,
+        timerProgressBar: true,
+      });
+    }
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-6 md:px-12 py-8 md:py-16">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
@@ -350,6 +371,17 @@ export default function ProductView({ product }) {
         {/* ---- INFORMACIÓN ---- */}
         <div className="md:col-span-5 flex flex-col space-y-4">
           <section>
+            <div className="mb-3 flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleShare}
+                className="h-9 px-3 text-[11px] cursor-pointer hover:bg-zinc-900 hover:text-white font-bold uppercase tracking-wider"
+              >
+                <Share2 size={14} className="mr-2" />
+                Compartir
+              </Button>
+            </div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight uppercase">
               {name}
             </h1>
@@ -523,7 +555,7 @@ export default function ProductView({ product }) {
             )}
           </div>
 
-          {commerce.whatsapp_number && !isOutOfStock && (
+          {commerce.whatsapp_number && (
             <a
               href={inquiryUrl}
               target="_blank"

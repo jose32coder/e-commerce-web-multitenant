@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Clock, Instagram, Facebook, Twitter } from "lucide-react";
@@ -74,6 +75,9 @@ const getBusinessHoursStatus = (hours) => {
 };
 
 const Footer = () => {
+  const [businessStatus, setBusinessStatus] = useState(null);
+  const [isMounted, setIsMounted] = useState(false);
+
   const {
     site_name,
     header_menu,
@@ -95,7 +99,12 @@ const Footer = () => {
   const businessHours = Array.isArray(commerce.business_hours)
     ? commerce.business_hours
     : [];
-  const businessStatus = getBusinessHoursStatus(businessHours);
+
+  // Calcular estado de horario solo en cliente para evitar hydration mismatch
+  useEffect(() => {
+    setBusinessStatus(getBusinessHoursStatus(businessHours));
+    setIsMounted(true);
+  }, [businessHours]);
 
   const sections = [
     {
@@ -185,7 +194,7 @@ const Footer = () => {
           </div>
 
           {/* Links Desktop */}
-          <div className="hidden md:grid grid-cols-2 lg:col-span-4 gap-8">
+          <div className="hidden md:grid grid-cols-2 lg:col-span-5 gap-8">
             {sections.map((section) => (
               <div key={section.title}>
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-200 mb-8">
@@ -213,43 +222,47 @@ const Footer = () => {
             ))}
           </div>
 
-          {/* Acordeón Móvil */}
-          {businessHours.length > 0 ? (
-            <div className="hidden md:block lg:col-span-1">
-              <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-200 mb-5">
-                Horario
-              </h3>
-              {businessStatus ? (
-                <div
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 mb-4 text-[9px] font-black uppercase tracking-widest ${
-                    businessStatus.open
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                      : "border-zinc-700 bg-zinc-900 text-zinc-400"
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      businessStatus.open ? "bg-emerald-400" : "bg-zinc-600"
+          {/* Horario Desktop - Ocupando más ancho */}
+          {businessHours.length > 0 && isMounted ? (
+            <div className="hidden md:flex flex-col lg:col-span-10 gap-6">
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-200 mb-5">
+                  Horario
+                </h3>
+                {businessStatus ? (
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 mb-4 text-[9px] font-black uppercase tracking-widest ${
+                      businessStatus.open
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                        : "border-zinc-700 bg-zinc-900 text-zinc-400"
                     }`}
-                  />
-                  {businessStatus.label}
-                </div>
-              ) : null}
-              <ul className="space-y-2">
-                {businessHours.map((item) => (
-                  <li
-                    key={item.day}
-                    className="flex items-center justify-between gap-3 text-xs"
                   >
-                    <span className="font-bold text-zinc-300">{item.day}</span>
-                    <span className="text-zinc-500">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        businessStatus.open ? "bg-emerald-400" : "bg-zinc-600"
+                      }`}
+                    />
+                    {businessStatus.label}
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {businessHours.map((item) => (
+                  <div
+                    key={item.day}
+                    className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5"
+                  >
+                    <p className="font-bold text-zinc-300 text-xs">
+                      {item.day}
+                    </p>
+                    <p className="text-zinc-500 text-[11px] mt-1">
                       {item.enabled === false
                         ? "Cerrado"
                         : `${formatHour(item.open)} - ${formatHour(item.close)}`}
-                    </span>
-                  </li>
+                    </p>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
 
@@ -289,7 +302,7 @@ const Footer = () => {
                 </AccordionItem>
               ))}
             </Accordion>
-            {businessHours.length > 0 ? (
+            {businessHours.length > 0 && isMounted ? (
               <div className="pt-6 border-t border-zinc-800">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 mb-4">
                   <Clock size={14} /> Horario
@@ -310,21 +323,23 @@ const Footer = () => {
                     {businessStatus.label}
                   </div>
                 ) : null}
-                <ul className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   {businessHours.map((item) => (
-                    <li
+                    <div
                       key={item.day}
-                      className="flex items-center justify-between gap-3 text-xs"
+                      className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2"
                     >
-                      <span className="font-bold text-zinc-300">{item.day}</span>
-                      <span className="text-zinc-500">
+                      <p className="font-bold text-zinc-300 text-xs">
+                        {item.day}
+                      </p>
+                      <p className="text-zinc-500 text-[10px] mt-1">
                         {item.enabled === false
                           ? "Cerrado"
                           : `${formatHour(item.open)} - ${formatHour(item.close)}`}
-                      </span>
-                    </li>
+                      </p>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             ) : null}
           </div>
