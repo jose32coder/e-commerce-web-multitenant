@@ -228,36 +228,6 @@ export default async function TenantSelectorPage() {
           </span>
         </div>
 
-        {footerBusinessHours.length > 0 ? (
-          <div className="max-w-6xl mx-auto px-5 mt-8 pt-6 border-t border-zinc-200">
-            <div className="grid gap-4 md:grid-cols-[1fr_auto] items-start">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500">
-                  Horario de atención
-                </p>
-                <p className="mt-2 text-sm text-zinc-600 max-w-2xl">
-                  Estos son los horarios configurados para el footer. Se adapta
-                  a móviles y mantiene la estructura del footer intacta.
-                </p>
-              </div>
-              <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:grid-cols-4">
-                {footerBusinessHours.map((item) => (
-                  <div
-                    key={item.day}
-                    className="rounded-3xl border border-zinc-200 bg-slate-50 p-3 text-xs text-zinc-700"
-                  >
-                    <p className="font-semibold text-zinc-900">{item.day}</p>
-                    <p className="mt-1 text-zinc-500">
-                      {item.enabled === false
-                        ? "Cerrado"
-                        : `${formatHour(item.open)} - ${formatHour(item.close)}`}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
       </footer>
     </main>
   );

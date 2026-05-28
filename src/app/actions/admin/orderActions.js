@@ -103,6 +103,33 @@ export async function updateOrderStatusAction({ orderId, newStatus, tenantId, re
       }
     });
 
+    // 5. Disparar Web Push de actualización al cliente
+    try {
+      const { sendPushNotification } = await import("@/services/pushNotificationService");
+      const orderCode = order.order_number ? String(order.order_number).padStart(5, "0") : String(orderId).slice(-6).toUpperCase();
+      
+      let title = `📦 Estado de tu orden #${orderCode}`;
+      let body = `El estado de tu pedido ha cambiado a: ${newStatus}`;
+      
+      if (newStatus === "paid") {
+        title = `✅ ¡Pago Aprobado! (#${orderCode})`;
+        body = `Tu pago ha sido validado correctamente. Estamos preparando tu envío.`;
+      } else if (newStatus === "cancelled") {
+        title = `⚠️ Pago Rechazado (#${orderCode})`;
+        body = reason ? `Detalle: ${reason}` : `Hubo un inconveniente validando tu pago.`;
+      }
+
+      // Enviamos el push usando el tenantId (el cliente estará suscrito a este scope)
+      await sendPushNotification(supabase, tenantId, {
+        title,
+        body,
+        url: `/${order.tenant_slug || tenantId}/checkout?orderId=${orderId}`, // Redirigir al tracking de su orden
+        data: { orderId }
+      });
+    } catch (pushErr) {
+      console.error("[Push Update] Error enviando push:", pushErr);
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Error en updateOrderStatusAction:", error);

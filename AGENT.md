@@ -127,3 +127,26 @@ Este archivo sirve como memoria técnica para los agentes de IA y desarrolladore
 - La compactación del sidebar por altura aplica solo en desktop (`min-width: 1024px`) y cuando el viewport tiene `max-height: 760px`.
 - Mobile mantiene su comportamiento y tamaño visual original.
 - Ajuste aplicado: reducción leve de iconos/paddings/espaciados para evitar roturas en laptops de poca altura.
+
+## 11. PWA & Web Push Notifications
+
+- **Progressive Web App**: La aplicación es instalable como PWA con `display: standalone`.
+- **Archivos clave**:
+  - `public/manifest.json`: Manifiesto PWA con iconos, colores y configuración de display.
+  - `public/sw.js`: Service Worker personalizado con caché network-first y soporte para eventos `push` y `notificationclick`.
+  - `public/icons/icon-512x512.png`: Icono de la app (512×512, maskable).
+  - `src/components/ServiceWorkerRegistrar.jsx`: Componente cliente (`"use client"`) que registra el SW y suscribe al usuario a Push.
+- **VAPID Keys**: Las llaves están en `.env` como `NEXT_PUBLIC_VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY`.
+- **Registro del SW**: Se ejecuta una sola vez desde `ServiceWorkerRegistrar` montado en `src/app/layout.jsx`.
+- **Flujo de Push**:
+  1. `ServiceWorkerRegistrar` registra `/sw.js`, obtiene el `tenantId` actual y llama a `pushManager.subscribe()` con la clave VAPID pública.
+  2. La suscripción resultante se guarda enviando un POST a `src/app/api/public/push/subscribe/route.js`.
+  3. Las suscripciones se almacenan en la tabla `push_subscriptions` en Supabase asociada al `tenant_id`.
+  4. Para gatillar notificaciones se usa el helper `sendPushNotification` de `src/services/pushNotificationService.js` que utiliza la librería `web-push`.
+  5. **Triggers esenciales integrados**:
+     - **Checkout del cliente**: Se dispara una notificación a los administradores del tenant en `src/app/actions/public/checkoutActions.js` al crearse una orden (`processCheckoutOrder`).
+     - **Gestión de la orden**: Se dispara una notificación al cliente en `src/app/actions/admin/orderActions.js` al actualizarse el estado del pedido (`updateOrderStatusAction`), por ejemplo al aprobarse (`paid`) o cancelarse/rechazarse (`cancelled`).
+  6. `sw.js` escucha el evento `push`, parsea el JSON y muestra la notificación nativa en segundo plano.
+  7. Al hacer clic en la notificación, `sw.js` navega a la URL correspondiente (`/admin/orders` para administradores, o la ruta de checkout/tracking para el cliente).
+- **Nota sobre `@ducanh2912/next-pwa`**: Está instalado como devDependency pero **no** se usa en `next.config.mjs` porque inyecta configuración webpack incompatible con Turbopack (Next.js 16+). El enfoque manual (SW + manifest + registrar) es totalmente funcional y compatible.
+

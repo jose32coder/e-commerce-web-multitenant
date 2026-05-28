@@ -157,3 +157,12 @@ next-env.d.ts
 !.yarn/versions
 .open-next
 .wrangler
+
+############################
+# PWA (auto-generated)
+############################
+
+public/workbox-*.js
+public/workbox-*.js.map
+public/sw.js.map
+public/swe-worker-*.js

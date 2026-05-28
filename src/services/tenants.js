@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createPlatformClient } from "@/lib/supabase/client";
 
 export const PLAN_LIMITS = {
   Bronze: 1,
@@ -16,7 +16,7 @@ export const getUserLimitForPlan = (planType) =>
   PLAN_LIMITS[normalizePlanType(planType)] ?? PLAN_LIMITS.Bronze;
 
 export async function getTenants() {
-  const supabase = createClient();
+  const supabase = createPlatformClient();
   const { data, error } = await supabase
     .from("tenants")
     .select("*")
@@ -33,7 +33,7 @@ export async function getPendingInvitationsByTenantIds(tenantIds) {
   const ids = Array.isArray(tenantIds) ? tenantIds.filter(Boolean) : [];
   if (ids.length === 0) return new Map();
 
-  const supabase = createClient();
+  const supabase = createPlatformClient();
   const { data, error } = await supabase
     .from("invitations")
     .select("id, tenant_id, used, created_at")
@@ -57,7 +57,7 @@ export async function getPendingInvitationsByTenantIds(tenantIds) {
 
 export async function getPendingInvitationByTenantId(tenantId) {
   if (!tenantId) return null;
-  const supabase = createClient();
+  const supabase = createPlatformClient();
   const { data, error } = await supabase
     .from("invitations")
     .select("id, tenant_id, used, created_at")
@@ -77,7 +77,7 @@ export async function getPendingInvitationByTenantId(tenantId) {
 
 export async function createInvitationForTenant(tenantId) {
   if (!tenantId) throw new Error("tenantId is required to create invitation");
-  const supabase = createClient();
+  const supabase = createPlatformClient();
 
   const { data, error } = await supabase
     .from("invitations")
@@ -95,7 +95,7 @@ export async function createInvitationForTenant(tenantId) {
 
 export async function revokeInvitation(invitationId) {
   if (!invitationId) throw new Error("invitationId is required");
-  const supabase = createClient();
+  const supabase = createPlatformClient();
 
   // Prefer hard delete for dev/staging. If RLS blocks, caller will handle error.
   const { error } = await supabase
@@ -113,7 +113,7 @@ export async function revokeInvitation(invitationId) {
 }
 
 export async function createTenant(tenantData) {
-  const supabase = createClient();
+  const supabase = createPlatformClient();
 
   // 1. Mapeamos los datos para que coincidan con las columnas de tu SQL
   const planType = normalizePlanType(tenantData.plan);
@@ -161,7 +161,7 @@ export async function createTenant(tenantData) {
 }
 
 export async function updateTenant(tenantId, payload) {
-  const supabase = createClient();
+  const supabase = createPlatformClient();
   const { data, error } = await supabase
     .from("tenants")
     .update(payload)
@@ -174,7 +174,7 @@ export async function updateTenant(tenantId, payload) {
 }
 
 export async function getInvitation(tokenId) {
-  const supabase = createClient();
+  const supabase = createPlatformClient();
   const { data, error } = await supabase
     .from("invitations")
     .select("*, tenants(*)")

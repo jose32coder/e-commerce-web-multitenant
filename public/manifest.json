@@ -1,0 +1,50 @@
+{
+  "name": "Deploy Shop",
+  "short_name": "Deploy Shop",
+  "description": "Piezas esenciales con estética atemporal. Tu tienda de ecommerce multitenant.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "categories": ["shopping", "business"],
+  "icons": [
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ver Tienda",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icons/icon-512x512.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "gcm_sender_id": "103953800507"
+}

@@ -206,8 +206,9 @@ export const SiteConfigProvider = ({
     const activeTenantId = tenantId ?? activeTenantIdForEffect ?? null;
     if (!activeTenantId) return;
 
+    const channelName = `site_settings_changes_${activeTenantId}_${Math.random().toString(36).substring(7)}`;
     const channel = supabase
-      .channel(`site_settings_changes_${activeTenantId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {

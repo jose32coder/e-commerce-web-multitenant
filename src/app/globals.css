@@ -137,6 +137,7 @@
 }
 
 html {
+  background: #000000;
   scroll-behavior: smooth;
 }
 
@@ -144,6 +145,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
+  min-height: 100dvh;
 }
 
 .invoice-only-print {

@@ -510,6 +510,20 @@ export async function processCheckoutOrder(formData, items = [], total) {
 
     const orderNumber = newOrder?.order_number || null;
 
+    // Disparar Web Push para los administradores o suscripciones de este tenant
+    try {
+      const { sendPushNotification } = await import("@/services/pushNotificationService");
+      const orderCode = orderNumber ? String(orderNumber).padStart(5, "0") : String(normalizedOrderId).slice(-6).toUpperCase();
+      await sendPushNotification(supabase, tenantId, {
+        title: `🛒 ¡Nueva Orden Recibida! (#${orderCode})`,
+        body: `Cliente: ${validatedData.name} por $${Number(total).toFixed(2)}. Método: ${validatedData.paymentMethod}.`,
+        url: `/admin/orders`, // Redirigir al panel de órdenes del admin al hacer click
+        data: { orderId: normalizedOrderId }
+      });
+    } catch (pushErr) {
+      console.error("[Push Checkout] Error enviando push:", pushErr);
+    }
+
     return {
       success: true,
       orderId: normalizedOrderId,

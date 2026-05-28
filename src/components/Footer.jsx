@@ -223,7 +223,7 @@ const Footer = () => {
           </div>
 
           {/* Horario Desktop - Ocupando más ancho */}
-          {businessHours.length > 0 && isMounted ? (
+          {tenant_slug && businessHours.length > 0 && isMounted ? (
             <div className="hidden md:flex flex-col lg:col-span-10 gap-6">
               <div>
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-200 mb-5">
@@ -302,7 +302,7 @@ const Footer = () => {
                 </AccordionItem>
               ))}
             </Accordion>
-            {businessHours.length > 0 && isMounted ? (
+            {tenant_slug && businessHours.length > 0 && isMounted ? (
               <div className="pt-6 border-t border-zinc-800">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 mb-4">
                   <Clock size={14} /> Horario

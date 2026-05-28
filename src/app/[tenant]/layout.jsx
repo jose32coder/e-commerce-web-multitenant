@@ -43,19 +43,24 @@ export default async function TenantLayout({ children, params }) {
 
   return (
     <TenantBrandingLayout tenant={tenant}>
+      <SiteConfigProvider tenantSlug={tenant}>
         <SiteConfigGate>
-        <OrderTrackingProvider>
-          <TenantHeroMetricsProvider>
-            <StoreOnboarding />
-            <div className="flex flex-col min-h-screen overflow-x-hidden">
-              <ScrollToTop />
-              <Header />
-              <main className="grow bg-white pt-16">{children}</main>
-              <Footer />
-            </div>
-          </TenantHeroMetricsProvider>
-        </OrderTrackingProvider>
-      </SiteConfigGate>
+          <OrderTrackingProvider>
+            <TenantHeroMetricsProvider>
+              <StoreOnboarding />
+              <div 
+                className="flex flex-col min-h-screen overflow-x-hidden"
+                id="tenant-root-container"
+              >
+                <ScrollToTop />
+                <Header />
+                <main className="grow bg-white pt-16">{children}</main>
+                <Footer />
+              </div>
+            </TenantHeroMetricsProvider>
+          </OrderTrackingProvider>
+        </SiteConfigGate>
+      </SiteConfigProvider>
     </TenantBrandingLayout>
   );
 }
