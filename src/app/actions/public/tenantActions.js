@@ -232,3 +232,60 @@ export async function updateTenantIdentityAction(tenantId, payload) {
 
   return { success: true, data: updatedTenant };
 }
+
+/**
+ * Sync the public tenant logo used by the platform tenant selector.
+ * The store itself reads the logo from site_settings.commerce_settings.logo_url,
+ * while the root selector reads tenants.logo_url for fast public listing.
+ */
+export async function updateTenantLogoAction(tenantId, logoUrl) {
+  const numericTenantId = Number(tenantId);
+
+  if (!numericTenantId) {
+    return { success: false, error: "tenant_id inválido." };
+  }
+
+  const authSupabase = await createClient();
+  const {
+    data: { user },
+  } = await authSupabase.auth.getUser();
+
+  if (!user) return { success: false, error: "No autorizado" };
+
+  const { data: profile, error: profileError } = await authSupabase
+    .from("staff_profiles")
+    .select("tenant_id, role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const userTenantId =
+    Number(profile?.tenant_id || user.user_metadata?.tenant_id || 0) || null;
+  const isPlatformAdmin =
+    user.user_metadata?.access_scope === "platform_admin" ||
+    user.app_metadata?.access_scope === "platform_admin" ||
+    user.user_metadata?.access_scope === "admin" ||
+    user.app_metadata?.access_scope === "admin" ||
+    user.user_metadata?.access_scope === "platform" ||
+    user.app_metadata?.access_scope === "platform";
+
+  if (profileError || (!isPlatformAdmin && userTenantId !== numericTenantId)) {
+    return { success: false, error: "No tienes permiso para editar esta tienda." };
+  }
+
+  const adminSupabase = getAdminSupabaseClient();
+  const safeLogoUrl = String(logoUrl || "").trim() || null;
+
+  const { data, error } = await adminSupabase
+    .from("tenants")
+    .update({ logo_url: safeLogoUrl })
+    .eq("tenant_id", numericTenantId)
+    .select("tenant_id, logo_url")
+    .single();
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/tenants");
+
+  return { success: true, data };
+}

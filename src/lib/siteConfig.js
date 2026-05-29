@@ -236,6 +236,18 @@ export const DEFAULT_COMMERCE_SETTINGS = {
   currency_code: "USD",
   currency_symbol: "$",
   logo_url: "",
+  logo_transform: {
+    fit: "contain",
+    scale: 1,
+    x: 50,
+    y: 50,
+  },
+  media_library: {
+    logos: [],
+    hero: [],
+    tenant_card: [],
+    promo: [],
+  },
   whatsapp_stock_check: false,
   business_hours: [
     { day: "Lun", enabled: true, open: "09:00", close: "18:00" },
@@ -425,6 +437,36 @@ export const normalizeCommerceSettings = (commerceSettings) => {
     shipping_national_type: normalized.shipping_national_type || "cod",
     shipping_national_fee: Number(normalized.shipping_national_fee ?? 0),
     shipping_pickup_enabled: normalized.shipping_pickup_enabled !== false,
+    logo_transform: {
+      fit:
+        normalized.logo_transform?.fit === "cover" ? "cover" : "contain",
+      scale: Math.min(
+        2,
+        Math.max(0.6, Number(normalized.logo_transform?.scale ?? 1)),
+      ),
+      x: Math.min(
+        100,
+        Math.max(0, Number(normalized.logo_transform?.x ?? 50)),
+      ),
+      y: Math.min(
+        100,
+        Math.max(0, Number(normalized.logo_transform?.y ?? 50)),
+      ),
+    },
+    media_library: {
+      logos: Array.isArray(normalized.media_library?.logos)
+        ? normalized.media_library.logos.filter(Boolean).slice(0, 12)
+        : [],
+      hero: Array.isArray(normalized.media_library?.hero)
+        ? normalized.media_library.hero.filter(Boolean).slice(0, 18)
+        : [],
+      tenant_card: Array.isArray(normalized.media_library?.tenant_card)
+        ? normalized.media_library.tenant_card.filter(Boolean).slice(0, 12)
+        : [],
+      promo: Array.isArray(normalized.media_library?.promo)
+        ? normalized.media_library.promo.filter(Boolean).slice(0, 12)
+        : [],
+    },
     tenant_selector_card: normalizeTenantSelectorCard(
       normalized.tenant_selector_card,
     ),

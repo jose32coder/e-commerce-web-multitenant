@@ -28,6 +28,67 @@ const DEFAULT_BUSINESS_HOURS = [
   { day: "Dom", enabled: false, open: "09:00", close: "18:00" },
 ];
 
+const buildBusinessHoursPreset = ({ enabledDays, open, close }) =>
+  DEFAULT_BUSINESS_HOURS.map((item, index) => ({
+    ...item,
+    enabled: enabledDays.includes(index),
+    open,
+    close,
+  }));
+
+const BUSINESS_HOUR_PRESETS = [
+  {
+    id: "always",
+    label: "24/7",
+    description: "Siempre abierto",
+    hours: buildBusinessHoursPreset({
+      enabledDays: [0, 1, 2, 3, 4, 5, 6],
+      open: "00:00",
+      close: "23:59",
+    }),
+  },
+  {
+    id: "weekday-office",
+    label: "Lun-Vie",
+    description: "9:00 a 18:00",
+    hours: buildBusinessHoursPreset({
+      enabledDays: [0, 1, 2, 3, 4],
+      open: "09:00",
+      close: "18:00",
+    }),
+  },
+  {
+    id: "weekday-saturday",
+    label: "Lun-Sab",
+    description: "9:00 a 18:00",
+    hours: buildBusinessHoursPreset({
+      enabledDays: [0, 1, 2, 3, 4, 5],
+      open: "09:00",
+      close: "18:00",
+    }),
+  },
+  {
+    id: "daily-commerce",
+    label: "Diario",
+    description: "10:00 a 20:00",
+    hours: buildBusinessHoursPreset({
+      enabledDays: [0, 1, 2, 3, 4, 5, 6],
+      open: "10:00",
+      close: "20:00",
+    }),
+  },
+  {
+    id: "weekend",
+    label: "Fines",
+    description: "Sáb-Dom 10:00 a 18:00",
+    hours: buildBusinessHoursPreset({
+      enabledDays: [5, 6],
+      open: "10:00",
+      close: "18:00",
+    }),
+  },
+];
+
 export default function CommerceSettings({ value, onChange }) {
   const currencyDefaults = {
     USD: "$",
@@ -92,6 +153,10 @@ export default function CommerceSettings({ value, onChange }) {
     handleFieldChange("business_hours", nextHours);
   };
 
+  const applyBusinessHoursPreset = (preset) => {
+    handleFieldChange("business_hours", preset.hours);
+  };
+
   const deliveryEnabled = value?.delivery_enabled !== false;
 
   return (
@@ -112,6 +177,30 @@ export default function CommerceSettings({ value, onChange }) {
               Horario por dia en formato 24h. Se mostrara al cliente en la
               tienda.
             </p>
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-zinc-200/70 bg-white/70 p-3 dark:border-zinc-700/70 dark:bg-slate-900/40">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Atajos rápidos
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+              {BUSINESS_HOUR_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyBusinessHoursPreset(preset)}
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-500"
+                  title={preset.description}
+                >
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
+                    {preset.label}
+                  </span>
+                  <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                    {preset.description}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-3">

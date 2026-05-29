@@ -1,6 +1,7 @@
 "use client";
 
-import { Type, Image as ImageIcon, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { RotateCcw, Type, Image as ImageIcon, Loader2 } from "lucide-react";
 import SettingsSectionHeader from "./SettingsSectionHeader";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import StoreQrCard from "./StoreQrCard";
@@ -15,10 +16,16 @@ export default function SiteIdentitySettings({
   onSiteNameChange,
   tenantSlug,
   logoUrl,
+  logoTransform,
   onLogoUpload,
+  onLogoRestore,
+  onLogoTransformChange,
+  logoLibrary = [],
   tenantCardConfig,
   onTenantCardConfigChange,
   onTenantCardBackgroundUpload,
+  onTenantCardBackgroundRestore,
+  tenantCardBackgroundLibrary = [],
   isUploadingLogo,
   isUploadingTenantCardBackground,
   nameChangeLimitReached,
@@ -26,11 +33,82 @@ export default function SiteIdentitySettings({
   isLoading,
   whatsappNumber,
 }) {
+  const [pendingLogoFile, setPendingLogoFile] = useState(null);
+  const [pendingLogoUrl, setPendingLogoUrl] = useState("");
+  const [pendingTransform, setPendingTransform] = useState(
+    logoTransform || { fit: "contain", scale: 1, x: 50, y: 50 },
+  );
+
+  useEffect(() => {
+    setPendingTransform(
+      logoTransform || { fit: "contain", scale: 1, x: 50, y: 50 },
+    );
+  }, [logoTransform]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingLogoUrl) URL.revokeObjectURL(pendingLogoUrl);
+    };
+  }, [pendingLogoUrl]);
+
+  const effectiveLogoUrl = pendingLogoUrl || logoUrl;
+  const effectiveTransform = pendingLogoUrl ? pendingTransform : logoTransform;
+  const availableLogos = [
+    ...new Set([logoUrl, ...logoLibrary].filter((url) => typeof url === "string" && url.trim())),
+  ];
+  const availableTenantCardBackgrounds = [
+    ...new Set(
+      [
+        tenantCardConfig?.background_image_url,
+        ...tenantCardBackgroundLibrary,
+      ].filter((url) => typeof url === "string" && url.trim() && !url.startsWith("blob:")),
+    ),
+  ];
+  const logoImageStyle = useMemo(
+    () => ({
+      objectFit: effectiveTransform?.fit || "contain",
+      objectPosition: `${effectiveTransform?.x ?? 50}% ${effectiveTransform?.y ?? 50}%`,
+      transform: `scale(${effectiveTransform?.scale ?? 1})`,
+    }),
+    [effectiveTransform],
+  );
+
   const handleTenantCardChange = (field, value) => {
     onTenantCardConfigChange?.({
       ...(tenantCardConfig || {}),
       [field]: value,
     });
+  };
+
+  const handleLogoFileSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (pendingLogoUrl) URL.revokeObjectURL(pendingLogoUrl);
+    setPendingLogoFile(file);
+    setPendingLogoUrl(URL.createObjectURL(file));
+    event.target.value = "";
+  };
+
+  const handleTransformPatch = (patch) => {
+    const next = { ...pendingTransform, ...patch };
+    setPendingTransform(next);
+    if (!pendingLogoUrl) onLogoTransformChange?.(next);
+  };
+
+  const applyPendingLogo = async () => {
+    if (!pendingLogoFile) return;
+    await onLogoUpload?.(pendingLogoFile, pendingTransform);
+    if (pendingLogoUrl) URL.revokeObjectURL(pendingLogoUrl);
+    setPendingLogoFile(null);
+    setPendingLogoUrl("");
+  };
+
+  const cancelPendingLogo = () => {
+    if (pendingLogoUrl) URL.revokeObjectURL(pendingLogoUrl);
+    setPendingLogoFile(null);
+    setPendingLogoUrl("");
+    setPendingTransform(logoTransform || { fit: "contain", scale: 1, x: 50, y: 50 });
   };
 
   return (
@@ -43,16 +121,17 @@ export default function SiteIdentitySettings({
 
       <div className="space-y-10 max-w-4xl">
         {/* LOGO UPLOAD SECTION */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8 p-6 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800">
-          <div className="relative group">
-            <div className="w-24 h-24 rounded-2xl bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shadow-sm transition-all group-hover:border-slate-400">
-              {logoUrl ? (
+        <div className="grid grid-cols-1 gap-5 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/30 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8 sm:p-6">
+          <div className="relative group mx-auto sm:mx-0">
+            <div className="h-24 w-24 rounded-2xl bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shadow-sm transition-all group-hover:border-slate-400">
+              {effectiveLogoUrl ? (
                 <div className="relative w-full h-full">
                   <AdaptiveImage
-                    src={logoUrl}
+                    src={effectiveLogoUrl}
                     alt="Logo preview"
                     fill
-                    className="object-contain p-2"
+                    className="p-2"
+                    style={logoImageStyle}
                   />
                   {isUploadingLogo && (
                     <div className="absolute inset-0 bg-white/60 dark:bg-black/60 flex items-center justify-center">
@@ -72,27 +151,172 @@ export default function SiteIdentitySettings({
             </div>
           </div>
 
-          <div className="space-y-4 flex-1">
-            <div className="space-y-1">
+          <div className="w-full space-y-4">
+            <div className="space-y-1 text-center sm:text-left">
               <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white">
                 Logo de la tienda
               </h4>
-              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider leading-relaxed">
+              <p className="mx-auto max-w-xs text-[10px] font-bold uppercase leading-relaxed tracking-wider text-slate-500 sm:mx-0 sm:max-w-none sm:text-[11px]">
                 Recomendado: Fondo transparente (PNG) y forma cuadrada o
                 rectangular pequeña. Máx 2MB.
               </p>
             </div>
 
-            <label className="inline-flex items-center gap-2 px-4 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-sm">
+            <label className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:w-auto">
               <input
                 type="file"
                 className="hidden"
                 accept="image/*"
-                onChange={onLogoUpload}
+                onChange={handleLogoFileSelect}
                 disabled={isUploadingLogo}
               />
-              {isUploadingLogo ? "Subiendo..." : "Cambiar Logo"}
+              {pendingLogoUrl
+                ? "Elegir otro archivo"
+                : isUploadingLogo
+                  ? "Subiendo..."
+                  : "Seleccionar logo"}
             </label>
+
+            {pendingLogoUrl && (
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:p-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Encaje
+                    <select
+                      value={pendingTransform.fit}
+                      onChange={(e) =>
+                        handleTransformPatch({ fit: e.target.value })
+                      }
+                      className={`${inputClassName} mt-2 h-10`}
+                    >
+                      <option value="contain">Completo</option>
+                      <option value="cover">Recortado</option>
+                    </select>
+                  </label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Zoom
+                    <input
+                      type="range"
+                      min="0.6"
+                      max="2"
+                      step="0.05"
+                      value={pendingTransform.scale}
+                      onChange={(e) =>
+                        handleTransformPatch({ scale: Number(e.target.value) })
+                      }
+                      className="mt-4 w-full"
+                    />
+                  </label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Horizontal
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={pendingTransform.x}
+                      onChange={(e) =>
+                        handleTransformPatch({ x: Number(e.target.value) })
+                      }
+                      className="mt-4 w-full"
+                    />
+                  </label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Vertical
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={pendingTransform.y}
+                      onChange={(e) =>
+                        handleTransformPatch({ y: Number(e.target.value) })
+                      }
+                      className="mt-4 w-full"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={applyPendingLogo}
+                    disabled={isUploadingLogo}
+                    className="h-10 rounded-lg bg-slate-900 px-4 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
+                  >
+                    {isUploadingLogo ? "Subiendo..." : "Usar este logo"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelPendingLogo}
+                    className="h-10 rounded-lg border border-slate-200 px-4 text-[10px] font-black uppercase tracking-widest text-slate-600"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!pendingLogoUrl && logoUrl && (
+              <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2 sm:p-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Zoom
+                  <input
+                    type="range"
+                    min="0.6"
+                    max="2"
+                    step="0.05"
+                    value={pendingTransform.scale}
+                    onChange={(e) =>
+                      handleTransformPatch({ scale: Number(e.target.value) })
+                    }
+                    className="mt-4 w-full"
+                  />
+                </label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Encaje
+                  <select
+                    value={pendingTransform.fit}
+                    onChange={(e) =>
+                      handleTransformPatch({ fit: e.target.value })
+                    }
+                    className={`${inputClassName} mt-2 h-10`}
+                  >
+                    <option value="contain">Completo</option>
+                    <option value="cover">Recortado</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Biblioteca de logos
+              </p>
+              {availableLogos.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  {availableLogos.map((imageUrl) => (
+                    <button
+                      type="button"
+                      key={imageUrl}
+                      onClick={() => onLogoRestore?.(imageUrl)}
+                      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white"
+                      title="Restaurar logo"
+                    >
+                      <AdaptiveImage
+                        src={imageUrl}
+                        alt="Logo reciente"
+                        fill
+                        className="object-contain p-1"
+                      />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Aún no hay logos guardados. Cuando subas uno, aparecerá aquí.
+                </p>
+              )}
+            </div>
+
           </div>
         </div>
 
@@ -287,6 +511,37 @@ export default function SiteIdentitySettings({
                     ? "Subiendo..."
                     : "Cargar imagen de fondo"}
                 </label>
+
+                <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Biblioteca de fondos
+                  </p>
+                  {availableTenantCardBackgrounds.length > 0 ? (
+                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                      {availableTenantCardBackgrounds.map((imageUrl) => (
+                        <button
+                          type="button"
+                          key={imageUrl}
+                          onClick={() =>
+                            onTenantCardBackgroundRestore?.(imageUrl)
+                          }
+                          className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white"
+                          title="Restaurar fondo"
+                        >
+                          <img
+                            src={imageUrl}
+                            alt="Fondo reciente"
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      Aún no hay fondos guardados. Al subir uno, aparecerá aquí.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}

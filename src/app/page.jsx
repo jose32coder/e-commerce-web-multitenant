@@ -139,6 +139,7 @@ async function getTenantCards() {
       card_style: tenantCardConfig.card_style || "legacy",
       hide_deploy_label: tenantCardConfig.hide_deploy_label === true,
       background_image_url: finalBg || "",
+      logo_transform: normalizedCommerce.logo_transform,
       whatsapp_url: whatsappNumber ? `https://wa.me/${whatsappNumber}` : "",
       instagram_url: normalizeInstagramUrl(normalizedFooter.instagram_url),
       store_url: tenant.store_url || `/${tenant.slug}`,
@@ -227,7 +228,6 @@ export default async function TenantSelectorPage() {
             Desarrollado por <span className="text-zinc-800">Deploy</span>
           </span>
         </div>
-
       </footer>
     </main>
   );

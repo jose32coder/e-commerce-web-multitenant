@@ -34,6 +34,12 @@ const OVERLAY_POSITION_COLS = [
 
 const HERO_SLIDE_LIMIT = 5;
 
+const reusableImage = (url) =>
+  typeof url === "string" &&
+  url.trim() &&
+  !url.startsWith("blob:") &&
+  !url.startsWith("/");
+
 export default function HeroSliderSettings({
   slides,
   homeIntro,
@@ -42,6 +48,9 @@ export default function HeroSliderSettings({
   onRemoveSlide,
   onUpdateSlide,
   onImageUpload,
+  onImageRestore,
+  onAddSlideFromLibrary,
+  imageLibrary = [],
 }) {
   const safeSlides = Array.isArray(slides) ? slides : [];
   const heroVariant = homeIntro?.hero_variant ?? HERO_VARIANT_CLASSIC;
@@ -53,6 +62,12 @@ export default function HeroSliderSettings({
     homeIntro?.hero_overlay_valign ?? HERO_OVERLAY_VALIGN_MIDDLE;
 
   const isOverlay = heroVariant === HERO_VARIANT_CINEMATIC;
+  const availableImages = [
+    ...new Set([
+      ...safeSlides.map((slide) => slide.image).filter(reusableImage),
+      ...imageLibrary.filter(reusableImage),
+    ]),
+  ];
 
   const typeBtn = (active) =>
     active
@@ -251,6 +266,52 @@ export default function HeroSliderSettings({
         }
       />
 
+      <div className="mb-8 rounded-3xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50 sm:p-5">
+        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              Biblioteca de imágenes
+            </p>
+            <p className="text-[10px] text-slate-400">
+              Reutiliza imágenes existentes sin subirlas otra vez.
+            </p>
+          </div>
+        </div>
+
+        {availableImages.length > 0 ? (
+          <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+            {availableImages.map((imageUrl) => (
+              <button
+                key={imageUrl}
+                type="button"
+                onClick={() => onAddSlideFromLibrary?.(imageUrl)}
+                disabled={safeSlides.length >= HERO_SLIDE_LIMIT}
+                className="group relative h-20 w-32 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white disabled:opacity-40 dark:border-slate-700"
+                title="Crear slide con esta imagen"
+              >
+                <img
+                  src={imageUrl}
+                  alt="Imagen guardada"
+                  className="h-full w-full object-cover transition group-hover:scale-105"
+                />
+                <span className="absolute inset-x-2 bottom-2 rounded-full bg-black/70 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-white opacity-0 transition group-hover:opacity-100">
+                  Usar en slide
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Todavía no hay imágenes reutilizables.
+            </p>
+            <p className="mt-1 text-[10px] text-slate-400">
+              Al subir o eliminar slides, sus imágenes aparecerán aquí.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {safeSlides.map((slide, index) => (
           <HeroSlideCard
@@ -261,6 +322,8 @@ export default function HeroSliderSettings({
             onRemove={onRemoveSlide}
             onUpdate={onUpdateSlide}
             onImageUpload={onImageUpload}
+            onImageRestore={onImageRestore}
+            imageLibrary={imageLibrary}
           />
         ))}
       </div>

@@ -11,6 +11,8 @@ export default function HeroSlideCard({
   onRemove,
   onUpdate,
   onImageUpload,
+  onImageRestore,
+  imageLibrary = [],
 }) {
   return (
     <div className="relative p-6 rounded-4xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-6 group">
@@ -62,6 +64,33 @@ export default function HeroSlideCard({
           </label>
         </div>
       </div>
+
+      {imageLibrary.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Imágenes recientes
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {imageLibrary.map((imageUrl) => (
+              <button
+                key={imageUrl}
+                type="button"
+                onClick={() => onImageRestore?.(slide.id, imageUrl)}
+                className="relative h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700"
+                title="Restaurar imagen"
+              >
+                <AdaptiveImage
+                  src={imageUrl}
+                  alt="Imagen reciente"
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4 pt-2">
         <div>

@@ -21,7 +21,10 @@ import { createClient } from "@/lib/supabase/client";
 import { CLOUDINARY_CONFIG } from "../product-form/config";
 import { buildTenantCloudinaryFolder } from "@/lib/cloudinaryFolders";
 import { revalidateSiteConfig } from "@/app/actions/revalidate";
-import { updateTenantIdentityAction } from "@/app/actions/public/tenantActions";
+import {
+  updateTenantIdentityAction,
+  updateTenantLogoAction,
+} from "@/app/actions/public/tenantActions";
 import { slugify } from "@/lib/slug";
 import EditorialContentSettings from "./EditorialContentSettings";
 import HeroSliderSettings from "./HeroSliderSettings";
@@ -45,6 +48,34 @@ const hasValueChanged = (currentValue, nextValue) =>
 
 const normalizeSlides = (value) => (Array.isArray(value) ? value : []);
 const HERO_SLIDE_LIMIT = 5;
+const MEDIA_LIBRARY_LIMIT = 18;
+
+const isReusableMediaUrl = (url) =>
+  typeof url === "string" &&
+  url.trim() &&
+  !url.startsWith("blob:") &&
+  !url.startsWith("/");
+
+const addMediaToLibrary = (library, bucket, ...urls) => {
+  const current = library || {};
+  const nextBucket = [
+    ...urls.filter(isReusableMediaUrl),
+    ...(Array.isArray(current[bucket]) ? current[bucket] : []),
+  ];
+
+  return {
+    ...current,
+    [bucket]: [...new Set(nextBucket)].slice(0, MEDIA_LIBRARY_LIMIT),
+  };
+};
+
+const syncTenantLogo = async (tenantId, logoUrl) => {
+  const result = await updateTenantLogoAction(tenantId, logoUrl || "");
+  if (!result.success) {
+    throw new Error(result.error || "No se pudo sincronizar el logo público.");
+  }
+  return result.data;
+};
 
 export default function SiteSettingsManager() {
   const {
@@ -240,6 +271,17 @@ export default function SiteSettingsManager() {
     });
 
     if (!result.isConfirmed) return;
+    const slideToRemove = slides.find((slide) => slide.id === id);
+    if (slideToRemove?.image) {
+      setCommerceSettings((prev) => ({
+        ...prev,
+        media_library: addMediaToLibrary(
+          prev.media_library,
+          "hero",
+          slideToRemove.image,
+        ),
+      }));
+    }
     setSlides((prev) => prev.filter((slide) => slide.id !== id));
   };
 
@@ -255,6 +297,7 @@ export default function SiteSettingsManager() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const currentSlide = slides.find((slide) => slide.id === id);
     const localPreviewUrl = URL.createObjectURL(file);
     handleUpdateSlide(id, "image", localPreviewUrl);
 
@@ -289,6 +332,15 @@ export default function SiteSettingsManager() {
       );
 
       handleUpdateSlide(id, "image", optimizedUrl);
+      setCommerceSettings((prev) => ({
+        ...prev,
+        media_library: addMediaToLibrary(
+          prev.media_library,
+          "hero",
+          optimizedUrl,
+          currentSlide?.image,
+        ),
+      }));
       URL.revokeObjectURL(localPreviewUrl);
     } catch (err) {
       console.error(err);
@@ -336,6 +388,15 @@ export default function SiteSettingsManager() {
       );
 
       setPromoDivider((prev) => ({ ...prev, image: optimizedUrl }));
+      setCommerceSettings((prev) => ({
+        ...prev,
+        media_library: addMediaToLibrary(
+          prev.media_library,
+          "promo",
+          optimizedUrl,
+          promoDivider?.image,
+        ),
+      }));
       URL.revokeObjectURL(localPreviewUrl);
     } catch (error) {
       console.error(error);
@@ -348,12 +409,8 @@ export default function SiteSettingsManager() {
     }
   };
 
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleLogoUpload = async (file, transform) => {
     if (!file) return;
-
-    const localPreviewUrl = URL.createObjectURL(file);
-    setCommerceSettings((prev) => ({ ...prev, logo_url: localPreviewUrl }));
 
     setUploading(true);
     setStatus({ type: "", message: "" });
@@ -385,8 +442,17 @@ export default function SiteSettingsManager() {
         "/upload/w_400,q_auto,f_auto/",
       );
 
-      setCommerceSettings((prev) => ({ ...prev, logo_url: optimizedUrl }));
-      URL.revokeObjectURL(localPreviewUrl);
+      setCommerceSettings((prev) => ({
+        ...prev,
+        logo_url: optimizedUrl,
+        logo_transform: transform || prev.logo_transform,
+        media_library: addMediaToLibrary(
+          prev.media_library,
+          "logos",
+          optimizedUrl,
+          prev.logo_url,
+        ),
+      }));
     } catch (err) {
       console.error(err);
       setStatus({ type: "error", message: "Error al subir el logo" });
@@ -444,6 +510,12 @@ export default function SiteSettingsManager() {
           ...prev.tenant_selector_card,
           background_image_url: optimizedUrl,
         },
+        media_library: addMediaToLibrary(
+          prev.media_library,
+          "tenant_card",
+          optimizedUrl,
+          prev.tenant_selector_card?.background_image_url,
+        ),
       }));
       URL.revokeObjectURL(localPreviewUrl);
     } catch (err) {
@@ -455,6 +527,73 @@ export default function SiteSettingsManager() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleRestoreHeroImage = (slideId, imageUrl) => {
+    const currentSlide = slides.find((slide) => slide.id === slideId);
+    handleUpdateSlide(slideId, "image", imageUrl);
+    setCommerceSettings((prev) => ({
+      ...prev,
+      media_library: addMediaToLibrary(
+        prev.media_library,
+        "hero",
+        imageUrl,
+        currentSlide?.image,
+      ),
+    }));
+  };
+
+  const handleAddSlideFromLibrary = (imageUrl) => {
+    if (!isReusableMediaUrl(imageUrl) || slides.length >= HERO_SLIDE_LIMIT) {
+      return;
+    }
+
+    const newSlide = {
+      id: Date.now(),
+      subtitle: "- Imagen recuperada",
+      title: "Nuevo Slide",
+      description: "Ajusta el contenido de este slide recuperado.",
+      image: imageUrl,
+    };
+
+    setSlides((prev) => [...prev, newSlide]);
+    setCommerceSettings((prev) => ({
+      ...prev,
+      media_library: addMediaToLibrary(prev.media_library, "hero", imageUrl),
+    }));
+  };
+
+  const handleRestoreLogo = (imageUrl) => {
+    setCommerceSettings((prev) => ({
+      ...prev,
+      logo_url: imageUrl,
+      media_library: addMediaToLibrary(prev.media_library, "logos", imageUrl),
+    }));
+  };
+
+  const handleLogoTransformChange = (transform) => {
+    setCommerceSettings((prev) => ({
+      ...prev,
+      logo_transform: {
+        ...prev.logo_transform,
+        ...(transform || {}),
+      },
+    }));
+  };
+
+  const handleRestoreTenantCardBackground = (imageUrl) => {
+    setCommerceSettings((prev) => ({
+      ...prev,
+      tenant_selector_card: {
+        ...prev.tenant_selector_card,
+        background_image_url: imageUrl,
+      },
+      media_library: addMediaToLibrary(
+        prev.media_library,
+        "tenant_card",
+        imageUrl,
+      ),
+    }));
   };
 
   const handleSaveSection = async (section) => {
@@ -526,16 +665,8 @@ export default function SiteSettingsManager() {
           setNameChangeHistory(updatedTenant.name_change_history || []);
         }
 
-        // Sync logo_url to tenants table for platform-wide access
-        const logoUrlToSave = commerceSettings?.logo_url || null;
-        if (logoUrlToSave !== undefined) {
-          await supabase
-            .from("tenants")
-            .update({ logo_url: logoUrlToSave })
-            .eq("tenant_id", tenantId);
-        }
-
         await updateSiteConfig(payload, { tenantId });
+        await syncTenantLogo(tenantId, payload.commerce_settings?.logo_url);
         const savedTenantSlug = updatedTenant?.slug || newTenantSlug || tenantSlug;
 
         await revalidateSiteConfig(tenantId, savedTenantSlug);
@@ -586,6 +717,9 @@ export default function SiteSettingsManager() {
 
     try {
       await updateSiteConfig(payload, { tenantId });
+      if (payload.commerce_settings) {
+        await syncTenantLogo(tenantId, payload.commerce_settings.logo_url);
+      }
       await revalidateSiteConfig(tenantId, tenantSlug);
       await logAudit(supabase, {
         tipo: "ajuste",
@@ -710,10 +844,18 @@ export default function SiteSettingsManager() {
                 onSiteNameChange={handleNameChange}
                 tenantSlug={newTenantSlug}
                 logoUrl={commerceSettings?.logo_url}
+                logoTransform={commerceSettings?.logo_transform}
                 onLogoUpload={handleLogoUpload}
+                onLogoRestore={handleRestoreLogo}
+                onLogoTransformChange={handleLogoTransformChange}
+                logoLibrary={commerceSettings?.media_library?.logos || []}
                 tenantCardConfig={commerceSettings?.tenant_selector_card}
                 onTenantCardConfigChange={handleTenantCardConfigChange}
                 onTenantCardBackgroundUpload={handleTenantCardBackgroundUpload}
+                onTenantCardBackgroundRestore={handleRestoreTenantCardBackground}
+                tenantCardBackgroundLibrary={
+                  commerceSettings?.media_library?.tenant_card || []
+                }
                 isUploadingLogo={uploading}
                 isUploadingTenantCardBackground={uploading}
                 nameChangeLimitReached={nameChangeLimitReached}
@@ -766,6 +908,9 @@ export default function SiteSettingsManager() {
               onRemoveSlide={handleRemoveSlide}
               onUpdateSlide={handleUpdateSlide}
               onImageUpload={handleImageUpload}
+              onImageRestore={handleRestoreHeroImage}
+              onAddSlideFromLibrary={handleAddSlideFromLibrary}
+              imageLibrary={commerceSettings?.media_library?.hero || []}
             />
 
             <div className="h-px bg-slate-50 dark:bg-slate-800" />
