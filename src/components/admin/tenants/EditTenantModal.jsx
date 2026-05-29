@@ -59,11 +59,13 @@ export function EditTenantModal({ tenant, onTenantUpdated }) {
       if (!result.success) {
         throw new Error(result.error || "No se pudo actualizar la tienda.");
       }
-      onTenantUpdated?.(result.data);
+
+      const updatedTenant = result.data;
+      onTenantUpdated?.(updatedTenant);
       setOpen(false);
       Swal.fire({
         title: "¡Actualizado!",
-        text: `La tienda "${result.data.name}" ahora tiene el slug "${result.data.slug}".`,
+        text: `La tienda "${updatedTenant.name}" ahora tiene el plan ${updatedTenant.plan_type}.`,
         icon: "success",
         confirmButtonColor: "#0F172A",
       });

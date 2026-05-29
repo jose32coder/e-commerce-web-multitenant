@@ -5,6 +5,18 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
 
+const TENANT_PLAN_LIMITS = {
+  Bronze: 1,
+  Silver: 3,
+  Gold: 10,
+};
+
+const normalizeTenantPlanType = (value) => {
+  const plan = String(value || "").trim();
+  if (plan === "Silver" || plan === "Gold") return plan;
+  return "Bronze";
+};
+
 export async function getTenantConfig() {
   const supabase = await createClient();
 
@@ -72,12 +84,28 @@ export async function updateTenantStoreType(typeId, tenantId) {
  * Slug is always regenerated from the name on the server to guarantee consistency.
  */
 export async function updateTenantAction(tenantId, payload) {
+  const numericTenantId = Number(tenantId);
+
+  if (!numericTenantId) {
+    return { success: false, error: "tenant_id invalido" };
+  }
+
   const supabase = await createClient("sb-platform-auth");
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "No autorizado" };
+
+  const accessScope =
+    user.user_metadata?.access_scope || user.app_metadata?.access_scope;
+
+  if (accessScope !== "platform") {
+    return {
+      success: false,
+      error: "No tienes permiso para editar tiendas de plataforma.",
+    };
+  }
 
   // Build the update object
   const updateData = {};
@@ -93,7 +121,13 @@ export async function updateTenantAction(tenantId, payload) {
     updateData.slug = slugify(payload.slug);
   }
 
-  if (payload.plan_type != null) updateData.plan_type = payload.plan_type;
+  if (payload.plan_type != null) {
+    const planType = normalizeTenantPlanType(payload.plan_type);
+    const maxUsers = TENANT_PLAN_LIMITS[planType];
+    updateData.plan_type = planType;
+    updateData.max_users = maxUsers;
+    updateData.user_limit = maxUsers;
+  }
   if (payload.whatsapp_number !== undefined)
     updateData.whatsapp_number = payload.whatsapp_number || null;
 
@@ -101,18 +135,19 @@ export async function updateTenantAction(tenantId, payload) {
     return { success: false, error: "No hay datos para actualizar" };
   }
 
-  const { data: updatedTenants, error } = await supabase
+  const adminSupabase = getAdminSupabaseClient();
+
+  const { data, error } = await adminSupabase
     .from("tenants")
     .update(updateData)
-    .eq("tenant_id", tenantId)
-    .select();
+    .eq("tenant_id", numericTenantId)
+    .select()
+    .maybeSingle();
 
   if (error) {
     console.error("[updateTenantAction] DB error:", error.message);
     return { success: false, error: error.message };
   }
-
-  const data = updatedTenants?.[0] || null;
 
   if (!data) {
     return { success: false, error: "No se encontró el tenant o no se pudo actualizar" };

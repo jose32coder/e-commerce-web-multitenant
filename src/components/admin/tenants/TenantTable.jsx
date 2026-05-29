@@ -23,6 +23,7 @@ import {
   normalizePlanType,
   updateTenant,
 } from "@/services/tenants";
+import { updateTenantAction } from "@/app/actions/public/tenantActions";
 import { EditTenantModal } from "@/components/admin/tenants/EditTenantModal";
 import Swal from "sweetalert2";
 import { buildClientUrl } from "@/lib/url";
@@ -77,11 +78,13 @@ export function TenantTable({
     setPlanLoading(tenant.tenant_id);
 
     try {
-      const updated = await updateTenant(tenant.tenant_id, {
+      const result = await updateTenantAction(tenant.tenant_id, {
         plan_type: nextPlanType,
-        max_users: maxUsers,
-        user_limit: maxUsers,
       });
+      if (!result.success) {
+        throw new Error(result.error || "No se pudo actualizar el plan.");
+      }
+      const updated = result.data;
       onTenantUpdated?.(updated);
 
       Swal.fire({
