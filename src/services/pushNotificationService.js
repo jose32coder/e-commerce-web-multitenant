@@ -42,10 +42,13 @@ export async function sendPushNotification(supabase, tenantId, payload) {
       data: payload.data || {}
     });
 
-    const sendPromises = subscriptions.map(async (sub) => {
+        const sendPromises = subscriptions.map(async (sub) => {
       const pushSubscription = {
         endpoint: sub.endpoint,
-        keys: sub.keys
+        keys: {
+          auth: sub.auth_key,
+          p256dh: sub.p256dh_key
+        }
       };
 
       try {

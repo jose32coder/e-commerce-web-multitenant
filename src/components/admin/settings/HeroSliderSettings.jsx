@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useState } from "react";
 import { Image as ImageIcon, LayoutGrid, Plus, Sparkles } from "lucide-react";
 import HeroSlideCard from "./HeroSlideCard";
 import SettingsSectionHeader from "./SettingsSectionHeader";
@@ -49,10 +50,16 @@ export default function HeroSliderSettings({
   onUpdateSlide,
   onImageUpload,
   onImageRestore,
-  onAddSlideFromLibrary,
   imageLibrary = [],
 }) {
+  const [targetSlideId, setTargetSlideId] = useState("");
   const safeSlides = Array.isArray(slides) ? slides : [];
+  const selectedTargetSlide = safeSlides.find(
+    (slide) => String(slide.id) === String(targetSlideId || safeSlides[0]?.id || ""),
+  );
+  const selectedTargetSlideIdForUpdate =
+    selectedTargetSlide?.id ?? targetSlideId ?? safeSlides[0]?.id ?? "";
+  const selectedTargetSlideId = targetSlideId || safeSlides[0]?.id || "";
   const heroVariant = homeIntro?.hero_variant ?? HERO_VARIANT_CLASSIC;
   const heroNavMode = homeIntro?.hero_nav_mode ?? HERO_NAV_NUMBERS;
   const heroWidthMode = homeIntro?.hero_width_mode ?? HERO_WIDTH_CONTAINED;
@@ -273,9 +280,25 @@ export default function HeroSliderSettings({
               Biblioteca de imágenes
             </p>
             <p className="text-[10px] text-slate-400">
-              Reutiliza imágenes existentes sin subirlas otra vez.
+              Elige una imagen y aplícala al slide que quieras reemplazar.
             </p>
           </div>
+          {safeSlides.length > 0 && (
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Aplicar a
+              <select
+                value={selectedTargetSlideId}
+                onChange={(event) => setTargetSlideId(event.target.value)}
+                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-black uppercase tracking-widest text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                {safeSlides.map((slide, index) => (
+                  <option key={slide.id} value={slide.id}>
+                    Slide #{String(index + 1).padStart(2, "0")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         {availableImages.length > 0 ? (
@@ -284,10 +307,12 @@ export default function HeroSliderSettings({
               <button
                 key={imageUrl}
                 type="button"
-                onClick={() => onAddSlideFromLibrary?.(imageUrl)}
-                disabled={safeSlides.length >= HERO_SLIDE_LIMIT}
+                onClick={() =>
+                  onImageRestore?.(selectedTargetSlideIdForUpdate, imageUrl)
+                }
+                disabled={!selectedTargetSlideIdForUpdate}
                 className="group relative h-20 w-32 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white disabled:opacity-40 dark:border-slate-700"
-                title="Crear slide con esta imagen"
+                title="Aplicar esta imagen al slide seleccionado"
               >
                 <img
                   src={imageUrl}
@@ -295,7 +320,7 @@ export default function HeroSliderSettings({
                   className="h-full w-full object-cover transition group-hover:scale-105"
                 />
                 <span className="absolute inset-x-2 bottom-2 rounded-full bg-black/70 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-white opacity-0 transition group-hover:opacity-100">
-                  Usar en slide
+                  Aplicar imagen
                 </span>
               </button>
             ))}
@@ -322,8 +347,6 @@ export default function HeroSliderSettings({
             onRemove={onRemoveSlide}
             onUpdate={onUpdateSlide}
             onImageUpload={onImageUpload}
-            onImageRestore={onImageRestore}
-            imageLibrary={imageLibrary}
           />
         ))}
       </div>

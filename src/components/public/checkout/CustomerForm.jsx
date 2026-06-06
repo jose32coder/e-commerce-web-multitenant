@@ -25,31 +25,46 @@ export function CustomerForm({
 
   // Búsqueda manual inteligente
   const handleCustomerLookup = async () => {
-    if (formData.idNumber.length < 6) return;
+    if (formData.idNumber.length < 5) return;
     if (!tenantId) return;
 
     try {
       setLookupMessage("");
       setIsSearching(true);
 
-      const fullId = `${idType}${formData.idNumber}`;
-      const rawId = String(formData.idNumber || "").replace(/\D/g, "");
-      const lookupKey = `${tenantId}:${fullId}`;
+      const cleanId = String(formData.idNumber || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      const rawDigits = cleanId.replace(/[^0-9]/g, "");
+      
+      // Determinar la letra inicial de identificación (V, E, J, G, P)
+      let firstLetter = idType;
+      let searchId = `${idType}${rawDigits}`;
+
+      if (/^[VEJGP]/i.test(cleanId)) {
+        firstLetter = cleanId[0];
+        searchId = cleanId;
+      }
+
+      const lookupKey = `${tenantId}:${searchId}`;
       const cachedCustomer = lookupCacheRef.current.get(lookupKey);
 
       if (cachedCustomer) {
         onCustomerFound(cachedCustomer);
         setCustomerLocked(true);
+        setHasSearched(true);
         setLookupMessage("✓ Cliente encontrado.");
         return;
       }
 
       const supabase = createClient();
-      // Búsqueda inteligente: con prefijo O sin prefijo
+      // Búsqueda tolerante inteligente:
+      // 1. Exacto normalizado (ej: V12345678)
+      // 2. Solo números (ej: 12345678)
+      // 3. Con guion (ej: V-12345678)
+      // 4. Con comodines de coincidencia parcial o case-insensitiva (ej: V%12345678)
       const { data, error } = await supabase
         .from(CUSTOMER_TABLE)
         .select("*")
-        .or(`id_number.eq.${fullId},id_number.eq.${rawId}`)
+        .or(`id_number.eq.${searchId},id_number.eq.${rawDigits},id_number.ilike.${firstLetter}-${rawDigits},id_number.ilike.${firstLetter}%${rawDigits}`)
         .eq("tenant_id", tenantId)
         .limit(1)
         .maybeSingle();

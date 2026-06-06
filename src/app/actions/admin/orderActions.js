@@ -119,8 +119,8 @@ export async function updateOrderStatusAction({ orderId, newStatus, tenantId, re
         body = reason ? `Detalle: ${reason}` : `Hubo un inconveniente validando tu pago.`;
       }
 
-      // Enviamos el push usando el tenantId (el cliente estará suscrito a este scope)
-      await sendPushNotification(supabase, tenantId, {
+      // Enviamos el push usando el canal específico de la orden
+      await sendPushNotification(supabase, `${tenantId}:order:${orderId}`, {
         title,
         body,
         url: `/${order.tenant_slug || tenantId}/checkout?orderId=${orderId}`, // Redirigir al tracking de su orden

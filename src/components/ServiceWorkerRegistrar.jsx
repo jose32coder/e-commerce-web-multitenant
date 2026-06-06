@@ -26,7 +26,7 @@ async function handlePushSubscription(ready, tenantId) {
       return;
     }
 
-    // 1. Check existing subscription
+    // 1. Get or create subscription
     let subscription = await ready.pushManager.getSubscription();
 
     if (!subscription) {
@@ -44,23 +44,22 @@ async function handlePushSubscription(ready, tenantId) {
       });
 
       console.log("[PWA] Suscripción Push creada:", JSON.stringify(subscription));
-
-      // 3. Send subscription to backend
-      try {
-        await fetch("/api/public/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subscription, tenantId }),
-        });
-        console.log("[PWA] Suscripción guardada exitosamente en el backend.");
-      } catch (err) {
-        console.error("[PWA] Error enviando suscripción al backend:", err);
-      }
     } else {
-      console.log("[PWA] Suscripción Push existente reutilizada.");
+      console.log("[PWA] Suscripción Push existente encontrada, sincronizando con el backend.");
+    }
+
+    // 3. Sincronizar siempre con el backend para actualizar el canal (tenantId / tenantId:admin)
+    try {
+      await fetch("/api/public/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription, tenantId }),
+      });
+      console.log(`[PWA] Suscripción sincronizada en backend con canal: ${tenantId}`);
+    } catch (err) {
+      console.error("[PWA] Error enviando suscripción al backend:", err);
     }
   } catch (pushError) {
-    // CAPTURA EL ABORTERROR DE LOCALHOST AQUÍ:
     // Evita que este error rompa el ciclo de vida del Service Worker principal
     console.warn(
       "⚠️ [PWA] El servicio Push falló (común en localhost/túneles):",
@@ -103,12 +102,15 @@ export default function ServiceWorkerRegistrar() {
     let tenantId = "global";
 
     try {
-      const dataAttr = document.getElementById("tenant-root-container");
-      if (dataAttr) {
-        const matches = window.location.pathname.split("/");
-        if (matches.length > 1 && matches[1] !== "admin" && matches[1] !== "register") {
-          tenantId = matches[1];
-        }
+      const matches = window.location.pathname.split("/").filter(Boolean);
+      // Si el primer segmento de la ruta no es un panel reservado, es el tenant ID
+      if (matches.length > 0 && !["admin", "register", "access", "platform-access"].includes(matches[0])) {
+        tenantId = matches[0];
+      }
+
+      // Si la URL contiene /admin en su pathname, es un canal administrativo
+      if (window.location.pathname.split("/").includes("admin")) {
+        tenantId = `${tenantId}:admin`;
       }
     } catch (e) { }
 

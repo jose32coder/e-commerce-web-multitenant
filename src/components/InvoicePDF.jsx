@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
   },
   brandTitle: { fontSize: 22, fontWeight: "bold", textTransform: "uppercase", color: "#0f172a", letterSpacing: -0.5 },
   brandSubtitle: { fontSize: 9, color: "#64748b", textTransform: "uppercase", letterSpacing: 2, marginTop: 2 },
-  
+
   reportDate: { textAlign: "right" },
   reportDateLabel: { fontSize: 8, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 },
   reportDateValue: { fontSize: 11, color: "#334155", fontWeight: "bold", marginTop: 2 },
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 16, fontWeight: "bold", color: "#0f172a" },
   statLabel: { fontSize: 7, textTransform: "uppercase", letterSpacing: 1, color: "#64748b", marginTop: 2 },
-  
+
   grid: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
   tableHeader: {
     flexDirection: "row",
     backgroundColor: "#0f172a",
-    color: "#ffffff",
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 6,
@@ -99,6 +98,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     fontWeight: "bold",
     letterSpacing: 1,
+    color: "#ffffff",
   },
   tableRow: {
     flexDirection: "row",
@@ -111,16 +111,12 @@ const styles = StyleSheet.create({
   tableRowAlt: {
     backgroundColor: "#f8fafc"
   },
-  cellQty: { width: "10%", fontSize: 9, color: "#64748b", textAlign: "center" },
-  cellDesc: { width: "55%", fontSize: 9.5, fontWeight: "bold", color: "#1e293b" },
-  cellPrice: { width: "15%", fontSize: 9, textAlign: "right", color: "#64748b" },
-  cellTotal: {
-    width: "20%",
-    fontSize: 10,
-    textAlign: "right",
-    fontWeight: "bold",
-    color: "#0f172a"
-  },
+  
+  // Clases de estructura y alineación compartidas
+  colQty: { width: "10%", textAlign: "center" },
+  colDesc: { width: "55%" },
+  colPrice: { width: "15%", textAlign: "right" },
+  colTotal: { width: "20%", textAlign: "right" },
 
   totalSection: { marginTop: 10, alignSelf: "flex-end", width: 220 },
   totalRow: {
@@ -130,7 +126,7 @@ const styles = StyleSheet.create({
   },
   totalRowLabel: { fontSize: 9, color: "#64748b", textTransform: "uppercase" },
   totalRowValue: { fontSize: 10, color: "#1e293b", fontWeight: "bold" },
-  
+
   finalTotal: {
     backgroundColor: "#0f172a",
     color: "#ffffff",
@@ -147,7 +143,7 @@ const styles = StyleSheet.create({
   policyBox: { marginTop: 30, padding: 12, backgroundColor: "#f8fafc", borderRadius: 6, borderWidth: 1, borderColor: "#e2e8f0" },
   policyTitle: { fontSize: 8, fontWeight: "bold", marginBottom: 6, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 },
   policyText: { fontSize: 8, color: "#64748b", lineHeight: 1.5 },
-  
+
   footer: {
     marginTop: 20,
     paddingTop: 10,
@@ -236,10 +232,10 @@ export const InvoicePDF = ({
             {formData.shippingMethod && (
               <Text style={styles.value}>
                 <Text style={styles.valueLabel}>Entrega: </Text>
-                {formData.shippingMethod === 'pickup' ? 'Retiro en Tienda' : 
-                 formData.shippingMethod === 'local' ? 'Delivery Local' :
-                 formData.shippingMethod === 'national' ? 'Envío Nacional' : 
-                 formData.shippingMethod}
+                {formData.shippingMethod === 'pickup' ? 'Retiro en Tienda' :
+                  formData.shippingMethod === 'local' ? 'Delivery Local' :
+                    formData.shippingMethod === 'national' ? 'Envío Nacional' :
+                      formData.shippingMethod}
                 {formData.shippingProvider ? ` — ${formData.shippingProvider.toUpperCase()}` : ''}
               </Text>
             )}
@@ -251,10 +247,10 @@ export const InvoicePDF = ({
         {/* Tabla */}
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.cellQty]}>#</Text>
-            <Text style={[styles.tableHeaderCell, styles.cellDesc]}>Producto / Descripción</Text>
-            <Text style={[styles.tableHeaderCell, styles.cellPrice]}>Precio</Text>
-            <Text style={[styles.tableHeaderCell, styles.cellTotal]}>Total</Text>
+            <Text style={[styles.tableHeaderCell, styles.colQty]}>#</Text>
+            <Text style={[styles.tableHeaderCell, styles.colDesc]}>Producto / Descripción</Text>
+            <Text style={[styles.tableHeaderCell, styles.colPrice]}>Precio</Text>
+            <Text style={[styles.tableHeaderCell, styles.colTotal]}>Total</Text>
           </View>
           {purchasedItems.map((item, i) => {
             const itemBaseCurrency = item.base_currency || "USD";
@@ -266,13 +262,13 @@ export const InvoicePDF = ({
             );
             return (
               <View key={i} style={[styles.tableRow, i % 2 !== 0 ? styles.tableRowAlt : {}]}>
-                <Text style={styles.cellQty}>{item.quantity}</Text>
-                <View style={styles.cellDesc}>
-                  <Text>{item.name || item.title}</Text>
+                <Text style={[styles.colQty, { fontSize: 9, color: "#64748b" }]}>{item.quantity}</Text>
+                <View style={[styles.colDesc, { fontSize: 9.5, color: "#1e293b" }]}>
+                  <Text style={{ fontWeight: "bold" }}>{item.name || item.title}</Text>
                   {item.variant && <Text style={{ fontSize: 7, color: "#64748b", marginTop: 2 }}>Variante: {item.variant}</Text>}
                 </View>
-                <Text style={styles.cellPrice}>{currencySymbol}{formatPrice(itemPrice, targetCurrency)}</Text>
-                <Text style={styles.cellTotal}>
+                <Text style={[styles.colPrice, { fontSize: 9, color: "#64748b" }]}>{currencySymbol}{formatPrice(itemPrice, targetCurrency)}</Text>
+                <Text style={[styles.colTotal, { fontSize: 10, fontWeight: "bold", color: "#0f172a" }]}>
                   {currencySymbol}{formatPrice(itemPrice * item.quantity, targetCurrency)}
                 </Text>
               </View>

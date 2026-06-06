@@ -72,13 +72,14 @@ const getMissingColumnName = (error) => {
 };
 
 const findExistingCustomer = async (supabase, idNumber, tenantId) => {
-  // Extraemos solo los dígitos para búsqueda legacy
-  const rawIdNumber = String(idNumber || "").replace(/\D/g, "");
+  const cleanId = String(idNumber || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const rawDigits = cleanId.replace(/[^0-9]/g, "");
+  const firstLetter = cleanId[0] || "V";
 
   return supabase
     .from(CUSTOMER_TABLE)
     .select("id")
-    .or(`id_number.eq.${idNumber},id_number.eq.${rawIdNumber}`)
+    .or(`id_number.eq.${cleanId},id_number.eq.${rawDigits},id_number.ilike.${firstLetter}-${rawDigits},id_number.ilike.${firstLetter}%${rawDigits}`)
     .eq("tenant_id", tenantId)
     .limit(1)
     .single();
@@ -241,10 +242,11 @@ export async function processCheckoutOrder(formData, items = [], total) {
         );
       }
     } else if (searchError && isNoRowsError(searchError)) {
+      const cleanId = String(formData.idNumber).replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
       const { data: newCustomer, error: insertCustomerError } =
         await insertCustomer(supabase, {
           tenant_id: tenantId,
-          id_number: formData.idNumber,
+          id_number: cleanId,
           full_name: formData.name,
           phone: normalizedCustomerPhone,
           email: formData.email || null,
@@ -262,12 +264,12 @@ export async function processCheckoutOrder(formData, items = [], total) {
       await logAudit(supabase, {
         tipo: "cliente",
         accion: "crear",
-        descripcion: `Nuevo cliente registrado: ${formData.name} (Cédula: ${formData.idNumber})`,
+        descripcion: `Nuevo cliente registrado: ${formData.name} (Cédula: ${cleanId})`,
         usuario_nombre: "Sistema (Checkout)",
         meta: {
           customer_table: CUSTOMER_TABLE,
           tenant_id: tenantId,
-          cedula: validatedData.idNumber,
+          cedula: cleanId,
           nombre: validatedData.name,
           telefono: validatedData.phone,
           telefono_normalizado: normalizedCustomerPhone,
@@ -514,7 +516,7 @@ export async function processCheckoutOrder(formData, items = [], total) {
     try {
       const { sendPushNotification } = await import("@/services/pushNotificationService");
       const orderCode = orderNumber ? String(orderNumber).padStart(5, "0") : String(normalizedOrderId).slice(-6).toUpperCase();
-      await sendPushNotification(supabase, tenantId, {
+      await sendPushNotification(supabase, `${tenantId}:admin`, {
         title: `🛒 ¡Nueva Orden Recibida! (#${orderCode})`,
         body: `Cliente: ${validatedData.name} por $${Number(total).toFixed(2)}. Método: ${validatedData.paymentMethod}.`,
         url: `/admin/orders`, // Redirigir al panel de órdenes del admin al hacer click

@@ -128,6 +128,21 @@ Este archivo sirve como memoria técnica para los agentes de IA y desarrolladore
 - Mobile mantiene su comportamiento y tamaño visual original.
 - Ajuste aplicado: reducción leve de iconos/paddings/espaciados para evitar roturas en laptops de poca altura.
 
+## 11. Biblioteca de Medios en Ajustes
+
+- Las imágenes reutilizables se guardan en `commerce_settings.media_library` para evitar subir duplicados a Cloudinary.
+- En `Hero Slider`, la biblioteca es global: se elige una imagen y luego el slide destino (`Slide #01`, `Slide #02`, etc.).
+- Aplicar una imagen de biblioteca reemplaza la imagen principal del slide seleccionado; un slide debe tener una sola imagen principal.
+- La misma imagen puede reutilizarse en varios slides, pero no deben mostrarse varias imágenes asignadas a un mismo slide.
+- Eliminar un slide no borra la imagen en Cloudinary; solo elimina la referencia y conserva la URL en la biblioteca cuando es reutilizable.
+
+## 12. PWA y Push Notifications
+
+- Web Push requiere contexto seguro: `https` o `localhost`. En IP local con `http` puede fallar con `Registration failed - push service error`.
+- `PushDebugButton` se renderiza solo en desarrollo y permite probar permiso, suscripción, persistencia y envío real de una notificación.
+- El endpoint `/api/public/push/test` usa `web-push` y requiere `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y opcionalmente `VAPID_SUBJECT`.
+- `public/sw.js` es quien muestra las notificaciones recibidas por push y maneja el click para abrir/focalizar la URL indicada.
+
 ## 11. PWA & Web Push Notifications
 
 - **Progressive Web App**: La aplicación es instalable como PWA con `display: standalone`.

@@ -15,13 +15,152 @@ import { useSiteConfig } from "@/context/SiteConfigContext";
 import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
 import { createClient } from "@/lib/supabase/client";
 import { buildCheckoutWhatsappMessage } from "@/lib/checkoutWhatsappMessage";
+import Swal from "sweetalert2";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+const showDeniedNotificationAlert = () => {
+  Swal.fire({
+    title: "Notificaciones bloqueadas 🔔",
+    html: `
+      <div style="text-align:left; font-size:13px; line-height:1.6; color:#4b5563;">
+        <p>Para notificarte cuando el administrador apruebe tu pago (incluso si cierras esta pestaña), necesitas activar las notificaciones manualmente.</p>
+        <br/>
+        <p><strong>¿Cómo activarlas?</strong></p>
+        <ol style="margin-left: 20px; margin-top: 6px;">
+          <li>Haz clic en el icono de ajustes/candado 🔒 junto a la barra de direcciones de tu navegador.</li>
+          <li>Busca la opción de <strong>Notificaciones</strong> y cámbiala a <strong>Permitir</strong>.</li>
+          <li>Recarga la página para aplicar los cambios.</li>
+        </ol>
+      </div>
+    `,
+    icon: "info",
+    confirmButtonColor: "#1A1A1A",
+    confirmButtonText: "Entendido",
+    background: "#FBF9F6",
+    color: "#1A1A1A",
+  });
+};
+
+async function subscribeToOrderChannel(tenantId, orderId, isRetry = false) {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      return;
+    }
+
+    let permission = Notification.permission;
+
+    // Si ya están bloqueadas (denied), le sugerimos cómo activarlas
+    if (permission === "denied") {
+      showDeniedNotificationAlert();
+      return;
+    }
+
+    // Si está en default, intentamos pedirlas
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+      
+      // Si decide no concederlas
+      if (permission !== "granted") {
+        if (permission === "denied") {
+          showDeniedNotificationAlert();
+        } else {
+          // El usuario cerró el prompt (default)
+          Swal.fire({
+            title: "Notificaciones recomendadas",
+            text: "Te recomendamos activar las notificaciones para avisarte al instante cuando tu pago sea aprobado, sin necesidad de mantener esta pestaña abierta.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Activar ahora",
+            cancelButtonText: "Entendido",
+            confirmButtonColor: "#1A1A1A",
+            cancelButtonColor: "#A68D6B",
+            background: "#FBF9F6",
+            color: "#1A1A1A",
+          }).then(async (result) => {
+            if (result.isConfirmed) {
+              const retryPermission = await Notification.requestPermission();
+              if (retryPermission === "granted") {
+                subscribeToOrderChannel(tenantId, orderId, true);
+              } else if (retryPermission === "denied") {
+                showDeniedNotificationAlert();
+              }
+            }
+          });
+        }
+        return;
+      }
+    }
+
+    if (permission !== "granted") {
+      console.log("[Push Order] Permiso de notificaciones no concedido o bloqueado.");
+      return;
+    }
+
+    const ready = await navigator.serviceWorker.ready;
+    let subscription = await ready.pushManager.getSubscription();
+
+    if (!subscription) {
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+      if (!vapidPublicKey) {
+        console.warn("[Push Order] NEXT_PUBLIC_VAPID_PUBLIC_KEY no definida. Push omitido.");
+        return;
+      }
+
+      subscription = await ready.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+    }
+
+    const channelId = `${tenantId}:order:${orderId}`;
+    await fetch("/api/public/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription, tenantId: channelId }),
+    });
+
+    console.log(`[Push Order] Suscrito exitosamente al canal de la orden: ${channelId}`);
+
+    // Mostrar un toast discreto de éxito sólo si acaba de activarlas por primera vez en esta pantalla
+    if (isRetry) {
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "¡Notificaciones activadas con éxito!",
+        showConfirmButton: false,
+        timer: 3000,
+        background: "#FBF9F6",
+        color: "#1A1A1A",
+      });
+    }
+  } catch (err) {
+    console.warn("[Push Order] Error al suscribirse al canal de la orden:", err.message);
+  }
+}
 
 export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
-  const { commerce_settings, tenant_slug } = useSiteConfig();
+  const { commerce_settings, tenant_slug, tenant_id } = useSiteConfig();
   const { trackings, stopTracking, updateTrackingStatus } =
     useOrderTrackingStore();
   const [rejectionReason, setRejectionReason] = useState("");
   const supabase = createClient();
+
+  useEffect(() => {
+    if (tenant_id && orderId) {
+      subscribeToOrderChannel(tenant_id, orderId);
+    }
+  }, [tenant_id, orderId]);
 
   // Obtenemos el estado desde el store global
   const tracking = tenant_slug ? trackings[tenant_slug] : null;
