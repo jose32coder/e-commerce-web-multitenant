@@ -86,6 +86,10 @@ const getPortalContext = async (supabase, session) => {
   const accessScope = userMeta.access_scope || appMeta.access_scope;
   const role = userMeta.role || appMeta.role;
 
+  if (userMeta.blocked_access === true || appMeta.blocked_access === true) {
+    return { type: "blocked", hasStaffProfile: false, tenantId: null };
+  }
+
   if (accessScope === "platform" || isPlatformAdminEmail(email)) {
     return { type: "platform", hasStaffProfile: false, tenantId: null };
   }

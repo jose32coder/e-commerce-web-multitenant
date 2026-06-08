@@ -29,6 +29,14 @@ export default function LoginPage() {
 
       const accessScope =
         user.user_metadata?.access_scope || user.app_metadata?.access_scope;
+      const isBlocked =
+        user.user_metadata?.blocked_access === true ||
+        user.app_metadata?.blocked_access === true;
+
+      if (isBlocked) {
+        await supabase.auth.signOut({ scope: "local" });
+        return;
+      }
 
       if (accessScope === "platform") {
         router.replace("/tenants");
@@ -73,6 +81,15 @@ export default function LoginPage() {
       if (!userId) {
         await supabase.auth.signOut({ scope: "local" });
         throw new Error("No se pudo validar el perfil del usuario.");
+      }
+
+      const isBlocked =
+        data.user?.user_metadata?.blocked_access === true ||
+        data.user?.app_metadata?.blocked_access === true;
+
+      if (isBlocked) {
+        await supabase.auth.signOut({ scope: "local" });
+        throw new Error("Esta cuenta esta bloqueada.");
       }
 
       const { data: staffProfile, error: profileError } = await supabase

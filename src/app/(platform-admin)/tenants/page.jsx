@@ -20,13 +20,18 @@ import {
   ChevronRight,
   Copy,
   Database,
+  KeyRound,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Mail,
   Menu,
   Moon,
+  Save,
   Search,
+  ShieldOff,
   Store,
+  UserCog,
   UserPlus,
   Users,
   X,
@@ -55,6 +60,11 @@ const navItems = [
     id: "invitations",
     label: "Invitaciones",
     icon: Mail,
+  },
+  {
+    id: "users",
+    label: "Usuarios",
+    icon: UserCog,
   },
 ];
 
@@ -403,7 +413,9 @@ export default function TenantsPage() {
       ? "Tiendas"
       : activeSection === "invitations"
         ? "Invitaciones"
-        : "Dashboard";
+        : activeSection === "users"
+          ? "Usuarios"
+          : "Dashboard";
 
   const selectSection = (sectionId) => {
     setActiveSection(sectionId);
@@ -451,14 +463,18 @@ export default function TenantsPage() {
                   ? "Gestion de Tiendas"
                   : activeSection === "invitations"
                     ? "Centro de Invitaciones"
-                    : "Resumen General"}
+                    : activeSection === "users"
+                      ? "Usuarios del Sistema"
+                      : "Resumen General"}
               </h1>
               <p className="mt-1 text-sm font-medium text-slate-500">
                 {activeSection === "stores"
                   ? "Consulta, anexa y edita tiendas desde una vista operativa."
                   : activeSection === "invitations"
                     ? "Controla enlaces de registro y activacion para administradores."
-                    : "Actividad relevante de la plataforma y salud de las tiendas."}
+                    : activeSection === "users"
+                      ? "Consulta usuarios, cambia acceso y revisa a que tienda pertenecen."
+                      : "Actividad relevante de la plataforma y salud de las tiendas."}
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -519,6 +535,8 @@ export default function TenantsPage() {
               onInvitationRevoked={handleInvitationRevoked}
             />
           ) : null}
+
+          {activeSection === "users" ? <UsersView tenants={tenants} /> : null}
         </div>
       </main>
 
@@ -1006,6 +1024,515 @@ function StoresView({
           </button>
         </div>
       </div>
+    </section>
+  );
+}
+
+function UsersView({ tenants }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [formData, setFormData] = useState({
+    full_name: "",
+    email: "",
+    tenant_id: "",
+    password: "",
+    blocked: false,
+  });
+
+  const formatDateTime = (value) => {
+    if (!value) return "Nunca";
+    return new Date(value).toLocaleString("es-VE", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "Sin fecha";
+    return new Date(value).toLocaleDateString("es-VE", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/platform/users");
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "No se pudo cargar usuarios.");
+      setUsers(json.users || []);
+    } catch (error) {
+      Swal.fire("Error", error.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const filteredUsers = users.filter((user) => {
+    const normalizedSearch = searchTerm.toLowerCase();
+    return (
+      user.full_name?.toLowerCase().includes(normalizedSearch) ||
+      user.email?.toLowerCase().includes(normalizedSearch) ||
+      user.tenant_name?.toLowerCase().includes(normalizedSearch) ||
+      user.tenant_slug?.toLowerCase().includes(normalizedSearch)
+    );
+  });
+
+  const openUserModal = (user) => {
+    setSelectedUser(user);
+    setFormData({
+      full_name: user.full_name || "",
+      email: user.email || "",
+      tenant_id: user.tenant_id || "",
+      password: "",
+      blocked: user.blocked === true,
+    });
+  };
+
+  const usageStats = useMemo(() => {
+    const activeUsers = users.filter((user) => !user.blocked).length;
+    const loggedUsers = users.filter((user) => user.last_sign_in_at).length;
+    const flowUsers = users.filter((user) => user.has_usage_flow).length;
+    const totalActivity = users.reduce(
+      (total, user) => total + Number(user.activity_count || 0),
+      0,
+    );
+
+    return [
+      {
+        label: "Usuarios",
+        value: users.length,
+        trend: `${activeUsers} activos`,
+        icon: Users,
+        color: "bg-slate-900",
+      },
+      {
+        label: "Con login",
+        value: loggedUsers,
+        trend: "Ingresaron",
+        icon: KeyRound,
+        color: "bg-emerald-500",
+      },
+      {
+        label: "Con flujo",
+        value: flowUsers,
+        trend: "Uso detectado",
+        icon: Activity,
+        color: "bg-blue-500",
+      },
+      {
+        label: "Eventos",
+        value: totalActivity,
+        trend: "Bitacora",
+        icon: Database,
+        color: "bg-orange-500",
+      },
+    ];
+  }, [users]);
+
+  const saveUser = async (event) => {
+    event.preventDefault();
+    if (!selectedUser?.id) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/platform/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          ...formData,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "No se pudo actualizar usuario.");
+
+      Swal.fire({
+        icon: "success",
+        title: "Usuario actualizado",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+      setSelectedUser(null);
+      await fetchUsers();
+    } catch (error) {
+      Swal.fire("Error", error.message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleBlocked = async (user) => {
+    const nextBlocked = !user.blocked;
+    const result = await Swal.fire({
+      title: nextBlocked ? "Bloquear acceso" : "Restaurar acceso",
+      text: nextBlocked
+        ? "El usuario no podra entrar al sistema."
+        : "El usuario podra volver a iniciar sesion.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: nextBlocked ? "BLOQUEAR" : "RESTAURAR",
+      cancelButtonText: "CANCELAR",
+      confirmButtonColor: "#0f172a",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await fetch("/api/platform/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          full_name: user.full_name,
+          email: user.email,
+          tenant_id: user.tenant_id,
+          blocked: nextBlocked,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "No se pudo actualizar acceso.");
+      await fetchUsers();
+    } catch (error) {
+      Swal.fire("Error", error.message, "error");
+    }
+  };
+
+  return (
+    <section className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {usageStats.map((stat) => (
+          <PlatformStatCard key={stat.label} loading={loading} {...stat} />
+        ))}
+      </div>
+
+      <div className="flex min-h-100 flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 p-6 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900">
+            Usuarios y Accesos
+          </h2>
+          <p className="mt-1 text-xs font-medium text-slate-400">
+            Las claves estan protegidas; desde aqui puedes asignar una nueva.
+          </p>
+        </div>
+        <div className="relative w-full group xl:w-96">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-slate-900" />
+          <Input
+            placeholder="Buscar usuario, correo o tienda..."
+            className="rounded-xl border-slate-100 bg-slate-50 pl-9 text-sm focus-visible:ring-1 focus-visible:ring-slate-900"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="grow overflow-x-auto px-2 pb-2">
+        <table className="w-full min-w-[1180px] text-left text-sm">
+          <thead className="border-y border-slate-100 bg-slate-50">
+            <tr>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Usuario
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Clave
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Tienda enlazada
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Inicio
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Ultimo login
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Flujo
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Estado
+              </th>
+              <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-14 text-center text-slate-400">
+                  <Loader2 className="mr-2 inline animate-spin" size={18} />
+                  Cargando usuarios...
+                </td>
+              </tr>
+            ) : filteredUsers.length ? (
+              filteredUsers.map((user) => (
+                <tr key={user.id} className="transition-colors hover:bg-slate-50/70">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white">
+                        {(user.full_name || user.email || "US")
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-black text-slate-900">
+                          {user.full_name || "Usuario sin nombre"}
+                        </p>
+                        <p className="mt-1 truncate text-xs font-medium text-slate-400">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <KeyRound size={14} />
+                      Protegida
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-black text-slate-800">{user.tenant_name}</p>
+                    <p className="mt-1 font-mono text-xs text-slate-400">
+                      {user.tenant_slug ? `/${user.tenant_slug}` : "Sin slug"}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-xs font-bold text-slate-600">
+                      {formatDate(user.created_at)}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-xs font-bold text-slate-600">
+                      {formatDateTime(user.last_sign_in_at)}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="space-y-1">
+                      <span
+                        className={`inline-flex rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                          user.has_usage_flow
+                            ? "bg-blue-50 text-blue-600"
+                            : "bg-slate-100 text-slate-400"
+                        }`}
+                      >
+                        {user.has_usage_flow ? "Con flujo" : "Sin flujo"}
+                      </span>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        {Number(user.activity_count || 0)} evento
+                        {Number(user.activity_count || 0) === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-flex rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                        user.blocked
+                          ? "bg-red-50 text-red-600"
+                          : "bg-emerald-50 text-emerald-600"
+                      }`}
+                    >
+                      {user.blocked ? "Bloqueado" : "Activo"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openUserModal(user)}
+                        className="rounded-xl border border-slate-100 p-2 text-slate-500 transition-colors hover:border-slate-900 hover:text-slate-900"
+                        title="Editar usuario"
+                      >
+                        <UserCog size={17} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleBlocked(user)}
+                        className={`rounded-xl border p-2 transition-colors ${
+                          user.blocked
+                            ? "border-emerald-100 text-emerald-600 hover:border-emerald-400"
+                            : "border-red-100 text-red-500 hover:border-red-400"
+                        }`}
+                        title={user.blocked ? "Restaurar acceso" : "Bloquear acceso"}
+                      >
+                        <ShieldOff size={17} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={8} className="px-6 py-14 text-center text-slate-400">
+                  No hay usuarios para mostrar.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      </div>
+
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <DialogContent className="sm:max-w-150 rounded-2xl border-none shadow-2xl">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-xl font-semibold text-slate-900">
+              Editar usuario
+            </DialogTitle>
+            <p className="text-sm text-slate-500">
+              Actualiza usuario, tienda, clave nueva o bloqueo de acceso.
+            </p>
+          </DialogHeader>
+
+          <form onSubmit={saveUser} className="space-y-5 pt-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Nombre
+                </label>
+                <Input
+                  required
+                  value={formData.full_name}
+                  onChange={(event) =>
+                    setFormData({ ...formData, full_name: event.target.value })
+                  }
+                  className="rounded-xl border-slate-200 bg-slate-50"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Usuario / correo
+                </label>
+                <Input
+                  required
+                  type="email"
+                  value={formData.email}
+                  onChange={(event) =>
+                    setFormData({ ...formData, email: event.target.value })
+                  }
+                  className="rounded-xl border-slate-200 bg-slate-50"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Tienda enlazada
+                </label>
+                <select
+                  required
+                  value={formData.tenant_id}
+                  onChange={(event) =>
+                    setFormData({ ...formData, tenant_id: event.target.value })
+                  }
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                >
+                  <option value="">Selecciona una tienda</option>
+                  {(tenants || []).map((tenant) => (
+                    <option key={tenant.tenant_id} value={tenant.tenant_id}>
+                      {tenant.name} ({tenant.slug})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Nueva clave
+                </label>
+                <Input
+                  type="password"
+                  minLength={6}
+                  value={formData.password}
+                  onChange={(event) =>
+                    setFormData({ ...formData, password: event.target.value })
+                  }
+                  placeholder="Dejar vacio para conservar"
+                  className="rounded-xl border-slate-200 bg-slate-50"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Inicio
+                </p>
+                <p className="mt-2 text-sm font-black text-slate-900">
+                  {formatDate(selectedUser?.created_at)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Ultimo login
+                </p>
+                <p className="mt-2 text-sm font-black text-slate-900">
+                  {formatDateTime(selectedUser?.last_sign_in_at)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Flujo
+                </p>
+                <p className="mt-2 text-sm font-black text-slate-900">
+                  {Number(selectedUser?.activity_count || 0)} eventos
+                </p>
+              </div>
+            </div>
+
+            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <div>
+                <p className="text-sm font-black text-slate-900">
+                  Bloquear acceso al sistema
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-400">
+                  Impide que este usuario pueda iniciar sesion en el panel.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={formData.blocked}
+                onChange={(event) =>
+                  setFormData({ ...formData, blocked: event.target.checked })
+                }
+                className="h-5 w-5 accent-slate-900"
+              />
+            </label>
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedUser(null)}
+                className="rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving}
+                className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 animate-spin" size={16} />
+                ) : (
+                  <Save className="mr-2" size={16} />
+                )}
+                Guardar cambios
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
