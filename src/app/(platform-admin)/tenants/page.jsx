@@ -27,6 +27,7 @@ import {
   Mail,
   Menu,
   Moon,
+  RefreshCw,
   Save,
   Search,
   ShieldOff,
@@ -44,6 +45,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { AuditFilters } from "@/components/admin/bitacora/AuditFilters";
+import { AuditTable } from "@/components/admin/bitacora/AuditTable";
 
 const navItems = [
   {
@@ -65,6 +68,11 @@ const navItems = [
     id: "users",
     label: "Usuarios",
     icon: UserCog,
+  },
+  {
+    id: "history",
+    label: "Historial",
+    icon: Activity,
   },
 ];
 
@@ -344,6 +352,90 @@ export default function TenantsPage() {
       setLastTenantWhatsapp("");
     }
   };
+  const [auditEntries, setAuditEntries] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [auditError, setAuditError] = useState("");
+  const [auditSearch, setAuditSearch] = useState("");
+  const [auditTipo, setAuditTipo] = useState("todos");
+  const [auditAccion, setAuditAccion] = useState("todas");
+
+  const fetchAuditEntries = async () => {
+    setAuditLoading(true);
+    setAuditError("");
+    try {
+      const response = await fetch("/api/platform/audit-logs?limit=500");
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "No se pudo cargar la bitácora.");
+      setAuditEntries(json.entries ?? []);
+    } catch (err) {
+      setAuditError(err.message);
+      setAuditEntries([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAuditEntries();
+    const channel = supabase
+      .channel("audit_logs-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "audit_logs" },
+        (payload) => {
+          setAuditEntries((prev) => [payload.new, ...prev]);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const filteredAudit = useMemo(() => {
+    return auditEntries.filter((e) => {
+      const matchTipo = auditTipo === "todos" || e.module === auditTipo;
+      const matchAccion = auditAccion === "todas" || e.action === auditAccion;
+      const q = auditSearch.toLowerCase();
+      const matchSearch = !q || e.details?.description?.toLowerCase().includes(q) || e.details?.user_name?.toLowerCase().includes(q);
+      return matchTipo && matchAccion && matchSearch;
+    });
+  }, [auditEntries, auditSearch, auditTipo, auditAccion]);
+
+  const HistoryView = () => (
+    <>
+      <div className="space-y-6">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
+              Bitácora
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+              Registro completo de todas las acciones del sistema.
+            </p>
+          </div>
+          <button onClick={fetchAuditEntries} className="flex items-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-4 py-2.5 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-bold text-xs uppercase tracking-widest shadow-lg dark:shadow-none cursor-pointer shrink-0">
+            <RefreshCw size={14} className={auditLoading ? "animate-spin" : ""} />
+            Actualizar
+          </button>
+        </header>
+        <AuditFilters
+          search={auditSearch}
+          setSearch={setAuditSearch}
+          tipo={auditTipo}
+          setTipo={setAuditTipo}
+          accion={auditAccion}
+          setAccion={setAuditAccion}
+        />
+        {auditError && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-700">
+            {auditError}
+          </div>
+        )}
+        <AuditTable entries={filteredAudit} loading={auditLoading} />
+      </div>
+    </>
+  );
 
   const stats = useMemo(() => {
     const totalUsers = Object.values(tenantUserCounts || {}).reduce(
@@ -415,7 +507,9 @@ export default function TenantsPage() {
         ? "Invitaciones"
         : activeSection === "users"
           ? "Usuarios"
-          : "Dashboard";
+          : activeSection === "history"
+            ? "Bitácora"
+            : "Dashboard";
 
   const selectSection = (sectionId) => {
     setActiveSection(sectionId);
@@ -455,7 +549,7 @@ export default function TenantsPage() {
           isCollapsed ? "lg:ml-20" : "lg:ml-64"
         }`}
       >
-        <div className="mx-auto w-full max-w-7xl space-y-8">
+        <div className="w-full space-y-8">
           <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900">
@@ -465,7 +559,9 @@ export default function TenantsPage() {
                     ? "Centro de Invitaciones"
                     : activeSection === "users"
                       ? "Usuarios del Sistema"
-                      : "Resumen General"}
+                      : activeSection === "history"
+                        ? "Bitácora del Sistema"
+                        : "Resumen General"}
               </h1>
               <p className="mt-1 text-sm font-medium text-slate-500">
                 {activeSection === "stores"
@@ -474,7 +570,9 @@ export default function TenantsPage() {
                     ? "Controla enlaces de registro y activacion para administradores."
                     : activeSection === "users"
                       ? "Consulta usuarios, cambia acceso y revisa a que tienda pertenecen."
-                      : "Actividad relevante de la plataforma y salud de las tiendas."}
+                      : activeSection === "history"
+                        ? "Revisa el historial de auditoría de todas las acciones."
+                        : "Actividad relevante de la plataforma y salud de las tiendas."}
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -537,6 +635,7 @@ export default function TenantsPage() {
           ) : null}
 
           {activeSection === "users" ? <UsersView tenants={tenants} /> : null}
+          {activeSection === "history" ? <HistoryView /> : null}
         </div>
       </main>
 
