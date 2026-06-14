@@ -14,6 +14,7 @@ export default async function TermsPage({ params }) {
 
   return (
     <LegalPageContent
+      type="terms"
       title={commerce.terms_title}
       content={commerce.terms_content}
     />

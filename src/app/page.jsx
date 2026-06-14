@@ -224,9 +224,17 @@ export default async function TenantSelectorPage() {
             <span className="hidden sm:inline">·</span>{" "}
             <br className="sm:hidden" /> Todos los derechos reservados
           </span>
-          <span className="text-[9px] md:text-[10px] tracking-[0.15em] md:tracking-[0.2em] uppercase text-zinc-500 font-medium">
-            Desarrollado por <span className="text-zinc-800">Deploy</span>
-          </span>
+          <div className="flex gap-6 items-center">
+            <Link href="/privacy" className="text-[9px] md:text-[10px] tracking-[0.15em] md:tracking-[0.2em] uppercase text-zinc-500 hover:text-zinc-800 transition-colors">
+              Privacidad
+            </Link>
+            <Link href="/terms" className="text-[9px] md:text-[10px] tracking-[0.15em] md:tracking-[0.2em] uppercase text-zinc-500 hover:text-zinc-800 transition-colors">
+              Términos
+            </Link>
+            <span className="text-[9px] md:text-[10px] tracking-[0.15em] md:tracking-[0.2em] uppercase text-zinc-500 font-medium">
+              Desarrollado por <span className="text-zinc-800">Deploy</span>
+            </span>
+          </div>
         </div>
       </footer>
     </main>

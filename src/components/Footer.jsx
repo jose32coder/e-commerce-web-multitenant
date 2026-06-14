@@ -138,8 +138,8 @@ const Footer = () => {
   ];
 
   const legalLinks = [
-    { name: "Privacidad", href: "/privacy" },
-    { name: "Términos", href: "/terms" },
+    { name: "Privacidad", href: `${baseUrl}/privacy` },
+    { name: "Términos", href: `${baseUrl}/terms` },
     { name: "Admin", href: "/access" },
   ];
 

@@ -99,6 +99,33 @@ export default async function HomePage({ params }) {
             </Button>
           </div>
           <PromoDivider />
+
+          {/* Sección Legal Resumida */}
+          <div className="mt-24 pt-12 border-t border-zinc-100 flex flex-col md:flex-row items-center justify-between gap-6 px-4">
+            <div className="text-center md:text-left max-w-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-2">
+                Compromiso y Transparencia
+              </h3>
+              <p className="text-xs text-zinc-500 font-light leading-relaxed">
+                Nuestra prioridad es ofrecerte una experiencia de compra segura. 
+                Conoce más sobre cómo manejamos tus datos y las condiciones de nuestro servicio.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <Link 
+                href={`${baseUrl}/privacy`}
+                className="text-xs font-bold uppercase tracking-widest text-zinc-600 hover:text-zinc-900 transition-colors border-b border-transparent hover:border-zinc-900 pb-0.5"
+              >
+                Privacidad
+              </Link>
+              <Link 
+                href={`${baseUrl}/terms`}
+                className="text-xs font-bold uppercase tracking-widest text-zinc-600 hover:text-zinc-900 transition-colors border-b border-transparent hover:border-zinc-900 pb-0.5"
+              >
+                Términos
+              </Link>
+            </div>
+          </div>
         </section>
       </div>
     </>

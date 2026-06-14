@@ -14,6 +14,7 @@ export default async function PrivacyPage({ params }) {
 
   return (
     <LegalPageContent
+      type="privacy"
       title={commerce.privacy_title}
       content={commerce.privacy_content}
     />

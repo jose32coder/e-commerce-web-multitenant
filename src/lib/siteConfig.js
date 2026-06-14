@@ -219,12 +219,37 @@ export const DEFAULT_COMMERCE_SETTINGS = {
     },
   },
   product_notices: ["", ""],
-  privacy_title: "Politica de Privacidad",
-  privacy_content:
-    "Aqui puedes explicar como recolectas, usas y proteges los datos de tus clientes. Incluye contacto para dudas y el periodo de retencion de informacion.",
-  terms_title: "Terminos y Condiciones",
-  terms_content:
-    "Aqui puedes definir condiciones de compra, envios, devoluciones, garantias, limitaciones de responsabilidad y uso general de la tienda.",
+  privacy_title: "Política de Privacidad",
+  privacy_content: `Bienvenido a nuestra Política de Privacidad. Aquí te explicamos cómo protegemos tu información.
+
+## 1. Recopilación de Información
+Recopilamos información cuando te registras, realizas una compra o te comunicas con nosotros. Esto incluye tu nombre, correo electrónico y dirección.
+
+## 2. Uso de la Información
+Usamos tus datos para procesar pedidos, mejorar nuestro servicio y enviarte actualizaciones sobre tu compra.
+
+## 3. Protección de Datos
+Mantenemos medidas de seguridad para proteger tu información personal. No compartimos tus datos con terceros sin tu consentimiento, excepto para cumplir con la ley o brindar nuestros servicios (ej. empresas de envío).
+
+## 4. Contacto
+Si tienes preguntas sobre esta política, contáctanos a través de nuestros canales de atención.`,
+  terms_title: "Términos y Condiciones",
+  terms_content: `Bienvenido a nuestra tienda. Al utilizar nuestro sitio, aceptas estos términos y condiciones.
+
+## 1. Uso del Sitio
+El contenido de estas páginas es para tu información y uso general. Está sujeto a cambios sin previo aviso.
+
+## 2. Compras y Pagos
+Al realizar un pedido, te comprometes a proporcionar información veraz. Los precios están sujetos a cambios. Nos reservamos el derecho de cancelar pedidos si hay errores en el precio o falta de stock.
+
+## 3. Envíos y Entregas
+Hacemos nuestro mejor esfuerzo para cumplir con los plazos de entrega, pero no nos hacemos responsables por retrasos causados por terceros (empresas de envío).
+
+## 4. Devoluciones
+Aceptamos devoluciones dentro de un plazo establecido si el producto presenta defectos de fábrica. Contáctanos para iniciar un reclamo.
+
+## 5. Limitación de Responsabilidad
+No seremos responsables por daños indirectos que surjan del uso de nuestro sitio o productos.`,
   delivery_enabled: true,
   delivery_fee: 5.0,
   free_shipping_threshold: 50.0,
