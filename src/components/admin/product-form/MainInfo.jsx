@@ -1,5 +1,5 @@
 import React from "react";
-import { Package, AlignLeft, FileText } from "lucide-react";
+import { Package, AlignLeft, FileText, Clock, Settings2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const MainInfo = ({ formData, setFormData, readOnly = false }) => {
@@ -88,6 +88,43 @@ const MainInfo = ({ formData, setFormData, readOnly = false }) => {
           disabled={readOnly}
         ></textarea>
       </div>
+
+      {/* --- CAMPOS ESPECÍFICOS DE SERVICIO --- */}
+      {formData.item_type === "service" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+          {/* Duración */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-500 ml-1 flex items-center gap-2">
+              <Clock size={12} /> Duración Estimada
+            </label>
+            <Input
+              name="service_duration"
+              placeholder="Ej: 1 hora, 30 minutos..."
+              className="h-12 px-6 rounded-md border-violet-100 dark:border-violet-900/50 bg-violet-50/30 dark:bg-violet-900/10 focus:ring-2 focus:ring-violet-500 transition-all font-medium text-sm"
+              value={formData.service_duration}
+              onChange={handleChange}
+              disabled={readOnly}
+            />
+          </div>
+
+          {/* Modalidad de Reserva */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-500 ml-1 flex items-center gap-2">
+              <Settings2 size={12} /> Modalidad de Reserva
+            </label>
+            <select
+              name="service_booking_mode"
+              value={formData.service_booking_mode || "whatsapp"}
+              onChange={handleChange}
+              disabled={readOnly}
+              className="w-full h-12 px-6 rounded-md border-violet-100 dark:border-violet-900/50 bg-violet-50/30 dark:bg-violet-900/10 focus:ring-2 focus:ring-violet-500 transition-all font-medium text-sm appearance-none outline-none"
+            >
+              <option value="whatsapp">Vía WhatsApp (Cotización/Cita)</option>
+              <option value="cart">Carrito de Compras (Pago directo)</option>
+            </select>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -121,9 +121,16 @@ export default function ProductTable({
                       )}
                     </div>
                     <div className="max-w-37.5 sm:max-w-xs">
-                      <p className="font-bold text-slate-900 dark:text-slate-200 text-sm truncate">
-                        {product.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-slate-900 dark:text-slate-200 text-sm truncate">
+                          {product.name}
+                        </p>
+                        {product.item_type === "service" && (
+                          <span className="text-[8px] bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-widest">
+                            Servicio
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
                         {product.category_names?.length > 0
                           ? product.category_names[0]
@@ -135,7 +142,13 @@ export default function ProductTable({
                   </div>
                 </td>
                 <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
-                  {product.use_variant_only_pricing || Number(product.price) === 0 ? (
+                  {product.item_type === "service" ? (
+                    displayPrice > 0 ? (
+                      `${getCurrencySymbol(targetCurrency)}${displayPrice.toFixed(2)}`
+                    ) : (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Consultar</span>
+                    )
+                  ) : product.use_variant_only_pricing || Number(product.price) === 0 ? (
                     minVariantPrice > 0 ? (
                       <div className="flex flex-col">
                         <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-0.5">Desde</span>
@@ -147,28 +160,36 @@ export default function ProductTable({
                         <span className="text-[10px] text-slate-400 font-bold italic">Configura precios</span>
                       </div>
                     )
+                  ) : displayPrice === 0 ? (
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Consultar</span>
                   ) : (
                     `${getCurrencySymbol(targetCurrency)}${displayPrice.toFixed(2)}`
                   )}
                 </td>
                 <td className="px-6 py-4 hidden sm:table-cell">
-                  <div className="flex flex-col gap-1">
-                    <span
-                      className={`text-xs font-black ${product.stock <= 5 ? "text-rose-500" : "text-slate-900 dark:text-white"}`}
-                    >
-                      {Number(product.stock) >= 999999 ? "Ilimitado" : product.stock}{" "}
-                      {Number(product.stock) < 999999 && (
-                        <span className="text-[9px] uppercase opacity-40">
-                          unds
+                  {product.item_type === "service" ? (
+                    <span className="text-[9px] font-black uppercase tracking-widest text-violet-500 bg-violet-50 dark:bg-violet-900/20 px-2 py-1 rounded-md">
+                      Sin stock
+                    </span>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={`text-xs font-black ${product.stock <= 5 ? "text-rose-500" : "text-slate-900 dark:text-white"}`}
+                      >
+                        {Number(product.stock) >= 999999 ? "Ilimitado" : product.stock}{" "}
+                        {Number(product.stock) < 999999 && (
+                          <span className="text-[9px] uppercase opacity-40">
+                            unds
+                          </span>
+                        )}
+                      </span>
+                      {product.stock <= 5 && (
+                        <span className="text-[7px] font-black uppercase tracking-tighter text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-md inline-block">
+                          Stock Bajo
                         </span>
                       )}
-                    </span>
-                    {product.stock <= 5 && (
-                      <span className="text-[7px] font-black uppercase tracking-tighter text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-md inline-block">
-                        Stock Bajo
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <span

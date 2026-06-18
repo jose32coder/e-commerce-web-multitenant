@@ -140,24 +140,30 @@ export async function createTenant(tenantData) {
     throw tenantError;
   }
 
-  // 2. Opcional: crear settings base para el tenant nuevo
-  await supabase
-    .from("site_settings")
-    .insert([{ tenant_id: tenant.tenant_id }]);
+  try {
+    // 2. Opcional: crear settings base para el tenant nuevo
+    const { error: settingsError } = await supabase
+      .from("site_settings")
+      .insert([{ tenant_id: tenant.tenant_id }]);
 
-  // 3. Usamos 'tenant_id' porque así se llama tu llave primaria en la tabla
-  const { data: invitation, error: invitationError } = await supabase
-    .from("invitations")
-    .insert([{ tenant_id: tenant.tenant_id }])
-    .select()
-    .single();
+    if (settingsError) throw settingsError;
 
-  if (invitationError) {
-    console.error("Error al crear invitación:", invitationError.message);
-    throw invitationError;
+    // 3. Usamos 'tenant_id' porque así se llama tu llave primaria en la tabla
+    const { data: invitation, error: invitationError } = await supabase
+      .from("invitations")
+      .insert([{ tenant_id: tenant.tenant_id }])
+      .select()
+      .single();
+
+    if (invitationError) throw invitationError;
+
+    return { tenant, invitation };
+  } catch (error) {
+    // Transacción compensatoria (rollback manual)
+    console.error("Error en pasos posteriores al crear tenant, haciendo rollback:", error.message);
+    await supabase.from("tenants").delete().eq("tenant_id", tenant.tenant_id);
+    throw error;
   }
-
-  return { tenant, invitation };
 }
 
 export async function updateTenant(tenantId, payload) {

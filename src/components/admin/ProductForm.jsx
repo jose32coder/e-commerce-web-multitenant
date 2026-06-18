@@ -75,6 +75,9 @@ const ProductForm = ({
     manage_stock: true, // Por defecto manejamos stock
     base_currency: commerce_settings?.currency_code || "USD",
     use_variant_only_pricing: false,
+    item_type: "product",
+    service_duration: "",
+    service_booking_mode: "whatsapp",
   });
 
   useEffect(() => {
@@ -104,6 +107,9 @@ const ProductForm = ({
           use_variant_only_pricing:
             editingProduct.use_variant_only_pricing ??
             (Number(editingProduct.price) === 0 && initialVariants.length > 0),
+          item_type: editingProduct.item_type || "product",
+          service_duration: editingProduct.service_duration || "",
+          service_booking_mode: editingProduct.service_booking_mode || "whatsapp",
         });
       } else {
         resetForm();
@@ -135,6 +141,9 @@ const ProductForm = ({
       manage_stock: true,
       base_currency: commerce_settings?.currency_code || "USD",
       use_variant_only_pricing: false,
+      item_type: "product",
+      service_duration: "",
+      service_booking_mode: "whatsapp",
     });
   };
 
@@ -148,7 +157,8 @@ const ProductForm = ({
 
   const fetchCategories = async () => {
     try {
-      const resp = await fetch("/api/categories");
+      const url = tenantId ? `/api/categories?tenant_id=${tenantId}` : "/api/categories";
+      const resp = await fetch(url);
       const result = await resp.json();
       console.log("Categorías obtenidas:", result);
 
@@ -282,11 +292,13 @@ const ProductForm = ({
     const errors = [];
     const variantOnlyPricing = formData.use_variant_only_pricing === true;
     const cleanedVariants = sanitizeVariants(formData.variants || []);
+    const isService = formData.item_type === "service";
     if (!formData.name?.trim()) errors.push("El nombre es obligatorio");
     if (!formData.category_ids || formData.category_ids.length === 0)
       errors.push("Selecciona al menos una categoría");
-    if (!variantOnlyPricing && (!formData.price || parseFloat(formData.price) <= 0))
-      errors.push("El precio base debe ser mayor a 0");
+    const parsedPrice = formData.price === "" ? 0 : parseFloat(formData.price);
+    if (!variantOnlyPricing && parsedPrice < 0)
+      errors.push("El precio base no puede ser negativo. Usa 0 para 'Consultar precio'.");
     if (
       variantOnlyPricing &&
       !cleanedVariants.some((variant) => Number(variant.price_adjustment) > 0)
@@ -298,8 +310,8 @@ const ProductForm = ({
     if ((formData.images || []).length > 5)
       errors.push("Solo se permiten hasta 5 imágenes por producto");
 
-    // Si no hay variantes y MANEJAMOS STOCK, el stock debe ser >= 0
-    if (formData.variants.length === 0 && formData.manage_stock) {
+    // Si no hay variantes, MANEJAMOS STOCK, y NO es servicio, el stock debe ser >= 0
+    if (!isService && formData.variants.length === 0 && formData.manage_stock) {
       if (formData.stock === "" || isNaN(formData.stock))
         errors.push("El stock es obligatorio para productos sin variantes");
     }
@@ -359,7 +371,7 @@ const ProductForm = ({
       // 5. Construir objeto final para enviar
       const finalFormData = {
         ...formData,
-        price: formData.use_variant_only_pricing ? 0 : formData.price,
+        price: formData.use_variant_only_pricing ? 0 : (formData.price === "" ? 0 : formData.price),
         discount_price: formData.use_variant_only_pricing
           ? ""
           : formData.discount_price,
@@ -394,10 +406,12 @@ const ProductForm = ({
 
       const result = await resp.json();
       if (result.success) {
+        const isService = formData.item_type === "service";
+        const itemLabel = isService ? "servicio" : "producto";
         Swal.fire({
           icon: "success",
           title: editingProduct ? "¡Actualizado!" : "¡Creado!",
-          text: `El producto se ha ${editingProduct ? "actualizado" : "guardado"} correctamente. Stock total: ${totalStock}`,
+          text: `El ${itemLabel} se ha ${editingProduct ? "actualizado" : "guardado"} correctamente.${!isService ? ` Stock total: ${totalStock}` : ""}`,
           timer: 2000,
           showConfirmButton: false,
           customClass: { popup: "rounded-[2rem]" },
@@ -434,13 +448,13 @@ const ProductForm = ({
             <div>
               <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
                 {readOnly
-                  ? "Detalles del Producto"
+                  ? (formData.item_type === "service" ? "Detalles del Servicio" : "Detalles del Producto")
                   : editingProduct
-                    ? "Editar Producto"
-                    : "Nuevo Producto"}
+                    ? (formData.item_type === "service" ? "Editar Servicio" : "Editar Producto")
+                    : (formData.item_type === "service" ? "Nuevo Servicio" : "Nuevo Producto")}
               </h3>
               <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold mt-1 uppercase tracking-[0.2em]">
-                Configuración de Catálogo e Inventario
+                {formData.item_type === "service" ? "Configuración de Servicio" : "Configuración de Catálogo e Inventario"}
               </p>
             </div>
           </div>
@@ -464,6 +478,34 @@ const ProductForm = ({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
               {/* Columna Principal (Información y Precios) */}
               <div className="lg:col-span-8 space-y-8 sm:space-y-10">
+                {/* Toggle Tipo de Item: Producto / Servicio */}
+                {!readOnly && (
+                  <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-full md:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, item_type: "product" }))}
+                      className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
+                        formData.item_type !== "service"
+                          ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white"
+                          : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      }`}
+                    >
+                      📦 Producto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, item_type: "service", manage_stock: false }))}
+                      className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
+                        formData.item_type === "service"
+                          ? "bg-violet-600 shadow-sm text-white"
+                          : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      }`}
+                    >
+                      🛠️ Servicio
+                    </button>
+                  </div>
+                )}
+
                 <MainInfo
                   formData={formData}
                   setFormData={setFormData}
@@ -497,14 +539,16 @@ const ProductForm = ({
                 />
               </div>
 
-              {/* Sección Inferior (Variantes) */}
-              <div className="lg:col-span-12 pt-8 border-t border-slate-100 dark:border-slate-800 mt-4">
-                <VariantManager
-                  formData={formData}
-                  setFormData={setFormData}
-                  readOnly={readOnly}
-                />
-              </div>
+              {/* Sección Inferior (Variantes) — solo para Productos */}
+              {formData.item_type !== "service" && (
+                <div className="lg:col-span-12 pt-8 border-t border-slate-100 dark:border-slate-800 mt-4">
+                  <VariantManager
+                    formData={formData}
+                    setFormData={setFormData}
+                    disabled={loading}
+                  />
+                </div>
+              )}
             </div>
           </div>
           {/* Footer de Acciones */}
@@ -531,7 +575,9 @@ const ProductForm = ({
                 ) : (
                   <>
                     <Save size={18} />{" "}
-                    {editingProduct ? "Actualizar Producto" : "Crear Producto"}
+                    {editingProduct
+                      ? (formData.item_type === "service" ? "Actualizar Servicio" : "Actualizar Producto")
+                      : (formData.item_type === "service" ? "Crear Servicio" : "Crear Producto")}
                   </>
                 )}
               </Button>

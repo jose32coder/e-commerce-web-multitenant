@@ -18,11 +18,12 @@ export async function generateMetadata({ params }) {
 
   const { site_name } = await getSiteConfig({ tenantId });
   const brand = site_name || DEFAULT_SITE_NAME;
+  const isService = product.item_type === "service";
 
   return {
     title: product.name,
     description:
-      product.description || `Descubre ${product.name} en ${brand}.`,
+      product.description || `${isService ? "Contrata" : "Descubre"} ${product.name} en ${brand}.`,
     openGraph: {
       images: [
         {

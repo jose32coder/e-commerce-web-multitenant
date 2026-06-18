@@ -15,6 +15,18 @@ export const STORE_TYPES = /** @type {const} */ ({
     label: "Floristería",
     badgeClass: "bg-zinc-50 text-zinc-700 ring-1 ring-inset ring-zinc-200",
   },
+  beauty_salon: {
+    label: "Salón de Belleza",
+    badgeClass: "bg-pink-50 text-pink-700 ring-1 ring-inset ring-pink-200",
+  },
+  tech_service: {
+    label: "Servicio Técnico",
+    badgeClass: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200",
+  },
+  general_services: {
+    label: "Servicios Generales",
+    badgeClass: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200",
+  },
 });
 
 export function getStoreTypeMeta(storeType) {

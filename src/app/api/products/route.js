@@ -57,6 +57,7 @@ export async function GET(request) {
   try {
     const supabase = await createClient();
     const tenantFromQuery = request.nextUrl.searchParams.get("tenant_id");
+    const itemTypeFromQuery = request.nextUrl.searchParams.get("item_type");
     const { tenantId } = await resolveTenantContext(supabase, {
       fallbackTenantId: tenantFromQuery,
     });
@@ -77,6 +78,9 @@ export async function GET(request) {
 
     if (tenantId) {
       query = query.eq("tenant_id", tenantId);
+    }
+    if (itemTypeFromQuery) {
+      query = query.eq("item_type", itemTypeFromQuery);
     }
 
     const { data, error } = await query.order("created_at", {
@@ -116,6 +120,9 @@ export async function POST(request) {
       tenant_id: payloadTenantId,
       use_variant_only_pricing,
       base_currency,
+      item_type,
+      service_duration,
+      service_booking_mode,
     } = body;
     const normalizedCategoryIds = [
       ...new Set((category_ids || []).filter(Boolean)),
@@ -138,11 +145,11 @@ export async function POST(request) {
         { status: 400 },
       );
     }
-    if (!variantOnlyPricing && !(parsedPrice > 0)) {
+    if (!variantOnlyPricing && !(parsedPrice >= 0)) {
       return NextResponse.json(
         {
           success: false,
-          error: "El precio base debe ser mayor a 0",
+          error: "El precio base no puede ser negativo",
         },
         { status: 400 },
       );
@@ -197,6 +204,9 @@ export async function POST(request) {
       tenant_id: tenantId,
       use_variant_only_pricing: variantOnlyPricing,
       base_currency: base_currency || "USD",
+      item_type: item_type || "product",
+      service_duration: service_duration || null,
+      service_booking_mode: service_booking_mode || "whatsapp",
     };
 
     let insertPayload = { ...productPayload };
@@ -243,7 +253,8 @@ export async function POST(request) {
     }
 
     const parsedStock = parseInt(stock) || 0;
-    if (parsedStock > 0) {
+    const isService = productPayload.item_type === "service";
+    if (!isService && parsedStock > 0) {
       const { error: stockEx } = await supabase.from("stock_movements").insert({
         tenant_id: tenantId,
         product_id: productId,

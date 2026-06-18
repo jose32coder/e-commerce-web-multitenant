@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import ProductCard from "@/components/public/products/ProductCard";
+import ServiceCard from "@/components/public/products/ServiceCard";
 
 export default function ProductCarouselSection({
   title,
@@ -154,7 +155,7 @@ export default function ProductCarouselSection({
             {title}
           </h2>
           <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-            {products.length} {products.length === 1 ? "producto" : "productos"}
+            {products.length} {products.length === 1 ? "ítem" : "ítems"}
           </span>
         </div>
       </div>
@@ -186,12 +187,20 @@ export default function ProductCarouselSection({
                 key={`${product.id}-${idx}`}
                 className="w-[200px] sm:w-[230px] md:w-[300px] lg:w-[340px] xl:w-[380px] shrink-0 px-1 sm:px-2 md:px-3"
               >
-                <ProductCard
-                  product={product}
-                  index={idx}
-                  allCategories={categories}
-                  onSheetOpenChange={setIsSheetOpen}
-                />
+                {product.item_type === "service" ? (
+                  <ServiceCard
+                    service={product}
+                    index={idx}
+                    allCategories={categories}
+                  />
+                ) : (
+                  <ProductCard
+                    product={product}
+                    index={idx}
+                    allCategories={categories}
+                    onSheetOpenChange={setIsSheetOpen}
+                  />
+                )}
               </div>
             ))}
           </div>

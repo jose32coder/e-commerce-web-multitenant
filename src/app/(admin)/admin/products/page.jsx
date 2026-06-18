@@ -27,6 +27,7 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [viewOnly, setViewOnly] = useState(false);
   const [statusFilter, setStatusFilter] = useState("Todos los estados");
+  const [typeFilter, setTypeFilter] = useState("all"); // "all" | "product" | "service"
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
@@ -104,11 +105,17 @@ export default function ProductsPage() {
       (statusFilter === "Publicados" && p.status === "published") ||
       (statusFilter === "Borradores" && p.status !== "published") ||
       (statusFilter === "Stock bajo" &&
+        p.item_type !== "service" && // Los servicios no tienen stock bajo
         Number(p.stock) <= 5 &&
         Number(p.stock) >= 0 &&
         Number(p.stock) < 999999);
 
-    return matchesSearch && matchesStatus;
+    const matchesType =
+      typeFilter === "all" ||
+      (typeFilter === "product" && p.item_type !== "service") ||
+      (typeFilter === "service" && p.item_type === "service");
+
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   useEffect(() => {
@@ -539,10 +546,16 @@ export default function ProductsPage() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
-            Productos
+            Catálogo
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Gestiona el stock y precios de tus productos.
+            Gestiona productos y servicios de tu tienda.
+            <span className="ml-2 text-[10px] font-bold uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-400">
+              {products.filter(p => p.item_type !== "service").length} productos
+            </span>
+            <span className="ml-1 text-[10px] font-bold uppercase tracking-widest bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded text-violet-600 dark:text-violet-400">
+              {products.filter(p => p.item_type === "service").length} servicios
+            </span>
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
@@ -570,6 +583,27 @@ export default function ProductsPage() {
       </header>
 
       <ExportButtons onExport={handleExport} loading={exportLoading} />
+
+      {/* Filtro rápido por tipo */}
+      <div className="flex gap-2">
+        {[
+          { key: "all", label: "Todos" },
+          { key: "product", label: "📦 Productos" },
+          { key: "service", label: "🛠️ Servicios" },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTypeFilter(key)}
+            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+              typeFilter === key
+                ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm"
+                : "bg-white dark:bg-slate-800 text-slate-400 border border-slate-100 dark:border-slate-700 hover:border-slate-300"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <ProductFilters
         searchTerm={searchTerm}

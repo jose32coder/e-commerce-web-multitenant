@@ -126,6 +126,11 @@ export const DEFAULT_PRODUCTS_INTRO = {
   description: "Compra todo lo que necesitas en un solo lugar.",
 };
 
+export const DEFAULT_SERVICES_INTRO = {
+  title: "Nuestros Servicios",
+  description: "Descubre los servicios que tenemos para ofrecerte, diseñados a tu medida.",
+};
+
 export const TENANT_SELECTOR_CARD_VARIANT_EDITORIAL = "editorial";
 export const TENANT_SELECTOR_CARD_VARIANT_MINIMAL = "minimal";
 
@@ -150,6 +155,12 @@ export const DEFAULT_HEADER_MENU = [
   {
     id: "slot-1",
     label: "Productos",
+    target_type: "category",
+    target_id: null,
+  },
+  {
+    id: "slot-2",
+    label: "Servicios",
     target_type: "category",
     target_id: null,
   },
@@ -679,6 +690,10 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
       ...DEFAULT_PRODUCTS_INTRO,
       ...(data.products_intro || {}),
     },
+    services_intro: {
+      ...DEFAULT_SERVICES_INTRO,
+      ...(data.services_intro || {}),
+    },
     header_menu: normalizeHeaderMenu(data.header_menu),
     promo_divider: normalizePromoDivider(data.promo_divider),
     footer_settings: normalizeFooterSettings(
@@ -712,6 +727,7 @@ export const returnDefaults = (tenantId = null) => ({
   ],
   home_intro: DEFAULT_HOME_INTRO,
   products_intro: DEFAULT_PRODUCTS_INTRO,
+  services_intro: DEFAULT_SERVICES_INTRO,
   header_menu: DEFAULT_HEADER_MENU,
   promo_divider: DEFAULT_PROMO_DIVIDER,
   footer_settings: DEFAULT_FOOTER_SETTINGS,

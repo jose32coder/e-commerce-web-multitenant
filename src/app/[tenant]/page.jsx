@@ -6,7 +6,7 @@ import Link from "next/link";
 import AnimatedHeader from "@/components/AnimatedHeader";
 import HomeHero from "@/components/public/home-hero/HomeHero";
 import PromoDivider from "@/components/PromoDivider";
-import { getProducts } from "@/services/products";
+import { getProducts, getHomeServices } from "@/services/products";
 import { getPublicCategoriesFlat } from "@/services/categories";
 import { getTenantIdBySlugCached } from "@/lib/siteConfig.server";
 import ProductCarouselSection from "@/components/public/products/ProductCarouselSection";
@@ -19,9 +19,10 @@ export default async function HomePage({ params }) {
   // Usa caché directa en memoria sin Cookies (¡ISR puro!)
   const tenantId = await getTenantIdBySlugCached(tenant);
 
-  // 1. Obtener todos los productos y las categorías en paralelo
-  const [productsRaw, categories] = await Promise.all([
+  // 1. Obtener todos los productos, servicios y las categorías en paralelo
+  const [productsRaw, servicesRaw, categories] = await Promise.all([
     getProducts(tenantId),
+    getHomeServices(tenantId),
     getPublicCategoriesFlat(tenantId),
   ]);
 
@@ -29,6 +30,11 @@ export default async function HomePage({ params }) {
   const allProducts = productsRaw.map((product) => ({
     ...product,
     category: categories.find((cat) => cat.id === product.category_id) || null,
+  }));
+
+  const homeServices = servicesRaw.map((service) => ({
+    ...service,
+    category: categories.find((cat) => cat.id === service.category_id) || null,
   }));
 
   // 3. Clasificación de productos según las reglas de ofertas y destacados
@@ -71,7 +77,15 @@ export default async function HomePage({ params }) {
             direction="right"
           />
 
-          {ofertasProducts.length === 0 && featuredProducts.length === 0 && (
+          {/* Carrusel de Servicios Destacados (Derecha a Izquierda) */}
+          <ProductCarouselSection
+            title="Nuestros Servicios"
+            products={homeServices}
+            categories={categories}
+            direction="left"
+          />
+
+          {ofertasProducts.length === 0 && featuredProducts.length === 0 && homeServices.length === 0 && (
             <div className="py-24 text-center">
               <p className="text-honey-dark font-serif italic text-lg max-w-md mx-auto">
                 Parece que aún no tenemos piezas destacadas ni en oferta

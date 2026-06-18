@@ -143,10 +143,10 @@ const PricingStock = ({
             )}
           </div>
           <Input
-            required={!variantOnlyPricing}
             type="number"
             name="price"
             step="0.01"
+            min="0"
             placeholder="0.00"
             className="h-10 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 dark:text-white rounded-md font-bold text-lg px-3 focus-visible:ring-1 focus-visible:ring-slate-400 transition-all no-spin"
             value={formData.price}
@@ -154,9 +154,13 @@ const PricingStock = ({
             onFocus={handleFocus}
             disabled={readOnly || variantOnlyPricing}
           />
-          {variantOnlyPricing && (
+          {variantOnlyPricing ? (
             <p className="mt-2 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               El precio final lo define la variante seleccionada.
+            </p>
+          ) : (
+            <p className="mt-2 text-[9px] font-medium text-slate-500 dark:text-slate-400">
+              Si dejas el precio en 0, se mostrará como "Consultar precio" y pedirá cotización.
             </p>
           )}
 
@@ -258,9 +262,10 @@ const PricingStock = ({
         </div>
 
         {/* Stock Total */}
-        <div
-          className={`${cardBaseStyle} ${autoCalculated || !formData.manage_stock ? "bg-slate-50/50 dark:bg-slate-900/50 border-dashed" : "focus-within:border-slate-400"}`}
-        >
+        {formData.item_type !== "service" && (
+          <div
+            className={`${cardBaseStyle} ${autoCalculated || !formData.manage_stock ? "bg-slate-50/50 dark:bg-slate-900/50 border-dashed" : "focus-within:border-slate-400"}`}
+          >
           <div className="flex items-center justify-between mb-2 md:mb-3">
             <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded">
@@ -322,6 +327,7 @@ const PricingStock = ({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Asistente de Conversión */}

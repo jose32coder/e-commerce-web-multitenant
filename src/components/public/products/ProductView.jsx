@@ -25,6 +25,7 @@ import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { convertPrice, formatPrice } from "@/services/exchangeRates";
 import { createClient } from "@/lib/supabase/client";
 import { shareProduct } from "@/lib/shareProduct";
+import { buildServiceWhatsappMessage } from "@/lib/serviceWhatsappMessage";
 
 export default function ProductView({ product }) {
   const { site_name, commerce_settings, tenant_slug, exchange_rates } =
@@ -51,6 +52,9 @@ export default function ProductView({ product }) {
     base_currency = "USD",
     use_variant_only_pricing,
     stock,
+    item_type,
+    service_duration,
+    service_booking_mode,
   } = product;
 
   const [currentStock, setCurrentStock] = useState(Number(stock) || 0);
@@ -182,7 +186,9 @@ export default function ProductView({ product }) {
       : currentStock <= 0;
 
   const isLowStock =
-    selectedVariantStock !== null
+    item_type === "service"
+      ? false
+      : selectedVariantStock !== null
       ? selectedVariantStock > 0 && selectedVariantStock < 5
       : currentStock > 0 && currentStock < 5;
 
@@ -386,17 +392,23 @@ export default function ProductView({ product }) {
               {name}
             </h1>
             <div className="mt-2 flex items-end gap-3">
-              {hasActiveOffer && !isVariantOnlyPricing && (
+              {hasActiveOffer && !isVariantOnlyPricing && finalPrice !== 0 && (
                 <p className="text-sm font-semibold text-red-500 line-through">
                   {currencySymbol}
                   {formatPrice(finalRegularPrice, targetCurrency)}
                 </p>
               )}
-              <p className="text-3xl font-bold text-black">
-                {isVariantOnlyPricing && !selectedVariant ? "Desde " : ""}
-                {currencySymbol}
-                {formatPrice(finalPrice, targetCurrency)}
-              </p>
+              {finalPrice === 0 ? (
+                <p className="text-3xl font-bold text-black uppercase tracking-tighter">
+                  Consultar precio
+                </p>
+              ) : (
+                <p className="text-3xl font-bold text-black">
+                  {isVariantOnlyPricing && !selectedVariant ? "Desde " : ""}
+                  {currencySymbol}
+                  {formatPrice(finalPrice, targetCurrency)}
+                </p>
+              )}
             </div>
             {rawPriceOverride > 0 && !isVariantOnlyPricing && (
               <p className="mt-1 text-xs font-medium text-amber-700">
@@ -416,7 +428,7 @@ export default function ProductView({ product }) {
               </p>
             )}
 
-            {isLowStock && !isOutOfStock && (
+            {isLowStock && !isOutOfStock && item_type !== "service" && (
               <div className="mt-4 inline-flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -439,7 +451,7 @@ export default function ProductView({ product }) {
               </div>
             )}
 
-            {isOutOfStock && (
+            {isOutOfStock && item_type !== "service" && (
               <div className="mt-4 bg-slate-100 border border-slate-200 px-4 py-2 rounded-lg">
                 <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">
                   Producto Agotado
@@ -501,14 +513,37 @@ export default function ProductView({ product }) {
             </div>
           ) : (
             <p className="text-xs text-honey-dark italic">
-              Producto sin variantes. Agrega al carrito o compra ahora para
-              continuar.
+              {item_type === "service"
+                ? "Este servicio no requiere opciones adicionales."
+                : "Producto sin variantes. Agrega al carrito o compra ahora para continuar."}
             </p>
           )}
 
           {/* ---- BOTONES ---- */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-4">
-            {isOutOfStock ? (
+            {item_type === "service" && service_booking_mode === "whatsapp" ? (
+              <Button
+                size="lg"
+                asChild
+                className="col-span-full h-14 font-bold cursor-pointer tracking-widest bg-[#25D366] hover:bg-[#128C7E] text-white transition-all duration-300"
+              >
+                <a
+                  href={`https://wa.me/${commerce.whatsapp_number}?text=${encodeURIComponent(
+                    buildServiceWhatsappMessage({
+                      brand,
+                      serviceName: name,
+                      duration: service_duration,
+                      optionsLabel: hasVariants && !allAttrsSelected ? undefined : Object.values(selectedAttrs).join(" / "),
+                      priceLabel: `${currencySymbol}${formatPrice(finalPrice, targetCurrency)}`,
+                    })
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Solicitar por WhatsApp
+                </a>
+              </Button>
+            ) : isOutOfStock && item_type !== "service" ? (
               canInquiry ? (
                 <Button
                   size="lg"
@@ -537,16 +572,16 @@ export default function ProductView({ product }) {
                 <Button
                   size="lg"
                   onClick={handleAddToCart}
-                  disabled={selectedVariantOutOfStock}
+                  disabled={selectedVariantOutOfStock && item_type !== "service"}
                   className="w-full h-14 font-bold cursor-pointer tracking-widest transition-all border-slate active:scale-95 hover:bg-black hover:text-white duration-300"
                 >
-                  Agregar al carrito
+                  {item_type === "service" ? "Reservar" : "Agregar al carrito"}
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   onClick={handleBuyNow}
-                  disabled={selectedVariantOutOfStock}
+                  disabled={selectedVariantOutOfStock && item_type !== "service"}
                   className="w-full h-14 font-bold cursor-pointer tracking-widest border border-black transition-all active:scale-95 hover:bg-black hover:text-white duration-300"
                 >
                   Comprar ahora

@@ -44,6 +44,9 @@ export async function PUT(request, { params }) {
       tenant_id: payloadTenantId,
       use_variant_only_pricing,
       base_currency,
+      item_type,
+      service_duration,
+      service_booking_mode,
     } = body;
 
     const normalizedCategoryIds = [
@@ -57,9 +60,9 @@ export async function PUT(request, { params }) {
         Number(variant?.price_adjustment ?? variant?.price_override ?? 0) > 0,
     );
 
-    if (!variantOnlyPricing && !(parsedPrice > 0)) {
+    if (!variantOnlyPricing && !(parsedPrice >= 0)) {
       return NextResponse.json(
-        { success: false, error: "El precio base debe ser mayor a 0" },
+        { success: false, error: "El precio base no puede ser negativo" },
         { status: 400 },
       );
     }
@@ -96,6 +99,9 @@ export async function PUT(request, { params }) {
         normalizedCategoryIds.length > 0 ? normalizedCategoryIds[0] : null,
       use_variant_only_pricing: variantOnlyPricing,
       base_currency: base_currency || "USD",
+      item_type: item_type || "product",
+      service_duration: service_duration || null,
+      service_booking_mode: service_booking_mode || "whatsapp",
     };
 
     let updatePayload = { ...productPayload };
@@ -141,8 +147,9 @@ export async function PUT(request, { params }) {
       ? Number(currentStockObj.quantity)
       : 0;
     const stockDiff = parsedStock - currentStockQuant;
+    const isService = updatePayload.item_type === "service";
 
-    if (stockDiff !== 0) {
+    if (!isService && stockDiff !== 0) {
       // Insertamos movimiento para el historial
       await supabase.from("stock_movements").insert({
         tenant_id: tenantId,

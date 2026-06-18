@@ -16,9 +16,12 @@ const normalizeProductVariants = (variants = []) =>
   }));
 
 const normalizeProduct = (product) => {
-  const stockObj = Array.isArray(product.product_stock)
-    ? product.product_stock[0]
-    : product.product_stock;
+  // product_stock puede ser undefined para servicios (no se incluye en la query)
+  const stockObj = product.product_stock
+    ? Array.isArray(product.product_stock)
+      ? product.product_stock[0]
+      : product.product_stock
+    : null;
 
   const normalizedVariants = normalizeProductVariants(product.product_variants);
 
@@ -47,20 +50,27 @@ const getCachedAnonymousClient = () => {
   );
 };
 
+const PRODUCT_SELECT_QUERY = `
+  *,
+  product_variants(*),
+  product_stock(quantity),
+  product_categories(category_id)
+`;
+
+const SERVICE_SELECT_QUERY = `
+  *,
+  product_variants(*),
+  product_categories(category_id)
+`;
+
 export async function getProducts(tenantId = null, supabaseClient = null) {
   const supabase = supabaseClient || getCachedAnonymousClient();
 
   let query = supabase
     .from("products")
-    .select(
-      `
-    *,
-    product_variants(*),
-    product_stock(quantity),
-    product_categories(category_id)
-`,
-    )
-    .eq("status", "published");
+    .select(PRODUCT_SELECT_QUERY)
+    .eq("status", "published")
+    .eq("item_type", "product");
 
   if (tenantId) {
     query = query.eq("tenant_id", tenantId);
@@ -80,16 +90,10 @@ export async function getHomeProducts(tenantId = null, supabaseClient = null) {
 
   let query = supabase
     .from("products")
-    .select(
-      `
-      *,
-      product_variants(*),
-      product_stock(quantity),
-      product_categories(category_id)
-    `,
-    )
+    .select(PRODUCT_SELECT_QUERY)
     .eq("status", "published")
     .eq("featured", true)
+    .eq("item_type", "product")
     .order("created_at", { ascending: false });
 
   if (tenantId) {
@@ -117,14 +121,7 @@ export async function getProductBySlug(
 
   let query = supabase
     .from("products")
-    .select(
-      `
-      *,
-      product_variants(*),
-      product_stock(quantity),
-      product_categories(category_id)
-    `,
-    )
+    .select(PRODUCT_SELECT_QUERY)
     .eq("slug", slug)
     .eq("status", "published");
 
@@ -140,4 +137,51 @@ export async function getProductBySlug(
   }
 
   return normalizeProduct(product);
+}
+
+export async function getServices(tenantId = null, supabaseClient = null) {
+  const supabase = supabaseClient || getCachedAnonymousClient();
+
+  let query = supabase
+    .from("products")
+    .select(SERVICE_SELECT_QUERY)
+    .eq("status", "published")
+    .eq("item_type", "service");
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching services:", error.message);
+    return [];
+  }
+  return (data || []).map(normalizeProduct);
+}
+
+export async function getHomeServices(tenantId = null, supabaseClient = null) {
+  const supabase = supabaseClient || getCachedAnonymousClient();
+
+  let query = supabase
+    .from("products")
+    .select(SERVICE_SELECT_QUERY)
+    .eq("status", "published")
+    .eq("featured", true)
+    .eq("item_type", "service")
+    .order("created_at", { ascending: false });
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data: products, error } = await query;
+
+  if (error) {
+    console.error("Error fetching home services:", error.message);
+    return [];
+  }
+
+  return (products || []).map(normalizeProduct);
 }

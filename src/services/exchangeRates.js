@@ -39,12 +39,17 @@ export async function getExchangeRates(supabaseClient) {
       return await pendingRequest;
     }
 
-    // 3. Intentar leer de Supabase DB
-    const { data: cached, error: dbError } = await supabaseClient
-      .from("exchange_rates")
-      .select("*")
-      .eq("id", "current_rates")
-      .maybeSingle();
+    // 3. Intentar leer de Supabase DB (solo si se proveyó el cliente)
+    let cached = null;
+    if (supabaseClient) {
+      const { data, error: dbError } = await supabaseClient
+        .from("exchange_rates")
+        .select("*")
+        .eq("id", "current_rates")
+        .maybeSingle();
+      
+      cached = data;
+    }
 
     if (cached && cached.rates) {
       const lastUpdate = new Date(cached.last_update).getTime();
@@ -84,13 +89,19 @@ export async function getExchangeRates(supabaseClient) {
             ? new Date(data.time_next_update_unix * 1000)
             : null;
 
-          // 5. Guardar en Supabase DB
-          await supabaseClient.from("exchange_rates").upsert({
-            id: "current_rates",
-            rates: rates,
-            last_update: new Date().toISOString(),
-            next_update: nextUpdate ? nextUpdate.toISOString() : null,
-          });
+          // 5. Guardar en Supabase DB (si hay cliente disponible)
+          if (supabaseClient) {
+            try {
+              await supabaseClient.from("exchange_rates").upsert({
+                id: "current_rates",
+                rates: rates,
+                last_update: new Date().toISOString(),
+                next_update: nextUpdate ? nextUpdate.toISOString() : null,
+              });
+            } catch (e) {
+              console.warn("[Exchange] Error guardando en DB:", e.message);
+            }
+          }
 
           // 6. Guardar en localStorage
           if (typeof window !== "undefined") {

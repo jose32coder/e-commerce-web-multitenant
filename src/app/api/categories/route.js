@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveTenantContext } from "@/lib/tenantContext";
 import { buildCategoryTree, normalizeParentIds } from "@/lib/categoryRelations";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/categories
 export async function GET(request) {
   const supabase = await createClient();
@@ -12,21 +14,23 @@ export async function GET(request) {
   const storeType = searchParams.get("store_type");
   const tenantFromQuery = searchParams.get("tenant_id");
 
-  let query = supabase.from("categories").select("*");
-
   // LÓGICA DE FILTRADO
   const { tenantId, user, role } = await resolveTenantContext(supabase, {
     fallbackTenantId: tenantFromQuery,
   });
 
+  console.log("[GET /api/categories] tenantId:", tenantId, "| user:", user?.id ?? "none", "| tenantFromQuery:", tenantFromQuery);
+
   let effectiveStoreType = storeType;
 
   // Si no pasaron store_type explícito, lo buscamos del tenant
   if (!effectiveStoreType && tenantId) {
-    const { data: tenants } = await supabase
+    const { data: tenants, error: tenantErr } = await supabase
       .from("tenants")
       .select("store_type")
       .eq("tenant_id", tenantId);
+
+    console.log("[GET /api/categories] tenants lookup:", tenants, "| error:", tenantErr?.message);
     
     const tenantData = tenants?.[0];
     if (tenantData?.store_type) {
@@ -34,28 +38,39 @@ export async function GET(request) {
     }
   }
 
-  if (tenantId) {
-    if (effectiveStoreType) {
-      // Retorna las globales del store_type + las personalizadas del tenant (mismo store_type).
-      // Back-compat: incluye tenant categories con store_type NULL.
-      query = query.or(
-        `and(tenant_id.eq.${tenantId},store_type.eq.${effectiveStoreType}),and(tenant_id.eq.${tenantId},store_type.is.null),and(tenant_id.is.null,store_type.eq.${effectiveStoreType})`,
-      );
-    } else {
-      // Solo las del tenant
-      query = query.eq("tenant_id", tenantId);
-    }
-  } else if (effectiveStoreType) {
-    // Si no hay tenant (ej. Super Admin preview), solo trae maestras de ese tipo
-    query = query.is("tenant_id", null).eq("store_type", effectiveStoreType);
-  } else {
-    // Escenario de error o sin filtros - devolvemos vacío para no saturar
+  console.log("[GET /api/categories] effectiveStoreType:", effectiveStoreType);
+
+  if (!tenantId && !effectiveStoreType) {
+    // Sin tenant ni store_type, no podemos filtrar
+    console.log("[GET /api/categories] No tenantId nor storeType → returning []");
     return NextResponse.json({ success: true, data: [] });
+  }
+
+  // Construir query: siempre traemos las del tenant + las globales de su store_type
+  let query = supabase.from("categories").select("*");
+
+  if (tenantId && effectiveStoreType) {
+    // Categorías del tenant (cualquier store_type o null) + globales del store_type
+    query = query.or(
+      `tenant_id.eq.${tenantId},and(tenant_id.is.null,store_type.eq.${effectiveStoreType})`,
+    );
+  } else if (tenantId) {
+    // Solo las del tenant (no sabemos store_type)
+    query = query.eq("tenant_id", tenantId);
+  } else {
+    // Solo globales del store_type
+    query = query.is("tenant_id", null).eq("store_type", effectiveStoreType);
   }
 
   const { data: categories, error } = await query.order("name", {
     ascending: true,
   });
+
+  console.log("[GET /api/categories] categories count:", categories?.length ?? 0, "| error:", error?.message);
+
+  // DEBUG: Let's see what categories exist at all
+  const { data: allCats } = await supabase.from("categories").select("id, name, store_type, tenant_id").limit(10);
+  console.log("[DEBUG] Sample categories from DB:", allCats);
 
   if (error) {
     return NextResponse.json(
